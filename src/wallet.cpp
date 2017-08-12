@@ -1426,14 +1426,14 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, int nConfMine, int
 
 
   // If possible, solve subset sum by dynamic programming
-  // Adeed by maxihatop
+  // Adeed by olegarch
 
-  // Maximap DP array size
+  // Maximap DP array size. Default=64MB (3200EMC)
   static uint32_t nMaxDP = 0;
-  if(nMaxDP == 0) 
-      nMaxDP = GetArg("-maxdp", 8 * 1024 * 1024);
+  if(nMaxDP == 0)
+      nMaxDP = GetArg("-maxdp", 32 * 1024 * 1024);
 
-  uint16_t *dp;	// dynamic programming array
+  uint16_t *dp;	// Dynamic programming array
   uint32_t dp_tgt = nTargetValue / MIN_TXOUT_AMOUNT;
   if(dp_tgt < nMaxDP && (dp = (uint16_t*)calloc(dp_tgt + 1, sizeof(uint16_t))) != NULL) {
     dp[0] = 1; // Zero CENTs can be reached anyway
