@@ -84,6 +84,11 @@ public:
     const std::vector<unsigned char>& Base58Prefix(Base58Type type) const { return base58Prefixes[type]; }
     const std::vector<CAddress>& FixedSeeds() const { return vFixedSeeds; }
     virtual const Checkpoints::CCheckpointData& Checkpoints() const = 0;
+
+    int BIP34Height() const { return nBIP34Height; }
+    int BIP65Height() const { return nBIP65Height; }
+    int BIP66Height() const { return nBIP66Height; }
+    int MMHeight() const { return nMMHeight; }
 protected:
     CChainParams() {}
 
@@ -119,6 +124,11 @@ protected:
     bool fMineBlocksOnDemand;
     bool fSkipProofOfWorkCheck;
     bool fTestnetToBeDeprecatedFieldRPC;
+
+    int nBIP34Height;
+    int nBIP65Height;
+    int nBIP66Height;
+    int nMMHeight;
 };
 
 /** 

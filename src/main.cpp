@@ -1920,13 +1920,13 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     // Start enforcing the DERSIG (BIP66) rules, for block.nVersion=3 blocks,
     // when 75% of the network has upgraded:
-    if (block.nVersion >= 3 && CBlockIndex::IsSuperMajority(3, pindex->pprev, Params().EnforceBlockUpgradeMajority())) {
+    if (pindex->nHeight >= Params().BIP66Height()) {
         flags |= SCRIPT_VERIFY_DERSIG;
     }
 
     // Start enforcing CHECKLOCKTIMEVERIFY, (BIP65) for block.nVersion=4
     // blocks, when 75% of the network has upgraded:
-    if (block.nVersion >= 4 && CBlockIndex::IsSuperMajority(4, pindex->pprev, Params().EnforceBlockUpgradeMajority())) {
+    if (pindex->nHeight >= Params().BIP65Height()) {
         flags |= SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
     }
 
@@ -2954,45 +2954,19 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, bool fProofOfStake, C
     if (pcheckpoint && nHeight < pcheckpoint->nHeight)
         return state.DoS(100, error("%s : forked chain older than last checkpoint (height %d)", __func__, nHeight));
 
-    // Reject block.nVersion=1 blocks when 95% (75% on testnet) of the network has upgraded:
-    if (block.nVersion < 2 &&
-        CBlockIndex::IsSuperMajority(2, pindexPrev, Params().RejectBlockOutdatedMajority()))
-    {
-        return state.Invalid(error("%s : rejected nVersion=1 block", __func__),
-                             REJECT_OBSOLETE, "bad-version");
-    }
+    // Reject outdated version blocks when 95% (75% on testnet) of the network has upgraded:
+    // check for version 2, 3 and 4 upgrades
+    if ((block.nVersion < 2 && nHeight >= Params().BIP34Height()) ||
+        (block.nVersion < 3 && nHeight >= Params().BIP66Height()) ||
+        (block.nVersion < 4 && nHeight >= Params().BIP65Height()) ||
+        (block.nVersion < 5 && nHeight >= Params().MMHeight()))
+            return state.Invalid(error(strprintf("rejected nVersion=0x%08x block", block.nVersion).c_str()),
+                             REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion));
 
-    // Reject block.nVersion=2 blocks when 95% (75% on testnet) of the network has upgraded:
-    if (block.nVersion < 3 && CBlockIndex::IsSuperMajority(3, pindexPrev, Params().RejectBlockOutdatedMajority()))
-    {
-        return state.Invalid(error("%s : rejected nVersion=2 block", __func__),
-                             REJECT_OBSOLETE, "bad-version");
-    }
-
-    // Reject block.nVersion=3 blocks when 95% (75% on testnet) of the network has upgraded:
-    if (block.nVersion < 4 && CBlockIndex::IsSuperMajority(4, pindexPrev, Params().RejectBlockOutdatedMajority()))
-        return state.Invalid(error("%s : rejected nVersion=3 block", __func__),
-                             REJECT_OBSOLETE, "bad-version");
-
-    // emercoin: reject pre-merged mining blocks and check if auxpow is allowed
-    // note: both checks must execute in this order
-    {
-        // Reject block.nVersion=4 blocks when 95% (75% on testnet) of the network has upgraded:
-        if (block.nVersion < 5 && CBlockIndex::IsSuperMajority(5, pindexPrev, Params().RejectBlockOutdatedMajority()))
-        {
-            return state.Invalid(error("%s : rejected nVersion=4 block", __func__),
-                                 REJECT_OBSOLETE, "bad-version");
-        }
-
-        // Check if auxpow is allowed
-        static bool fAllowAuxPow = false;
-        if (!fAllowAuxPow && CBlockIndex::IsSuperMajority(5, pindexPrev, Params().RejectBlockOutdatedMajority()))
-            fAllowAuxPow = true;
-
-        if (block.auxpow.get() != NULL && !fAllowAuxPow)
-            return state.DoS(100, error("%s : premature auxpow block", __func__),
-                             REJECT_INVALID, "time-too-new");
-    }
+    // Check if auxpow is allowed
+    if (block.auxpow.get() != NULL && nHeight < Params().MMHeight())  //nHeight == 219831
+        return state.DoS(100, error("%s : premature auxpow block", __func__),
+                         REJECT_INVALID, "time-too-new");
 
     return true;
 }
@@ -3009,14 +2983,12 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 
     // Enforce block.nVersion=2 rule that the coinbase starts with serialized block height
     // if 750 of the last 1,000 blocks are version 2 or greater (51/100 if testnet):
-    if (block.nVersion >= 2 &&
-        CBlockIndex::IsSuperMajority(2, pindexPrev, Params().EnforceBlockUpgradeMajority()))
+    if (nHeight >= Params().BIP34Height())
     {
         CScript expect = CScript() << nHeight;
         if (block.vtx[0].vin[0].scriptSig.size() < expect.size() ||
-            !std::equal(expect.begin(), expect.end(), block.vtx[0].vin[0].scriptSig.begin())) {
-            return state.DoS(100, error("%s : block height mismatch in coinbase", __func__), REJECT_INVALID, "bad-cb-height");
-        }
+            !std::equal(expect.begin(), expect.end(), block.vtx[0].vin[0].scriptSig.begin()))
+                return state.DoS(100, error("%s : block height mismatch in coinbase", __func__), REJECT_INVALID, "bad-cb-height");
     }
 
     return true;
