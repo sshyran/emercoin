@@ -106,7 +106,7 @@ static const unsigned char REJECT_CHECKPOINT = 0x43;
 
 /** emercoin constants */
 static const CAmount MAX_MINT_PROOF_OF_WORK = 5020 * COIN;
-static const CAmount MIN_TXOUT_AMOUNT = MIN_TX_FEE;
+static const CAmount MIN_TXOUT_AMOUNT = SUBCENT;
 static const int STAKE_MIN_AGE = 60 * 60 * 24 * 30;      // minimum age for coin age
 static const int64_t nMaxClockDrift = 2 * 60 * 60;       // two hours
 
@@ -411,6 +411,11 @@ bool AcceptBlockHeader(const CBlockHeader& block, bool fProofOfStake, CValidatio
 bool SignBlock(CBlock& block, const CKeyStore& keystore);
 bool CheckBlockSignature(const CBlock& block);
 
+// emercoin: check that tx output is not below MIN_TX_AMOUNT
+CAmount GetMinTxOut(CBlockIndex *pindex);
+CAmount GetMinTxOutLOCKED(CBlockIndex *pindex);
+bool CheckMinTxOut(const CTransaction& tx, CBlockIndex *pindex);
+bool CheckMinTxOut(const CBlock& block, CBlockIndex *pindex);
 
 
 class CBlockFileInfo
@@ -548,7 +553,7 @@ bool InvalidateBlock(CValidationState& state, CBlockIndex *pindex);
 bool ReconsiderBlock(CValidationState& state, CBlockIndex *pindex);
 
 // ppcoin:
-bool GetCoinAge(const CTransaction& tx, CValidationState &state, const CCoinsViewCache &view, uint64_t& nCoinAge);
+bool GetCoinAge(const CTransaction& tx, const CCoinsViewCache &view, uint64_t& nCoinAge);
 bool GetCoinAge(const CBlock& block, uint64_t &nCoinAge);
 
 /** The currently-connected chain of blocks. */

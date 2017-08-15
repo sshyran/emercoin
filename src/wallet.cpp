@@ -1594,6 +1594,7 @@ bool CWallet::CreateTransactionInner(const vector<pair<CScript, CAmount> >& vecS
     {
         LOCK2(cs_main, cs_wallet);
         {
+            CAmount nMinOut = GetMinTxOut(chainActive.Tip());
             nFeeRet = max(nFeeInput, MIN_TX_FEE);  // emercoin: a good starting point, probably...
             while (true)
             {
@@ -1656,7 +1657,7 @@ bool CWallet::CreateTransactionInner(const vector<pair<CScript, CAmount> >& vecS
                 }
 
                 // ppcoin: sub-cent change is moved to fee
-                if (nChange > 0 && nChange < MIN_TXOUT_AMOUNT)
+                if (nChange > 0 && nChange < nMinOut)
                 {
                     nFeeRet += nChange;
                     nChange = 0;
@@ -1969,8 +1970,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
     {
         uint64_t nCoinAge;
         CCoinsViewCache view(*pcoinsTip);
-        CValidationState state;
-        if (!GetCoinAge(txNew, state, view, nCoinAge))
+        if (!GetCoinAge(txNew, view, nCoinAge))
             return error("CreateCoinStake : failed to calculate coin age");
         nCredit += GetProofOfStakeReward(nCoinAge);
     }

@@ -149,12 +149,12 @@ bool NameActive(const CNameVal& name, int currentBlockHeight = -1)
 // Returns minimum name operation fee rounded down to cents. Should be used during|before transaction creation.
 // If you wish to calculate if fee is enough - use IsNameFeeEnough() function.
 // Generaly:  GetNameOpFee() > IsNameFeeEnough().
-CAmount GetNameOpFee(const CBlockIndex* pindexBlock, const int nRentalDays, int op, const CNameVal& name, const CNameVal& value)
+CAmount GetNameOpFee(const CBlockIndex* pindex, const int nRentalDays, int op, const CNameVal& name, const CNameVal& value)
 {
     if (op == OP_NAME_DELETE)
         return MIN_TX_FEE;
 
-    const CBlockIndex* lastPoW = GetLastBlockIndex(pindexBlock, false);
+    const CBlockIndex* lastPoW = GetLastBlockIndex(pindex, false);
 
     CAmount txMinFee = nRentalDays * lastPoW->nMint / (365 * 100); // 1% PoW per 365 days
 
@@ -168,8 +168,12 @@ CAmount GetNameOpFee(const CBlockIndex* pindexBlock, const int nRentalDays, int 
     txMinFee += CENT - 1;
     txMinFee = (txMinFee / CENT) * CENT;
 
+    // reduce fee by 100 in new version
+    bool fV6Rule = pindex->nVersion >= 6 && CBlockIndex::IsSuperMajority(6, pindex->pprev, Params().EnforceBlockUpgradeMajority());
+    if (fV6Rule) txMinFee = txMinFee / 100;
+
     // Fee should be at least MIN_TX_FEE
-    txMinFee = max(txMinFee, MIN_TX_FEE);
+    txMinFee = max(txMinFee, fV6Rule ? MIN_TX_FEE : CENT);
 
     return txMinFee;
 }
@@ -1217,8 +1221,9 @@ NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, 
         }
 
     // set fee and send!
+        bool fV6Rule = chainActive.Tip()->nVersion >= 6 && CBlockIndex::IsSuperMajority(6, chainActive.Tip()->pprev, Params().EnforceBlockUpgradeMajority());
         CAmount nameFee = GetNameOpFee(chainActive.Tip(), nRentalDays, op, name, value);
-        SendName(nameScript, MIN_TXOUT_AMOUNT, wtx, wtxIn, nameFee);
+        SendName(nameScript, fV6Rule ? MIN_TXOUT_AMOUNT : CENT, wtx, wtxIn, nameFee);
     }
 
     //success! collect info and return

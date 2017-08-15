@@ -58,7 +58,7 @@ class CBlockHeader
 public:
     // header
     static const int32_t NORMAL_SERIALIZE_SIZE=80;
-    static const int32_t CURRENT_VERSION=5;
+    static const int32_t CURRENT_VERSION=6;
     int32_t nVersion;
     uint256 hashPrevBlock;
     uint256 hashMerkleRoot;

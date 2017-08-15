@@ -219,6 +219,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
     QSet<QString> setAddress; // Used to detect duplicates
     int nAddresses = 0;
 
+    CAmount minOut = GetMinTxOut(chainActive.Tip());
+
     // Pre-check input data for validity
     foreach(const SendCoinsRecipient &rcp, recipients)
     {
@@ -229,7 +231,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
             for (int i = 0; i < details.outputs_size(); i++)
             {
                 const payments::Output& out = details.outputs(i);
-                if (out.amount() <= MIN_TXOUT_AMOUNT) continue;
+                if (out.amount() < (unsigned CAmount)minOut) // should be ok, because minOut should always be a number >= 0
+                    continue;
                 subtotal += out.amount();
                 const unsigned char* scriptStr = (const unsigned char*)out.script().data();
                 CScript scriptPubKey(scriptStr, scriptStr+out.script().size());
@@ -247,7 +250,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
             {
                 return InvalidAddress;
             }
-            if(rcp.amount < MIN_TXOUT_AMOUNT)
+            if(rcp.amount < minOut)
             {
                 return InvalidAmount;
             }

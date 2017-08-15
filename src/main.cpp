@@ -876,9 +876,6 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state)
     {
         if (txout.IsEmpty() && (!tx.IsCoinBase()) && (!tx.IsCoinStake()))
             return state.DoS(100, error("CTransaction::CheckTransaction() : txout empty for user transaction"));
-        // ppcoin: enforce minimum output amount
-        if ((!txout.IsEmpty()) && txout.nValue < MIN_TXOUT_AMOUNT)
-            return state.DoS(100, error("CTransaction::CheckTransaction() : txout.nValue below minimum"));
         if (txout.nValue > MAX_MONEY)
             return state.DoS(100, error("CheckTransaction() : txout.nValue too high"),
                              REJECT_INVALID, "bad-txns-vout-toolarge");
@@ -954,6 +951,9 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
 
     if (!CheckTransaction(tx, state))
         return error("AcceptToMemoryPool: : CheckTransaction failed");
+
+    if (!CheckMinTxOut(tx, chainActive.Tip()))
+        return error("AcceptToMemoryPool: : CheckMinTxOut failed");
 
     // Coinbase is only valid in a block, not as a loose transaction
     if (tx.IsCoinBase())
@@ -1579,18 +1579,7 @@ bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsVi
 
         }
 
-        if (tx.IsCoinStake())
-        {
-            // ppcoin: coin stake tx earns reward instead of paying fee
-            uint64_t nCoinAge;
-            if (!GetCoinAge(tx, state, inputs, nCoinAge))
-                return error("CheckInputs() : %s unable to get coin age for coinstake", tx.GetHash().ToString());
-            int64_t nStakeReward = tx.GetValueOut() - nValueIn;
-            if (nStakeReward > GetProofOfStakeReward(nCoinAge) - tx.GetMinFee() + MIN_TX_FEE)
-                return state.DoS(100, error("CheckInputs() : %s stake reward exceeded", tx.GetHash().ToString()),
-                                 REJECT_INVALID, "bad-txns-coinstake-too-large");
-        }
-        else
+        if (!tx.IsCoinStake())
         {
             if (nValueIn < tx.GetValueOut())
                 return state.DoS(100, error("CheckInputs() : %s value in (%s) < value out (%s)",
@@ -1865,6 +1854,20 @@ bool ppcoinContextualBlockChecks(const CBlock& block, CValidationState& state, C
     return true;
 }
 
+static bool CheckCoinbaseReward(const CBlock& block, CValidationState& state, CBlockIndex * const pindexPrev)
+{
+    // emercoin: moved from CheckBlock(), because this check now depends on context
+    // Check coinbase reward
+    bool fV6Rule = block.nVersion >= 6 && CBlockIndex::IsSuperMajority(6, pindexPrev, Params().EnforceBlockUpgradeMajority());
+    CAmount txFeeCancelation = fV6Rule ? MIN_TX_FEE : CENT;
+    CAmount powLimit = block.IsProofOfWork() ? GetProofOfWorkReward(block.nBits) - block.vtx[0].GetMinFee() + txFeeCancelation : 0;
+    if (block.vtx[0].GetValueOut() > powLimit)
+        return state.DoS(100, error("ContextualCheckBlock() : coinbase pays too much (actual=%d vs limit=%d)",
+                         block.vtx[0].GetValueOut(), powLimit), REJECT_INVALID, "bad-cb-amount");
+    else
+        return true;
+}
+
 bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pindex, CCoinsViewCache& view, bool fJustCheck, bool fWriteNames)
 {
     if (!ppcoinContextualBlockChecks(block, state, pindex, fJustCheck))
@@ -1872,7 +1875,9 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     AssertLockHeld(cs_main);
     // Check it again in case a previous version let a bad block in
-    if (!CheckBlock(block, state, !fJustCheck, !fJustCheck, !fJustCheck))
+    if (!CheckBlock(block, state, !fJustCheck, !fJustCheck, !fJustCheck) ||
+        !CheckCoinbaseReward(block, state, pindex->pprev) ||
+        !CheckMinTxOut(block, pindex))
         return false;
 
     // verify that the view's current state corresponds to the previous block
@@ -1990,6 +1995,21 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             {
                 vFees[i] = nTxValueIn-nTxValueOut;
                 nFees += nTxValueIn-nTxValueOut;
+            }
+
+            // emercoin: moved to here from CheckInputs(), because this check now depends on context
+            if (tx.IsCoinStake())
+            {
+                // ppcoin: coin stake tx earns reward instead of paying fee
+                uint64_t nCoinAge;
+                if (!GetCoinAge(tx, view, nCoinAge))
+                    return error("CheckInputs() : %s unable to get coin age for coinstake", tx.GetHash().ToString());
+                int64_t nStakeReward = tx.GetValueOut() - nValueIn;
+                bool fV6Rule = block.nVersion >= 6 && CBlockIndex::IsSuperMajority(6, pindex->pprev, Params().EnforceBlockUpgradeMajority());
+                CAmount txFeeCancelation = fV6Rule ? MIN_TX_FEE : CENT;
+                if (nStakeReward > GetProofOfStakeReward(nCoinAge) - tx.GetMinFee() + txFeeCancelation)
+                    return state.DoS(100, error("ConnectBlock() : %s stake reward exceeded", tx.GetHash().ToString()),
+                                     REJECT_INVALID, "bad-txns-coinstake-too-large");
             }
 
             std::vector<CScriptCheck> vChecks;
@@ -2550,7 +2570,7 @@ bool ReconsiderBlock(CValidationState& state, CBlockIndex *pindex) {
 // guaranteed to be in main chain by sync-checkpoint. This rule is
 // introduced to help nodes establish a consistent view of the coin
 // age (trust score) of competing branches.
-bool GetCoinAge(const CTransaction& tx, CValidationState &state, const CCoinsViewCache &view, uint64_t& nCoinAge)
+bool GetCoinAge(const CTransaction& tx, const CCoinsViewCache &view, uint64_t& nCoinAge)
 {
     uint256 bnCentSecond = 0;  // coin age in the unit of cent-seconds
     nCoinAge = 0;
@@ -2618,8 +2638,7 @@ bool GetCoinAge(const CBlock& block, uint64_t& nCoinAge)
     BOOST_FOREACH(const CTransaction& tx, block.vtx)
     {
         uint64_t nTxCoinAge;
-        CValidationState state;
-        if (GetCoinAge(tx, state, view, nTxCoinAge))
+        if (GetCoinAge(tx, view, nTxCoinAge))
             nCoinAge += nTxCoinAge;
         else
             return false;
@@ -2873,14 +2892,6 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
         return state.DoS(50, error("CheckBlock() : coinstake timestamp violation nTimeBlock=%u nTimeTx=%u", block.GetBlockTime(), block.vtx[1].nTime),
                 REJECT_INVALID, "bad-cs-time");
 
-    // Check coinbase reward
-    CAmount powLimit = block.IsProofOfWork() ? GetProofOfWorkReward(block.nBits) - block.vtx[0].GetMinFee() + MIN_TX_FEE : 0;
-    if (block.vtx[0].GetValueOut() > powLimit)
-        return state.DoS(100,
-                         error("ConnectBlock() : coinbase pays too much (actual=%d vs limit=%d)",
-                               block.vtx[0].GetValueOut(), powLimit),
-                               REJECT_INVALID, "bad-cb-amount");
-
     // Check transactions
     BOOST_FOREACH(const CTransaction& tx, block.vtx)
     {
@@ -2963,6 +2974,11 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, bool fProofOfStake, C
             return state.Invalid(error(strprintf("rejected nVersion=0x%08x block", block.nVersion).c_str()),
                              REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion));
 
+    // Reject block.nVersion < 6 blocks when 95% (75% on testnet) of the network has upgraded:
+    if (block.nVersion < 6 && CBlockIndex::IsSuperMajority(6, pindexPrev, Params().RejectBlockOutdatedMajority()))
+        return state.Invalid(error(strprintf("rejected nVersion=0x%08x block", block.nVersion).c_str()),
+                         REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion));
+
     // Check if auxpow is allowed
     if (block.auxpow.get() != NULL && nHeight < Params().MMHeight())  //nHeight == 219831
         return state.DoS(100, error("%s : premature auxpow block", __func__),
@@ -2971,9 +2987,14 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, bool fProofOfStake, C
     return true;
 }
 
+// emercoin: note, this function can process blocks without strict order
+// use it only if all needed context information can be obtain from headers (headers are always in strict order)
 bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIndex * const pindexPrev)
 {
     const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
+
+    if (!CheckCoinbaseReward(block, state, pindexPrev))
+        return false;
 
     // Check that all transactions are finalized
     BOOST_FOREACH(const CTransaction& tx, block.vtx)
@@ -3057,7 +3078,10 @@ bool AcceptBlock(CBlock& block, CValidationState& state, CBlockIndex** ppindex, 
         return true;
     }
 
-    if ((!CheckBlock(block, state)) || !ContextualCheckBlock(block, state, pindex->pprev)) {
+    if (!CheckBlock(block, state) ||
+        !ContextualCheckBlock(block, state, pindex->pprev) ||
+        !CheckMinTxOut(block, pindex))
+    {
         if (state.IsInvalid() && !state.CorruptionPossible()) {
             pindex->nStatus |= BLOCK_FAILED_VALID;
             setDirtyBlockIndex.insert(pindex);
@@ -3262,6 +3286,43 @@ bool CheckBlockSignature(const CBlock& block)
         return key.Verify(block.GetHash(), block.vchBlockSig);
     }
     return false;
+}
+
+CAmount GetMinTxOut(CBlockIndex *pindex)
+{
+    bool fV6Rule = pindex->nVersion >= 6 && CBlockIndex::IsSuperMajority(6, pindex->pprev, Params().EnforceBlockUpgradeMajority());
+    return fV6Rule ? MIN_TXOUT_AMOUNT : CENT;
+}
+
+CAmount GetMinTxOutLOCKED(CBlockIndex *pindex)
+{
+    LOCK(cs_main);
+    return GetMinTxOut(pindex);
+}
+
+bool CheckMinTxOut(const CTransaction& tx, CBlockIndex *pindex)
+{
+    CAmount minOut = GetMinTxOut(pindex);
+    BOOST_FOREACH(const CTxOut& txout, tx.vout)
+    {
+        // ppcoin: enforce minimum output amount
+        if ((!txout.IsEmpty()) && txout.nValue < minOut)
+            return false;
+    }
+    return true;
+}
+
+bool CheckMinTxOut(const CBlock& block, CBlockIndex *pindex)
+{
+    CAmount minOut = GetMinTxOut(pindex);
+    BOOST_FOREACH(const CTransaction& tx, block.vtx)
+        BOOST_FOREACH(const CTxOut& txout, tx.vout)
+        {
+            // ppcoin: enforce minimum output amount
+            if ((!txout.IsEmpty()) && txout.nValue < minOut)
+                return false;
+        }
+    return true;
 }
 
 
