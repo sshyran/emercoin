@@ -2980,7 +2980,7 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, bool fProofOfStake, C
                          REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion));
 
     // Check if auxpow is allowed
-    if (block.auxpow.get() != NULL && nHeight < Params().MMHeight())  //nHeight == 219831
+    if (block.auxpow.get() != NULL && nHeight < Params().MMHeight())
         return state.DoS(100, error("%s : premature auxpow block", __func__),
                          REJECT_INVALID, "time-too-new");
 

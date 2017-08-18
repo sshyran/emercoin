@@ -241,11 +241,10 @@ public:
         fMineBlocksOnDemand = false;
         fTestnetToBeDeprecatedFieldRPC = true;
 
-        //emc set these for testnet
-        nBIP34Height = 0;
-        nBIP65Height = 0;
-        nBIP66Height = 0;
-        nMMHeight = 0;
+        nBIP34Height = 141;
+        nBIP65Height = 368;
+        nBIP66Height = 141;
+        nMMHeight = 2189;
     }
     const Checkpoints::CCheckpointData& Checkpoints() const 
     {
