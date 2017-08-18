@@ -59,7 +59,7 @@ public:
     // header
     static const int32_t NORMAL_SERIALIZE_SIZE=80;
     static const int32_t CURRENT_VERSION=6;
-    int32_t nVersion;
+    int32_t nVersion;     // emercoin: it might contain merged mining information in higher bits. Use GetBlockVersion() to ignore it.
     uint256 hashPrevBlock;
     uint256 hashMerkleRoot;
     uint32_t nTime;
@@ -123,6 +123,11 @@ public:
     }
 
     void SetAuxPow(CAuxPow* pow);
+
+    int32_t GetBlockVersion() const
+    {
+        return nVersion & 0xff;
+    }
 };
 
 

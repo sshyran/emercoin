@@ -106,7 +106,7 @@ static const unsigned char REJECT_CHECKPOINT = 0x43;
 
 /** emercoin constants */
 static const CAmount MAX_MINT_PROOF_OF_WORK = 5020 * COIN;
-static const CAmount MIN_TXOUT_AMOUNT = SUBCENT;
+static const CAmount MIN_TXOUT_AMOUNT = MIN_TX_FEE;
 static const int STAKE_MIN_AGE = 60 * 60 * 24 * 30;      // minimum age for coin age
 static const int64_t nMaxClockDrift = 2 * 60 * 60;       // two hours
 

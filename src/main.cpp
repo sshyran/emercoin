@@ -1858,7 +1858,7 @@ static bool CheckCoinbaseReward(const CBlock& block, CValidationState& state, CB
 {
     // emercoin: moved from CheckBlock(), because this check now depends on context
     // Check coinbase reward
-    bool fV6Rule = block.nVersion >= 6 && CBlockIndex::IsSuperMajority(6, pindexPrev, Params().EnforceBlockUpgradeMajority());
+    bool fV6Rule = block.GetBlockVersion() >= 6 && CBlockIndex::IsSuperMajority(6, pindexPrev, Params().EnforceBlockUpgradeMajority());
     CAmount txFeeCancelation = fV6Rule ? MIN_TX_FEE : CENT;
     CAmount powLimit = block.IsProofOfWork() ? GetProofOfWorkReward(block.nBits) - block.vtx[0].GetMinFee() + txFeeCancelation : 0;
     if (block.vtx[0].GetValueOut() > powLimit)
@@ -2005,7 +2005,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 if (!GetCoinAge(tx, view, nCoinAge))
                     return error("CheckInputs() : %s unable to get coin age for coinstake", tx.GetHash().ToString());
                 int64_t nStakeReward = tx.GetValueOut() - nValueIn;
-                bool fV6Rule = block.nVersion >= 6 && CBlockIndex::IsSuperMajority(6, pindex->pprev, Params().EnforceBlockUpgradeMajority());
+                bool fV6Rule = block.GetBlockVersion() >= 6 && CBlockIndex::IsSuperMajority(6, pindex->pprev, Params().EnforceBlockUpgradeMajority());
                 CAmount txFeeCancelation = fV6Rule ? MIN_TX_FEE : CENT;
                 if (nStakeReward > GetProofOfStakeReward(nCoinAge) - tx.GetMinFee() + txFeeCancelation)
                     return state.DoS(100, error("ConnectBlock() : %s stake reward exceeded", tx.GetHash().ToString()),
@@ -2192,7 +2192,7 @@ void static UpdateTip(CBlockIndex *pindexNew) {
         const CBlockIndex* pindex = chainActive.Tip();
         for (int i = 0; i < 100 && pindex != NULL; i++)
         {
-            if (pindex->nVersion > CBlock::CURRENT_VERSION &&
+            if (pindex->GetBlockVersion() > CBlock::CURRENT_VERSION &&
                (pindex->nVersion & ~BLOCK_VERSION_AUXPOW) != (CBlockHeader::CURRENT_VERSION | (AUXPOW_CHAIN_ID * BLOCK_VERSION_CHAIN_START)))
                 ++nUpgraded;
             pindex = pindex->pprev;
@@ -2967,15 +2967,15 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, bool fProofOfStake, C
 
     // Reject outdated version blocks when 95% (75% on testnet) of the network has upgraded:
     // check for version 2, 3 and 4 upgrades
-    if ((block.nVersion < 2 && nHeight >= Params().BIP34Height()) ||
-        (block.nVersion < 3 && nHeight >= Params().BIP66Height()) ||
-        (block.nVersion < 4 && nHeight >= Params().BIP65Height()) ||
-        (block.nVersion < 5 && nHeight >= Params().MMHeight()))
+    if ((block.GetBlockVersion() < 2 && nHeight >= Params().BIP34Height()) ||
+        (block.GetBlockVersion() < 3 && nHeight >= Params().BIP66Height()) ||
+        (block.GetBlockVersion() < 4 && nHeight >= Params().BIP65Height()) ||
+        (block.GetBlockVersion() < 5 && nHeight >= Params().MMHeight()))
             return state.Invalid(error(strprintf("rejected nVersion=0x%08x block", block.nVersion).c_str()),
                              REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion));
 
     // Reject block.nVersion < 6 blocks when 95% (75% on testnet) of the network has upgraded:
-    if (block.nVersion < 6 && CBlockIndex::IsSuperMajority(6, pindexPrev, Params().RejectBlockOutdatedMajority()))
+    if (block.GetBlockVersion() < 6 && CBlockIndex::IsSuperMajority(6, pindexPrev, Params().RejectBlockOutdatedMajority()))
         return state.Invalid(error(strprintf("rejected nVersion=0x%08x block", block.nVersion).c_str()),
                          REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion));
 
@@ -3128,7 +3128,7 @@ bool CBlockIndex::IsSuperMajority(int minVersion, const CBlockIndex* pstart, uns
     unsigned int nFound = 0;
     for (unsigned int i = 0; i < nToCheck && nFound < nRequired && pstart != NULL; i++)
     {
-        if (pstart->nVersion >= minVersion)
+        if (pstart->GetBlockVersion() >= minVersion)
             ++nFound;
         pstart = pstart->pprev;
     }
@@ -3290,7 +3290,7 @@ bool CheckBlockSignature(const CBlock& block)
 
 CAmount GetMinTxOut(CBlockIndex *pindex)
 {
-    bool fV6Rule = pindex->nVersion >= 6 && CBlockIndex::IsSuperMajority(6, pindex->pprev, Params().EnforceBlockUpgradeMajority());
+    bool fV6Rule = pindex->GetBlockVersion() >= 6 && CBlockIndex::IsSuperMajority(6, pindex->pprev, Params().EnforceBlockUpgradeMajority());
     return fV6Rule ? MIN_TXOUT_AMOUNT : CENT;
 }
 
