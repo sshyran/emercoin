@@ -231,7 +231,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
             for (int i = 0; i < details.outputs_size(); i++)
             {
                 const payments::Output& out = details.outputs(i);
-                if (out.amount() < (unsigned CAmount)minOut) // should be ok, because minOut should always be a number >= 0
+                if (out.amount() < (uint64_t)minOut) // should be ok, because minOut should always be a number >= 0
                     continue;
                 subtotal += out.amount();
                 const unsigned char* scriptStr = (const unsigned char*)out.script().data();
