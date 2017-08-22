@@ -1858,7 +1858,7 @@ static bool CheckCoinbaseReward(const CBlock& block, CValidationState& state, CB
 {
     // emercoin: moved from CheckBlock(), because this check now depends on context
     // Check coinbase reward
-    bool fV6Rule = block.GetBlockVersion() >= 6 && CBlockIndex::IsSuperMajority(6, pindexPrev, Params().EnforceBlockUpgradeMajority());
+    bool fV6Rule = block.GetBlockVersion() >= 6 && CBlockIndex::IsSuperMajority(6, pindexPrev, Params().RejectBlockOutdatedMajority());
     CAmount txFeeCancelation = fV6Rule ? MIN_TX_FEE : CENT;
     CAmount powLimit = block.IsProofOfWork() ? GetProofOfWorkReward(block.nBits) - block.vtx[0].GetMinFee() + txFeeCancelation : 0;
     if (block.vtx[0].GetValueOut() > powLimit)
@@ -1877,7 +1877,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     // Check it again in case a previous version let a bad block in
     if (!CheckBlock(block, state, !fJustCheck, !fJustCheck, !fJustCheck) ||
         !CheckCoinbaseReward(block, state, pindex->pprev) ||
-        !CheckMinTxOut(block, pindex))
+        !CheckMinTxOut(block, pindex->pprev))
         return false;
 
     // verify that the view's current state corresponds to the previous block
@@ -2005,7 +2005,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 if (!GetCoinAge(tx, view, nCoinAge))
                     return error("CheckInputs() : %s unable to get coin age for coinstake", tx.GetHash().ToString());
                 int64_t nStakeReward = tx.GetValueOut() - nValueIn;
-                bool fV6Rule = block.GetBlockVersion() >= 6 && CBlockIndex::IsSuperMajority(6, pindex->pprev, Params().EnforceBlockUpgradeMajority());
+                bool fV6Rule = block.GetBlockVersion() >= 6 && CBlockIndex::IsSuperMajority(6, pindex->pprev, Params().RejectBlockOutdatedMajority());
                 CAmount txFeeCancelation = fV6Rule ? MIN_TX_FEE : CENT;
                 if (nStakeReward > GetProofOfStakeReward(nCoinAge) - tx.GetMinFee() + txFeeCancelation)
                     return state.DoS(100, error("ConnectBlock() : %s stake reward exceeded", tx.GetHash().ToString()),
@@ -3080,7 +3080,7 @@ bool AcceptBlock(CBlock& block, CValidationState& state, CBlockIndex** ppindex, 
 
     if (!CheckBlock(block, state) ||
         !ContextualCheckBlock(block, state, pindex->pprev) ||
-        !CheckMinTxOut(block, pindex))
+        !CheckMinTxOut(block, pindex->pprev))
     {
         if (state.IsInvalid() && !state.CorruptionPossible()) {
             pindex->nStatus |= BLOCK_FAILED_VALID;
@@ -3290,7 +3290,7 @@ bool CheckBlockSignature(const CBlock& block)
 
 CAmount GetMinTxOut(CBlockIndex *pindex)
 {
-    bool fV6Rule = pindex->GetBlockVersion() >= 6 && CBlockIndex::IsSuperMajority(6, pindex->pprev, Params().EnforceBlockUpgradeMajority());
+    bool fV6Rule = pindex->GetBlockVersion() >= 6 && CBlockIndex::IsSuperMajority(6, pindex, Params().RejectBlockOutdatedMajority());
     return fV6Rule ? MIN_TXOUT_AMOUNT : CENT;
 }
 

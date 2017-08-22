@@ -169,7 +169,7 @@ CAmount GetNameOpFee(const CBlockIndex* pindex, const int nRentalDays, int op, c
     txMinFee = (txMinFee / CENT) * CENT;
 
     // reduce fee by 100 in new version
-    bool fV6Rule = pindex->GetBlockVersion() >= 6 && CBlockIndex::IsSuperMajority(6, pindex->pprev, Params().EnforceBlockUpgradeMajority());
+    bool fV6Rule = pindex->GetBlockVersion() >= 6 && CBlockIndex::IsSuperMajority(6, pindex->pprev, Params().RejectBlockOutdatedMajority());
     if (fV6Rule) txMinFee = txMinFee / 100;
 
     // Fee should be at least MIN_TX_FEE
@@ -1221,7 +1221,7 @@ NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, 
         }
 
     // set fee and send!
-        bool fV6Rule = chainActive.Tip()->GetBlockVersion() >= 6 && CBlockIndex::IsSuperMajority(6, chainActive.Tip()->pprev, Params().EnforceBlockUpgradeMajority());
+        bool fV6Rule = chainActive.Tip()->GetBlockVersion() >= 6 && CBlockIndex::IsSuperMajority(6, chainActive.Tip(), Params().RejectBlockOutdatedMajority());
         CAmount nameFee = GetNameOpFee(chainActive.Tip(), nRentalDays, op, name, value);
         SendName(nameScript, fV6Rule ? MIN_TXOUT_AMOUNT : CENT, wtx, wtxIn, nameFee);
     }
