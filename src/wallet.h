@@ -885,7 +885,6 @@ public:
 
     bool WriteToDisk();
 
-    int64_t GetTxTime() const;
     int GetRequestCount() const;
 
     void RelayWalletTransaction();

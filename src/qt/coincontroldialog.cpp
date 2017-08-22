@@ -754,8 +754,8 @@ void CoinControlDialog::updateView()
             itemOutput->setText(COLUMN_AMOUNT_INT64, strPad(QString::number(out.tx->vout[out.i].nValue), 15, " ")); // padding so that sorting works correctly
 
             // date
-            itemOutput->setText(COLUMN_DATE, GUIUtil::dateTimeStr(out.tx->GetTxTime()));
-            itemOutput->setText(COLUMN_DATE_INT64, strPad(QString::number(out.tx->GetTxTime()), 20, " "));
+            itemOutput->setText(COLUMN_DATE, GUIUtil::dateTimeStr(out.tx->nTime));
+            itemOutput->setText(COLUMN_DATE_INT64, strPad(QString::number(out.tx->nTime), 20, " "));
 
             // confirmations
             itemOutput->setText(COLUMN_CONFIRMATIONS, strPad(QString::number(out.nDepth), 8, " "));

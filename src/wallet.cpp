@@ -801,12 +801,6 @@ bool CWallet::IsChange(const CTxOut& txout) const
     return false;
 }
 
-int64_t CWalletTx::GetTxTime() const
-{
-    int64_t n = nTimeSmart;
-    return n ? n : nTimeReceived;
-}
-
 int CWalletTx::GetRequestCount() const
 {
     // Returns -1 if it wasn't being tracked
