@@ -1,5 +1,5 @@
 Name:           emercoin
-Version:        0.6.2.1
+Version:        0.6.3
 Release:        1%{dist}
 Summary:        Emercoin Wallet
 Group:          Applications/Internet
