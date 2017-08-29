@@ -219,7 +219,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
     QSet<QString> setAddress; // Used to detect duplicates
     int nAddresses = 0;
 
-    CAmount minOut = GetMinTxOut(chainActive.Tip());
+    CAmount minOut = GetMinTxOutLOCKED(chainActive.Tip()->GetBlockVersion(), chainActive.Tip()->pprev);
 
     // Pre-check input data for validity
     foreach(const SendCoinsRecipient &rcp, recipients)

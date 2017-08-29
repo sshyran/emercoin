@@ -1221,7 +1221,7 @@ NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, 
         }
 
     // set fee and send!
-        bool fV6Rule = chainActive.Tip()->GetBlockVersion() >= 6 && CBlockIndex::IsSuperMajority(6, chainActive.Tip(), Params().RejectBlockOutdatedMajority());
+        bool fV6Rule = chainActive.Tip()->GetBlockVersion() >= 6 && CBlockIndex::IsSuperMajority(6, chainActive.Tip()->pprev, Params().RejectBlockOutdatedMajority());
         CAmount nameFee = GetNameOpFee(chainActive.Tip(), nRentalDays, op, name, value);
         SendName(nameScript, fV6Rule ? MIN_TXOUT_AMOUNT : CENT, wtx, wtxIn, nameFee);
     }

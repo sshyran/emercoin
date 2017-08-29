@@ -1588,7 +1588,7 @@ bool CWallet::CreateTransactionInner(const vector<pair<CScript, CAmount> >& vecS
     {
         LOCK2(cs_main, cs_wallet);
         {
-            CAmount nMinOut = GetMinTxOut(chainActive.Tip());
+            CAmount nMinOut = GetMinTxOut(chainActive.Tip()->GetBlockVersion(), chainActive.Tip()->pprev);
             nFeeRet = max(nFeeInput, MIN_TX_FEE);  // emercoin: a good starting point, probably...
             while (true)
             {

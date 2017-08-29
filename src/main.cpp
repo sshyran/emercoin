@@ -952,7 +952,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
     if (!CheckTransaction(tx, state))
         return error("AcceptToMemoryPool: : CheckTransaction failed");
 
-    if (!CheckMinTxOut(tx, chainActive.Tip()))
+    if (!CheckMinTxOut(tx, chainActive.Tip()->GetBlockVersion(), chainActive.Tip()->pprev))
         return error("AcceptToMemoryPool: : CheckMinTxOut failed");
 
     // Coinbase is only valid in a block, not as a loose transaction
@@ -3288,21 +3288,21 @@ bool CheckBlockSignature(const CBlock& block)
     return false;
 }
 
-CAmount GetMinTxOut(CBlockIndex *pindex)
+CAmount GetMinTxOut(int nVersion, CBlockIndex *pindexPrev)
 {
-    bool fV6Rule = pindex->GetBlockVersion() >= 6 && CBlockIndex::IsSuperMajority(6, pindex, Params().RejectBlockOutdatedMajority());
+    bool fV6Rule = nVersion >= 6 && CBlockIndex::IsSuperMajority(6, pindexPrev, Params().RejectBlockOutdatedMajority());
     return fV6Rule ? MIN_TXOUT_AMOUNT : CENT;
 }
 
-CAmount GetMinTxOutLOCKED(CBlockIndex *pindex)
+CAmount GetMinTxOutLOCKED(int nVersion, CBlockIndex *pindexPrev)
 {
     LOCK(cs_main);
-    return GetMinTxOut(pindex);
+    return GetMinTxOut(nVersion, pindexPrev);
 }
 
-bool CheckMinTxOut(const CTransaction& tx, CBlockIndex *pindex)
+bool CheckMinTxOut(const CTransaction& tx, int nVersion, CBlockIndex *pindexPrev)
 {
-    CAmount minOut = GetMinTxOut(pindex);
+    CAmount minOut = GetMinTxOut(nVersion, pindexPrev);
     BOOST_FOREACH(const CTxOut& txout, tx.vout)
     {
         // ppcoin: enforce minimum output amount
@@ -3312,9 +3312,9 @@ bool CheckMinTxOut(const CTransaction& tx, CBlockIndex *pindex)
     return true;
 }
 
-bool CheckMinTxOut(const CBlock& block, CBlockIndex *pindex)
+bool CheckMinTxOut(const CBlock& block, CBlockIndex *pindexPrev)
 {
-    CAmount minOut = GetMinTxOut(pindex);
+    CAmount minOut = GetMinTxOut(block.GetBlockVersion(), pindexPrev);
     BOOST_FOREACH(const CTransaction& tx, block.vtx)
         BOOST_FOREACH(const CTxOut& txout, tx.vout)
         {

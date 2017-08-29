@@ -412,10 +412,10 @@ bool SignBlock(CBlock& block, const CKeyStore& keystore);
 bool CheckBlockSignature(const CBlock& block);
 
 // emercoin: check that tx output is not below MIN_TX_AMOUNT
-CAmount GetMinTxOut(CBlockIndex *pindex);
-CAmount GetMinTxOutLOCKED(CBlockIndex *pindex);
-bool CheckMinTxOut(const CTransaction& tx, CBlockIndex *pindex);
-bool CheckMinTxOut(const CBlock& block, CBlockIndex *pindex);
+CAmount GetMinTxOut(int nVersion, CBlockIndex *pindexPrev);
+CAmount GetMinTxOutLOCKED(int nVersion, CBlockIndex *pindexPrev);
+bool CheckMinTxOut(const CTransaction& tx, int nVersion, CBlockIndex *pindexPrev);
+bool CheckMinTxOut(const CBlock& block, CBlockIndex *pindexPrev);
 
 
 class CBlockFileInfo

@@ -338,7 +338,7 @@ UniValue sendtoaddress(const UniValue& params, bool fHelp)
 
     // Amount
     CAmount nAmount = AmountFromValue(params[1]);
-    if (nAmount < GetMinTxOutLOCKED(chainActive.Tip()))
+    if (nAmount < GetMinTxOutLOCKED(chainActive.Tip()->GetBlockVersion(), chainActive.Tip()->pprev))
         throw JSONRPCError(RPC_INSUFFICIENT_SEND_AMOUNT, "Send amount too small");
 
     // Wallet comments
@@ -774,7 +774,7 @@ UniValue sendfrom(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Emercoin address");
 
     CAmount nAmount = AmountFromValue(params[2]);
-    if (nAmount < GetMinTxOutLOCKED(chainActive.Tip()))
+    if (nAmount < GetMinTxOutLOCKED(chainActive.Tip()->GetBlockVersion(), chainActive.Tip()->pprev))
         throw JSONRPCError(RPC_INSUFFICIENT_SEND_AMOUNT, "Send amount too small");
     int nMinDepth = 1;
     if (params.size() > 3)
@@ -856,7 +856,7 @@ UniValue sendmany(const UniValue& params, bool fHelp)
 
         CScript scriptPubKey = GetScriptForDestination(address.Get());
         CAmount nAmount = AmountFromValue(sendTo[name_]);
-        if (nAmount < GetMinTxOutLOCKED(chainActive.Tip()))
+        if (nAmount < GetMinTxOutLOCKED(chainActive.Tip()->GetBlockVersion(), chainActive.Tip()->pprev))
             throw JSONRPCError(RPC_INSUFFICIENT_SEND_AMOUNT, "Send amount too small");
         totalAmount += nAmount;
 
