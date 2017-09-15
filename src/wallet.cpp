@@ -1422,7 +1422,7 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, int nConfMine, int
   // If possible, solve subset sum by dynamic programming
   // Adeed by olegarch
 
-  // Maximap DP array size. Default=256MB (12,800EMC)
+  // Maximal DP array size. Default=256MB (12,800EMC)
   static uint32_t nMaxDP = 0;
   if(nMaxDP == 0)
       nMaxDP = GetArg("-maxdp", 128 * 1024 * 1024);
@@ -1590,6 +1590,7 @@ bool CWallet::CreateTransactionInner(const vector<pair<CScript, CAmount> >& vecS
         {
             CAmount nMinOut = GetMinTxOut(chainActive.Tip()->GetBlockVersion(), chainActive.Tip()->pprev);
             nFeeRet = max(nFeeInput, MIN_TX_FEE);  // emercoin: a good starting point, probably...
+	    LogPrintf("CWallet::CreateTransactionInner: nMinOut=%lu nFeeRet=%lu\n", (unsigned long long)nMinOut, (unsigned long long)nFeeRet);
             while (true)
             {
                 txNew.vin.clear();
