@@ -29,18 +29,17 @@ using namespace std;
 /**
  * Settings
  */
-CFeeRate payTxFee(DEFAULT_TRANSACTION_FEE);
+CFeeRate payTxFee(MIN_TX_FEE / 10);  // per 10 kb
 CAmount maxTxFee = DEFAULT_TRANSACTION_MAXFEE;
 unsigned int nTxConfirmTarget = 1;
 bool bSpendZeroConfChange = true;
-bool fSendFreeTransactions = false;
 bool fPayAtLeastCustomFee = true;
 
 /** 
  * Fees smaller than this (in satoshi) are considered zero fee (for transaction creation) 
  * Override with -mintxfee
  */
-CFeeRate CWallet::minTxFee = CFeeRate(1000);
+CFeeRate CWallet::minTxFee = CFeeRate(MIN_TX_FEE / 10);  // per 10 kb
 
 /** @defgroup mapWallet
  *
@@ -1602,11 +1601,6 @@ bool CWallet::CreateTransactionInner(const vector<pair<CScript, CAmount> >& vecS
                 BOOST_FOREACH (const PAIRTYPE(CScript, CAmount)& s, vecSend)
                 {
                     CTxOut txout(s.second, s.first);
-                    if (txout.IsDust(::minRelayTxFee))
-                    {
-                        strFailReason = _("Transaction amount too small");
-                        return false;
-                    }
                     txNew.vout.push_back(txout);
                 }
 
@@ -1690,19 +1684,9 @@ bool CWallet::CreateTransactionInner(const vector<pair<CScript, CAmount> >& vecS
 
                     CTxOut newTxOut(nChange, scriptChange);
 
-                    // Never create dust outputs; if we would, just
-                    // add the dust to the fee.
-                    if (newTxOut.IsDust(::minRelayTxFee))
-                    {
-                        nFeeRet += nChange;
-                        reservekey.ReturnKey();
-                    }
-                    else
-                    {
-                        // Insert change txn at random position:
-                        vector<CTxOut>::iterator position = txNew.vout.begin()+GetRandInt(txNew.vout.size()+1);
-                        txNew.vout.insert(position, newTxOut);
-                    }
+                    // Insert change txn at random position:
+                    vector<CTxOut>::iterator position = txNew.vout.begin()+GetRandInt(txNew.vout.size()+1);
+                    txNew.vout.insert(position, newTxOut);
                 }
                 else
                     reservekey.ReturnKey();

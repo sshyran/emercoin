@@ -302,7 +302,7 @@ CBlockTemplate* CreateNewBlockInner(const CScript& scriptPubKeyIn, bool fAddProo
 
             CAmount nTxFees = view.GetValueIn(tx)-tx.GetValueOut();
             // ppcoin: simplify transaction fee
-            CAmount nMinFee = tx.GetMinFee(nBlockSize);
+            CAmount nMinFee = tx.GetMinFee();
             if (nTxFees < nMinFee)
                 continue;
 

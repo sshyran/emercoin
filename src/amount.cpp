@@ -22,7 +22,7 @@ CAmount CFeeRate::GetFee(size_t nSize) const
     if (nFee == 0 && nSatoshisPerK > 0)
         nFee = nSatoshisPerK;
 
-    return nFee;
+    return std::max(nFee, GetMinFee(nSize));
 }
 
 std::string CFeeRate::ToString() const
@@ -30,21 +30,11 @@ std::string CFeeRate::ToString() const
     return strprintf("%d.%06d EMC/kB", nSatoshisPerK / COIN, nSatoshisPerK % COIN);
 }
 
-CAmount GetMinFee(size_t nBytes, size_t nBlockSize)
+CAmount GetMinFee(size_t nBytes)
 {
     // Base fee is either MIN_TX_FEE or MIN_RELAY_TX_FEE
-    CAmount nBaseFee = SUBCENT;
-
-    size_t nNewBlockSize = nBlockSize + nBytes;
+    CAmount nBaseFee = MIN_TX_FEE;
     CAmount nMinFee = (1 + nBytes / (10 * 1024)) * nBaseFee; // 1 subcent per 10 kb of data
-
-    // Raise the price as the block approaches full
-    if (nBlockSize != 1 && nNewBlockSize >= MAX_BLOCK_SIZE_GEN/2)
-    {
-        if (nNewBlockSize >= MAX_BLOCK_SIZE_GEN)
-            return MAX_MONEY;
-        nMinFee *= MAX_BLOCK_SIZE_GEN / (MAX_BLOCK_SIZE_GEN - nNewBlockSize);
-    }
 
     if (!MoneyRange(nMinFee))
         nMinFee = MAX_MONEY;

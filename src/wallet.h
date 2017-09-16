@@ -33,12 +33,11 @@ extern CFeeRate payTxFee;
 extern CAmount maxTxFee;
 extern unsigned int nTxConfirmTarget;
 extern bool bSpendZeroConfChange;
-extern bool fSendFreeTransactions;
 extern bool fPayAtLeastCustomFee;
 extern bool fWalletUnlockMintOnly;
 
-//! -paytxfee default
-static const CAmount DEFAULT_TRANSACTION_FEE = MIN_TX_FEE;
+// -paytxfee default == MIN_TX_FEE
+
 //! -paytxfee will warn if called with a higher fee than this amount (in satoshis) per KB
 static const CAmount nHighTransactionFeeWarning = 0.01 * COIN;
 //! -maxtxfee default

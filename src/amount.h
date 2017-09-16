@@ -53,6 +53,6 @@ public:
     }
 };
 
-CAmount GetMinFee(size_t nBytes, size_t nBlockSize=1);
+CAmount GetMinFee(size_t nBytes);
 
 #endif //  BITCOIN_AMOUNT_H

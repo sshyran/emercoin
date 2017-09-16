@@ -172,20 +172,6 @@ public:
 
     uint256 GetHash() const;
 
-    bool IsDust(CFeeRate minRelayTxFee) const
-    {
-        // "Dust" is defined in terms of CTransaction::minRelayTxFee,
-        // which has units satoshis-per-kilobyte.
-        // If you'd pay more than 1/3 in fees
-        // to spend something, then we consider it dust.
-        // A typical txout is 34 bytes big, and will
-        // need a CTxIn of at least 148 bytes to spend:
-        // so dust is a txout less than 546 satoshis 
-        // with default minRelayTxFee.
-        size_t nSize = GetSerializeSize(SER_DISK,0)+148u;
-        return (nValue < 3*minRelayTxFee.GetFee(nSize));
-    }
-
     friend bool operator==(const CTxOut& a, const CTxOut& b)
     {
         return (a.nValue       == b.nValue &&
@@ -296,10 +282,10 @@ public:
 
     std::string ToString() const;
 
-    CAmount GetMinFee(size_t nBlockSize=1) const
+    CAmount GetMinFee() const
     {
         size_t nBytes = ::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION);
-        return ::GetMinFee(nBytes, nBlockSize);
+        return ::GetMinFee(nBytes);
     }
 
     bool ReadFromDisk(const CDiskTxPos& postx);
@@ -338,11 +324,10 @@ struct CMutableTransaction
      */
     uint256 GetHash() const;
 
-    CAmount GetMinFee(size_t nBlockSize=1) const
+    CAmount GetMinFee() const
     {
-        CTransaction tmp(*this);
-        size_t nBytes = ::GetSerializeSize(tmp, SER_NETWORK, PROTOCOL_VERSION);
-        return ::GetMinFee(nBytes, nBlockSize);
+        size_t nBytes = ::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION);
+        return ::GetMinFee(nBytes);
     }
 };
 
