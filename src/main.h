@@ -226,7 +226,7 @@ void FlushStateToDisk();
 
 
 /** (try to) add transaction to memory pool **/
-bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransaction &tx, bool fLimitFree,
+bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransaction &tx,
                         bool* pfMissingInputs, bool fRejectInsaneFee=false);
 
 
@@ -262,8 +262,6 @@ struct CDiskTxPos : public CDiskBlockPos
     }
 };
 
-
-CAmount GetMinRelayFee(const CTransaction& tx, unsigned int nBytes);
 
 /**
  * Check transaction inputs, and make sure any
