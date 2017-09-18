@@ -22,7 +22,7 @@
 #define EMERCOIN_VERSION_MINOR 6
 #define EMERCOIN_VERSION_REVISION 3
 
-#define CLIENT_VERSION_BUILD 0
+#define CLIENT_VERSION_BUILD 1
 
 //! Set to true for release, false for prerelease or test build
 #define CLIENT_VERSION_IS_RELEASE true
