@@ -9,7 +9,6 @@
 #include <QClipboard>
 #include <QLabel>
 #include <QPushButton>
-#include <QCommandLinkButton>
 
 class SelectableLineEdit: public QLineEdit {
 	public:
@@ -20,7 +19,7 @@ class SelectableLineEdit: public QLineEdit {
 			selectAll();
 		}
 };
-ManageDnsPage::ManageDnsPage(QWidget*parent): QDialog(parent) {
+ManageDnsPage::ManageDnsPage() {
 	setWindowTitle(tr("DNS names"));
 	{
 		_editName = new QLineEdit;
@@ -103,22 +102,12 @@ ManageDnsPage::ManageDnsPage(QWidget*parent): QDialog(parent) {
 		form->addRow(tr("Value:"), w);
 	}
     {
-		auto lay = new QHBoxLayout();
-		auto btnOk = new QCommandLinkButton(tr("OK"), tr("Copy name and value to 'Manage names' page and close this window"));
-		btnOk->setIcon(QIcon(":/qt-project.org/styles/commonstyle/images/standardbutton-apply-32.png"));
-		connect(btnOk, &QAbstractButton::clicked, this, [this] () {
+        auto btn = new QPushButton(tr("Copy values to 'Manage names' page and show that page"));
+        connect(btn, &QAbstractButton::clicked, this, [this] () {
             previewName(_resultingName->text());
             previewValue(_resultingValue->text());
-			accept();
         });
-		lay->addWidget(btnOk);
-
-		auto btnCancel = new QCommandLinkButton(tr("Close window"));
-		btnCancel->setIcon(QIcon(":/qt-project.org/styles/commonstyle/images/standardbutton-cancel-32.png"));
-		connect(btnCancel, &QAbstractButton::clicked, this, &QDialog::reject);
-		lay->addWidget(btnCancel);
-
-		form->addRow(lay);
+        form->addRow(QString(), btn);
     }
     lay->addStretch();
 }

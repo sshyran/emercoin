@@ -1,14 +1,14 @@
 ﻿//ManageDnsPage.h by emercoin developers
 #pragma once
-#include <QDialog>
+#include <QWidget>
 class QLineEdit;
 class QFormLayout;
 class QString;
 
-class ManageDnsPage: public QDialog {
+class ManageDnsPage: public QWidget {
     Q_OBJECT
     public:
-	    ManageDnsPage(QWidget*parent);
+        ManageDnsPage();
 
         QLineEdit* _editName = 0;
         QLineEdit* _editA = 0;

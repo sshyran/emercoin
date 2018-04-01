@@ -10,6 +10,7 @@
 #include "clientmodel.h"
 #include "guiutil.h"
 #include "managenamespage.h"
+#include "ManageDnsPage.h"
 #include "optionsmodel.h"
 #include "overviewpage.h"
 #include "platformstyle.h"
@@ -58,6 +59,10 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, WalletFrame *parent)
     receiveCoinsPage = new ReceiveCoinsDialog(platformStyle);
     sendCoinsPage = new SendCoinsDialog(platformStyle);
     manageNamesPage = new ManageNamesPage();
+    manageDnsPage = new ManageDnsPage();
+    connect(manageDnsPage, &ManageDnsPage::previewName, walletFrame, &WalletFrame::parentGotoManageNamesPage);
+    connect(manageDnsPage, &ManageDnsPage::previewName, manageNamesPage, &ManageNamesPage::setDisplayedName);
+    connect(manageDnsPage, &ManageDnsPage::previewValue, manageNamesPage, &ManageNamesPage::setDisplayedValue);
 
     usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
     usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this);
@@ -67,6 +72,7 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, WalletFrame *parent)
     addWidget(receiveCoinsPage);
     addWidget(sendCoinsPage);
     addWidget(manageNamesPage);
+    addWidget(manageDnsPage);
 
     // Clicking on a transaction on the overview pre-selects the transaction on the transaction history page
     connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), transactionView, SLOT(focusTransaction(QModelIndex)));
@@ -206,6 +212,11 @@ void WalletView::gotoSendCoinsPage(QString addr)
 void WalletView::gotoManageNamesPage()
 {
     setCurrentWidget(manageNamesPage);
+}
+
+void WalletView::gotoManageDnsPage()
+{
+    setCurrentWidget(manageDnsPage);
 }
 
 void WalletView::gotoSignMessageTab(QString addr)
