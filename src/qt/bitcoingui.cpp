@@ -97,6 +97,9 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     overviewAction(0),
     historyAction(0),
     quitAction(0),
+    sendCoinsAction(0),
+    sendCoinsMenuAction(0),
+    manageNamesAction(0),
     usedSendingAddressesAction(0),
     usedReceivingAddressesAction(0),
     signMessageAction(0),
@@ -312,13 +315,6 @@ void BitcoinGUI::createActions()
     manageNamesAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_6));
     tabGroup->addAction(manageNamesAction);
 
-    manageDnsAction = new QAction(QIcon(":/icons/name2"), tr("&DNS"), this);
-    manageDnsAction->setStatusTip(tr("Manage DNS records hosted by Emercoin"));
-    manageDnsAction->setToolTip(manageDnsAction->statusTip());
-    manageDnsAction->setCheckable(true);
-    manageDnsAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_7));
-    tabGroup->addAction(manageDnsAction);
-
     historyAction = new QAction(platformStyle->SingleColorIcon(":/icons/history"), tr("&Transactions"), this);
     historyAction->setStatusTip(tr("Browse transaction history"));
     historyAction->setToolTip(historyAction->statusTip());
@@ -329,14 +325,20 @@ void BitcoinGUI::createActions()
 #ifdef ENABLE_WALLET
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
     // can be triggered from the tray menu, and need to show the GUI to be useful.
-    connect(overviewAction, &QAction::triggered, this, &BitcoinGUI::gotoOverviewPage);
+    connect(overviewAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+    connect(overviewAction, SIGNAL(triggered()), this, SLOT(gotoOverviewPage()));
+    connect(sendCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(sendCoinsAction, SIGNAL(triggered()), this, SLOT(gotoSendCoinsPage()));
+    connect(sendCoinsMenuAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(sendCoinsMenuAction, SIGNAL(triggered()), this, SLOT(gotoSendCoinsPage()));
-    connect(receiveCoinsAction, &QAction::triggered, this, &BitcoinGUI::gotoReceiveCoinsPage);
-    connect(receiveCoinsMenuAction, &QAction::triggered, this, &BitcoinGUI::gotoReceiveCoinsPage);
-    connect(manageNamesAction, &QAction::triggered, this, &BitcoinGUI::gotoManageNamesPage);
-    connect(manageDnsAction, &QAction::triggered, this, &BitcoinGUI::gotoManageDnsPage);
-    connect(historyAction, &QAction::triggered, this, &BitcoinGUI::gotoHistoryPage);
+    connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+    connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
+    connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+    connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
+    connect(manageNamesAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+    connect(manageNamesAction, SIGNAL(triggered()), this, SLOT(gotoManageNamesPage()));
+    connect(historyAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+    connect(historyAction, SIGNAL(triggered()), this, SLOT(gotoHistoryPage()));
 #endif // ENABLE_WALLET
 
     quitAction = new QAction(platformStyle->TextColorIcon(":/icons/quit"), tr("E&xit"), this);
@@ -386,15 +388,15 @@ void BitcoinGUI::createActions()
     showHelpMessageAction->setMenuRole(QAction::NoRole);
     showHelpMessageAction->setStatusTip(tr("Show the %1 help message to get a list with possible Emercoin command-line options").arg(tr(PACKAGE_NAME)));
 
-    connect(quitAction, &QAction::triggered, qApp, &QCoreApplication::quit);
-    connect(aboutAction, &QAction::triggered, this, &BitcoinGUI::aboutClicked);
-    connect(aboutQtAction, &QAction::triggered, qApp, &QApplication::aboutQt);
-    connect(optionsAction, &QAction::triggered, this, &BitcoinGUI::optionsClicked);
-    connect(toggleHideAction, &QAction::triggered, this, &BitcoinGUI::toggleHidden);
-    connect(showHelpMessageAction, &QAction::triggered, this, &BitcoinGUI::showHelpMessageClicked);
-    connect(openRPCConsoleAction, &QAction::triggered, this, &BitcoinGUI::showDebugWindow);
+    connect(quitAction, SIGNAL(triggered()), qApp, SLOT(quit()));
+    connect(aboutAction, SIGNAL(triggered()), this, SLOT(aboutClicked()));
+    connect(aboutQtAction, SIGNAL(triggered()), qApp, SLOT(aboutQt()));
+    connect(optionsAction, SIGNAL(triggered()), this, SLOT(optionsClicked()));
+    connect(toggleHideAction, SIGNAL(triggered()), this, SLOT(toggleHidden()));
+    connect(showHelpMessageAction, SIGNAL(triggered()), this, SLOT(showHelpMessageClicked()));
+    connect(openRPCConsoleAction, SIGNAL(triggered()), this, SLOT(showDebugWindow()));
     // prevents an open debug window from becoming stuck/unusable on client shutdown
-    connect(quitAction, &QAction::triggered, rpcConsole, &RPCConsole::hide);
+    connect(quitAction, SIGNAL(triggered()), rpcConsole, SLOT(hide()));
 
 #ifdef ENABLE_WALLET
     if(walletFrame)
@@ -471,7 +473,6 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
         toolbar->addAction(manageNamesAction);
-        toolbar->addAction(manageDnsAction);
         overviewAction->setChecked(true);
     }
 }
@@ -569,7 +570,6 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     sendCoinsAction->setEnabled(enabled);
     sendCoinsMenuAction->setEnabled(enabled);
     manageNamesAction->setEnabled(enabled);
-    manageDnsAction->setEnabled(enabled);
     receiveCoinsAction->setEnabled(enabled);
     receiveCoinsMenuAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
@@ -621,7 +621,6 @@ void BitcoinGUI::createTrayIconMenu()
     trayIconMenu->addAction(sendCoinsMenuAction);
     trayIconMenu->addAction(receiveCoinsMenuAction);
     trayIconMenu->addAction(manageNamesAction);
-    trayIconMenu->addAction(manageDnsAction);
     trayIconMenu->addSeparator();
     trayIconMenu->addAction(signMessageAction);
     trayIconMenu->addAction(verifyMessageAction);
@@ -695,44 +694,32 @@ void BitcoinGUI::openClicked()
 
 void BitcoinGUI::gotoOverviewPage()
 {
-    showNormalIfMinimized();
     overviewAction->setChecked(true);
     if (walletFrame) walletFrame->gotoOverviewPage();
 }
 
 void BitcoinGUI::gotoHistoryPage()
 {
-    showNormalIfMinimized();
     historyAction->setChecked(true);
     if (walletFrame) walletFrame->gotoHistoryPage();
 }
 
 void BitcoinGUI::gotoReceiveCoinsPage()
 {
-    showNormalIfMinimized();
     receiveCoinsAction->setChecked(true);
     if (walletFrame) walletFrame->gotoReceiveCoinsPage();
 }
 
 void BitcoinGUI::gotoSendCoinsPage(QString addr)
 {
-    showNormalIfMinimized();
     sendCoinsAction->setChecked(true);
     if (walletFrame) walletFrame->gotoSendCoinsPage(addr);
 }
 
 void BitcoinGUI::gotoManageNamesPage()
 {
-    showNormalIfMinimized();
     manageNamesAction->setChecked(true);
     if (walletFrame) walletFrame->gotoManageNamesPage();
-}
-
-void BitcoinGUI::gotoManageDnsPage()
-{
-    showNormalIfMinimized();
-    manageDnsAction->setChecked(true);
-    if (walletFrame) walletFrame->gotoManageDnsPage();
 }
 
 void BitcoinGUI::gotoSignMessageTab(QString addr)
@@ -1066,6 +1053,7 @@ bool BitcoinGUI::handlePaymentRequest(const SendCoinsRecipient& recipient)
     // URI has to be valid
     if (walletFrame && walletFrame->handlePaymentRequest(recipient))
     {
+        showNormalIfMinimized();
         gotoSendCoinsPage();
         return true;
     }

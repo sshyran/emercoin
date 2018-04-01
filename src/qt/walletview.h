@@ -2,7 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#pragma once
+#ifndef BITCOIN_QT_WALLETVIEW_H
+#define BITCOIN_QT_WALLETVIEW_H
 
 #include "amount.h"
 
@@ -15,11 +16,9 @@ class PlatformStyle;
 class ReceiveCoinsDialog;
 class SendCoinsDialog;
 class ManageNamesPage;
-class ManageDnsPage;
 class SendCoinsRecipient;
 class TransactionView;
 class WalletModel;
-class WalletFrame;
 class AddressBookPage;
 
 QT_BEGIN_NAMESPACE
@@ -38,7 +37,7 @@ class WalletView : public QStackedWidget
     Q_OBJECT
 
 public:
-    explicit WalletView(const PlatformStyle *platformStyle, WalletFrame *parent);
+    explicit WalletView(const PlatformStyle *platformStyle, QWidget *parent);
     ~WalletView();
 
     void setBitcoinGUI(BitcoinGUI *gui);
@@ -57,19 +56,19 @@ public:
     void showOutOfSyncWarning(bool fShow);
 
 private:
-    WalletFrame *walletFrame = 0;
-    ClientModel *clientModel = 0;
-    WalletModel *walletModel = 0;
+    ClientModel *clientModel;
+    WalletModel *walletModel;
 
     OverviewPage *overviewPage;
     QWidget *transactionsPage;
     ReceiveCoinsDialog *receiveCoinsPage;
     SendCoinsDialog *sendCoinsPage;
     ManageNamesPage *manageNamesPage;
-    ManageDnsPage   *manageDnsPage;
     AddressBookPage *usedSendingAddressesPage;
     AddressBookPage *usedReceivingAddressesPage;
+
     TransactionView *transactionView;
+
     QProgressDialog *progressDialog;
     const PlatformStyle *platformStyle;
 
@@ -84,7 +83,6 @@ public Q_SLOTS:
     void gotoSendCoinsPage(QString addr = "");
     /** Switch to manage names page */
     void gotoManageNamesPage();
-    void gotoManageDnsPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");
@@ -136,3 +134,5 @@ Q_SIGNALS:
     /** Notify that the out of sync warning icon has been pressed */
     void outOfSyncWarningClicked();
 };
+
+#endif // BITCOIN_QT_WALLETVIEW_H

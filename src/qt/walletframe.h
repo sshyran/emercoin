@@ -2,7 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#pragma once
+#ifndef BITCOIN_QT_WALLETFRAME_H
+#define BITCOIN_QT_WALLETFRAME_H
 
 #include <QFrame>
 #include <QMap>
@@ -71,8 +72,6 @@ public Q_SLOTS:
     void gotoSendCoinsPage(QString addr = "");
     /** Switch to manage names page */
     void gotoManageNamesPage();
-    void gotoManageDnsPage();
-    void parentGotoManageNamesPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");
@@ -95,3 +94,5 @@ public Q_SLOTS:
     /** Pass on signal over requested out-of-sync-warning information */
     void outOfSyncWarningClicked();
 };
+
+#endif // BITCOIN_QT_WALLETFRAME_H

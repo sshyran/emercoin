@@ -10,7 +10,6 @@
 #include "clientmodel.h"
 #include "guiutil.h"
 #include "managenamespage.h"
-#include "ManageDnsPage.h"
 #include "optionsmodel.h"
 #include "overviewpage.h"
 #include "platformstyle.h"
@@ -20,7 +19,6 @@
 #include "transactiontablemodel.h"
 #include "transactionview.h"
 #include "walletmodel.h"
-#include "walletframe.h"
 
 #include "ui_interface.h"
 
@@ -32,12 +30,12 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
-WalletView::WalletView(const PlatformStyle *_platformStyle, WalletFrame *parent):
+WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     QStackedWidget(parent),
-    walletFrame(parent),
+    clientModel(0),
+    walletModel(0),
     platformStyle(_platformStyle)
 {
-    Q_ASSERT(walletFrame);
     // Create tabs
     overviewPage = new OverviewPage(platformStyle);
 
@@ -59,10 +57,6 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, WalletFrame *parent)
     receiveCoinsPage = new ReceiveCoinsDialog(platformStyle);
     sendCoinsPage = new SendCoinsDialog(platformStyle);
     manageNamesPage = new ManageNamesPage();
-    manageDnsPage = new ManageDnsPage();
-    connect(manageDnsPage, &ManageDnsPage::previewName, walletFrame, &WalletFrame::parentGotoManageNamesPage);
-    connect(manageDnsPage, &ManageDnsPage::previewName, manageNamesPage, &ManageNamesPage::setDisplayedName);
-    connect(manageDnsPage, &ManageDnsPage::previewValue, manageNamesPage, &ManageNamesPage::setDisplayedValue);
 
     usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
     usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this);
@@ -72,7 +66,6 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, WalletFrame *parent)
     addWidget(receiveCoinsPage);
     addWidget(sendCoinsPage);
     addWidget(manageNamesPage);
-    addWidget(manageDnsPage);
 
     // Clicking on a transaction on the overview pre-selects the transaction on the transaction history page
     connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), transactionView, SLOT(focusTransaction(QModelIndex)));
@@ -212,11 +205,6 @@ void WalletView::gotoSendCoinsPage(QString addr)
 void WalletView::gotoManageNamesPage()
 {
     setCurrentWidget(manageNamesPage);
-}
-
-void WalletView::gotoManageDnsPage()
-{
-    setCurrentWidget(manageDnsPage);
 }
 
 void WalletView::gotoSignMessageTab(QString addr)
