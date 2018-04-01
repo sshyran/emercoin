@@ -142,9 +142,8 @@ void ManageDnsPage::recalcValue() {
 	_resultingValue->setText(parts.join('|'));
 }
 void ManageDnsPage::addHtmlRow(QFormLayout*form, QString text, QLineEdit*line, QString tooltip) {
-	text += " <b>(?)</b>";
 	auto label = new QLabel(text);
 	label->setToolTip(tooltip);
-	line->setToolTip(tooltip);
+	line->setPlaceholderText(tooltip);
 	form->addRow(label, line);
 }
