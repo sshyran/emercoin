@@ -2467,7 +2467,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 if (pfrom->nPoSTemperature >= (uint32_t)MAX_CONSECUTIVE_POS_HEADERS) {
                     pfrom->nPoSTemperature = (MAX_CONSECUTIVE_POS_HEADERS*3)/4;
                     if (Params().NetworkIDString() != "test") {
-                        g_connman->Ban(pfrom->addr, BanReasonNodeMisbehaving, GetArg("-bantime", DEFAULT_MISBEHAVING_BANTIME) * 100);
+                        g_connman->Ban(pfrom->addr, BanReasonNodeMisbehaving, GetArg("-bantime", DEFAULT_MISBEHAVING_BANTIME) * 7);
                         return error("too many consecutive pos headers");
                     }
                 }
