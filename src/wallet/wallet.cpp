@@ -2951,6 +2951,8 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
     CacheBlockOffset.Set(setCoins.size() << 1); // 2x pointers
     uint256HashMap<std::pair<CBlockHeader*, unsigned int> >::Data *pbo = NULL;
 
+    int nSplitPos = GetArg("-splitpos", 1); // 0=No Split, 1=RandSplit before 90d, -1=Principal+Reward
+
     for (const auto& pcoin : setCoins)
     {
         uint256 tx_hash = pcoin.first->GetHash();
@@ -3041,7 +3043,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
                 nCredit += pcoin.first->tx->vout[pcoin.second].nValue;
                 vwtxPrev.push_back(pcoin.first);
                 txNew.vout.push_back(CTxOut(0, scriptPubKeyOut));
-                if (header.GetBlockTime() + nStakeSplitAge > txNew.nTime && nCredit > nPoWReward && GetBoolArg("-splitpos", true))
+                if ((nSplitPos < 0) || (nSplitPos && header.GetBlockTime() + nStakeSplitAge > txNew.nTime && nCredit > nPoWReward))
                     txNew.vout.push_back(CTxOut(0, scriptPubKeyOut)); //split stake if (age < 90 && value > POW)
                 if (fDebug && GetBoolArg("-printcoinstake", false))
                     LogPrintf("CreateCoinStake : added kernel type=%d\n", whichType);
@@ -3082,8 +3084,8 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
         }
     }
     // Calculate coin age reward
+    CAmount nReward = 0;
     {
-        CAmount nReward = 0;
         CCoinsViewCache view(pcoinsTip);
         if (!GetEmc7POSReward(txNew, view, nReward))
             return error("CreateCoinStake() : %s unable to get coin reward for coinstake", txNew.GetHash().ToString());
@@ -3098,8 +3100,12 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
         // Set output amount
         if (txNew.vout.size() == 3)
         {
-        CAmount vout1 = nCredit / 4 + GetRand(nCredit / 2);
-            txNew.vout[1].nValue = (vout1 / TX_DP_AMOUNT) * TX_DP_AMOUNT;
+            if(nSplitPos < 0) {
+                txNew.vout[1].nValue = nReward;
+            } else {
+                CAmount vout1 = nCredit / 4 + GetRand(nCredit / 2);
+                txNew.vout[1].nValue = (vout1 / TX_DP_AMOUNT) * TX_DP_AMOUNT;
+            }
             txNew.vout[2].nValue = nCredit - nMinFee - txNew.vout[1].nValue;
         }
         else
