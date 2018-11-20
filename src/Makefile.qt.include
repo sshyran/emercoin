@@ -205,6 +205,7 @@ BITCOIN_QT_H = \
   qt/managenamespage.h \
   qt/ManageDnsPage.h \
   qt/QNameCoin.h \
+  qt/NameCoinStrings.h \
   qt/CheckDiplomaWidget.h \
   qt/DiplomaWidget.h \
   qt/RegisterDiplomaWidget.h \
@@ -377,6 +378,7 @@ BITCOIN_QT_WALLET_CPP = \
   qt/CheckDiplomaWidget.cpp \
   qt/DiplomaWidget.cpp \
   qt/QNameCoin.cpp \
+  qt/NameCoinStrings.cpp \
   qt/RegisterDiplomaWidget.cpp \
   qt/RegisterUniversityWidget.cpp \
   qt/NameEqValueTextEdit.cpp \

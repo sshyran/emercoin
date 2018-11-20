@@ -5,6 +5,7 @@
 #include "SelectableTextEdit.h"
 #include "NameEqValueTextEdit.h"
 #include "QNameCoin.h"
+#include "NameCoinStrings.h"
 #include <QFormLayout>
 #include <QSettings>
 #include <QLabel>
@@ -16,7 +17,8 @@ DpoCreateRecordWidget::DpoCreateRecordWidget() {
 	_NVPair->setValueMultiline(true);
 
 	lay->addWidget(newLabel(
-		tr("Create a record with your name/nickname that is recognized in the organization you work for")));
+		tr("Create a record with your name/nickname that is recognized in the organization you work for. "
+		   "Or this may be another organization as well.")));
 
 	auto form = new QFormLayout;
 	lay->addLayout(form);
@@ -69,7 +71,7 @@ void DpoCreateRecordWidget::updateSettings(bool save) {
 }
 void DpoCreateRecordWidget::recalcValue() {
 	QString name = _editName->text().trimmed();
-	_rootAvailable->setText(QNameCoin::labelForNameExistOrError(name, "dpo:"));
+	_rootAvailable->setText(NameCoinStrings::nameExistOrError(name, "dpo:"));
 	const QString serial = _editSN->text().trimmed();
     if(name.isEmpty() || serial.isEmpty()) {
 		_NVPair->setName({});//to display placeholderText

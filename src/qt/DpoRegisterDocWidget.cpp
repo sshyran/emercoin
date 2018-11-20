@@ -26,15 +26,15 @@ DpoRegisterDocWidget::DpoRegisterDocWidget() {
 
 	auto lay = new QVBoxLayout(this);
 
-	QStringList names = QNameCoin::myNamesStartingWith("dpo:");
+	QStringList names = QNameCoin::myNames();
 	connect(_chooseRoot, &QComboBox::currentTextChanged, this, &DpoRegisterDocWidget::recalcValue);
 	_chooseRoot->addItems(names);
 	if(names.isEmpty()) {
-		addText(lay, tr("You didn't register any identity in previous tab.\n"
-						"Please register, wait until the record is accepted by the blockchain and return here."));
+		addText(lay, tr("You didn't register any name in previous tab.\n"
+			"Please register, wait until the record is accepted by the blockchain and return here."));
 	} else {
-		addText(lay, tr("Choose your identity - registered record from previous tab,\n"
-					"like dpo:Organization:YourName. This name will sign message."));
+		addText(lay, tr("Choose your identity - registered record ,\n"
+			"like dpo:Organization:YourName, or infocard etc. This name will sign message."));
 	}
 	lay->addWidget(_chooseRoot);
 

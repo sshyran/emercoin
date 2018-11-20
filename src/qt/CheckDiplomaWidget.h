@@ -14,4 +14,5 @@ class CheckDiplomaWidget: public QWidget {
 		QSpinBox* _yearAdmission = 0;
 		QSpinBox* _yearGraduation = 0;
 		void onSearch();
+		void findUniversity(const QString& name);
 };

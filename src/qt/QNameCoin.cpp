@@ -53,45 +53,6 @@ QStringList QNameCoin::myNamesStartingWith(const QString & prefix) {
 	}
 	return ret;
 }
-QChar QNameCoin::charBy(bool ok) {
-	return ok ? charCheckOk : charX;
-}
-QString QNameCoin::trNameNotFound(const QString & name) {
-	return charBy(false) + tr(" This name is not found (%1)").arg(name);
-}
-QString QNameCoin::trNameIsFree(const QString & name, bool ok) {
-	return charBy(ok) + tr(" This name is free (%1)").arg(name);
-}
-QString QNameCoin::trNameAlreadyRegistered(const QString & name, bool ok) {
-	return  charBy(ok) + tr(" This name is already registered in blockchain (%1)").arg(name);
-}
-QString QNameCoin::labelForNameExistOrError(const QString & name) {
-	if(name.isEmpty())
-		return {};
-
-	if(nameActive(name))
-		return charBy(true) + tr(" This name is registered (%1)").arg(name);
-
-	return trNameNotFound(name);
-}
-QString QNameCoin::labelForNameExistOrError(const QString & name, const QString & prefix) {
-	if(prefix.isEmpty())
-		return labelForNameExistOrError(name);
-
-	if(name.isEmpty())
-		return {};
-
-	if(!name.startsWith(prefix))
-		return charBy(false) + tr(" Name must start with '%1' prefix").arg(prefix);
-
-	if(name==prefix)
-		return charBy(false) + tr(" Enter name");
-
-	if(nameActive(name))
-		return charBy(true) + tr(" This name is registered (%1)").arg(name);
-
-	return trNameNotFound(name);
-}
 QString QNameCoin::numberLikeBase64(quint64 n) {
 	//like QByteArray::OmitTrailingEquals + but omit also leading zeroes
 	static const QList<QChar> chars = []() {
@@ -172,4 +133,8 @@ QString QNameCoin::errorToString(UniValue& objError) {
 }
 QString QNameCoin::toString(const std::exception& e) {
 	return QString::fromStdString(e.what());
+}
+QList<QNameCoin::NVPair> QNameCoin::nameScan(const QString& prefix, int maxCount) {
+	QList<QNameCoin::NVPair> ret;
+	return ret;
 }

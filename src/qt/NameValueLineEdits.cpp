@@ -12,6 +12,7 @@
 #include <QDebug>
 #include "SelectableTextEdit.h"
 #include "QNameCoin.h"
+#include "NameCoinStrings.h"
 
 NameValueLineEdits::NameValueLineEdits() {
 	_name = new SelectableLineEdit;
@@ -102,11 +103,11 @@ void NameValueLineEdits::setName(const QString & name) {
 	_availability->show();
 	QString text;
 	if(QNameCoin::isMyName(name)) {
-	   text = QChar(QNameCoin::charCheckOk) + tr(" You are owner of this name and can change it (%1)").arg(name);
+	   text = NameCoinStrings::charCheckOk + tr(" You are owner of this name and can change it (%1)").arg(name);
 	} else if(QNameCoin::nameActive(name)) {
-		text = QNameCoin::trNameAlreadyRegistered(name, false);
+		text = NameCoinStrings::trNameAlreadyRegistered(name, false);
 	} else {
-		text = QNameCoin::trNameIsFree(name);
+		text = NameCoinStrings::trNameIsFree(name);
 	}
 	_availability->setText(text);
 	//if(tooltip!=_availability->toolTip()) {

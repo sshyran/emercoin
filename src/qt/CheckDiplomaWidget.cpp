@@ -1,5 +1,6 @@
 ﻿//CheckDiplomaWidget.cpp by Emercoin developers
 #include "CheckDiplomaWidget.h"
+#include "QNameCoin.h"
 #include <QFormLayout>
 #include <QPushButton>
 #include <QUrl>
@@ -17,11 +18,13 @@ CheckDiplomaWidget::CheckDiplomaWidget() {
 	const int emcMaxNameLen = 500;
 	_name = new QLineEdit;
 	_name->setMaxLength(emcMaxNameLen);
-	form->addRow(tr("First name and last name"), _name);
+	form->addRow(tr("Student name"), _name);
+	_name->setPlaceholderText(tr("First Last"));
 
 	_university = new QLineEdit;
 	_university->setMaxLength(emcMaxNameLen);
 	form->addRow(tr("University"), _university);
+	_university->setPlaceholderText(tr("Abbreviation, like BTU"));
 
 	_yearAdmission  = new YearSpinBox;
 	form->addRow(tr("Admission year"), _yearAdmission);
@@ -33,6 +36,9 @@ CheckDiplomaWidget::CheckDiplomaWidget() {
 	search->setShortcut(QKeySequence("Return"));
 	connect(search, &QPushButton::clicked, this, &CheckDiplomaWidget::onSearch);
 	form->addRow(QString(), search);
+}
+void CheckDiplomaWidget::findUniversity(const QString& name) {
+//QNameCoin::nameShow()
 }
 void CheckDiplomaWidget::onSearch() {
 	auto showMsg = [](QWidget*w) {
