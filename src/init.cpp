@@ -20,7 +20,6 @@
 #include "httprpc.h"
 #include "key.h"
 #include "validation.h"
-#include "miner.h"
 #include "netbase.h"
 #include "net.h"
 #include "net_processing.h"
@@ -39,6 +38,7 @@
 #include "utilmoneystr.h"
 #include "validationinterface.h"
 #ifdef ENABLE_WALLET
+#include "miner.h"
 #include "wallet/wallet.h"
 #endif
 #include "warnings.h"
@@ -199,14 +199,15 @@ void Shutdown()
     /// module was initialized.
     RenameThread("emercoin-shutoff");
     mempool.AddTransactionsUpdated(1);
-
+#ifdef ENABLE_WALLET
     GenerateEmercoins(false, 0, Params());
+#endif
     StopHTTPRPC();
     StopREST();
     StopRPC();
     StopHTTPServer();
-    MapRandKeyT.Set(0);
 #ifdef ENABLE_WALLET
+    MapRandKeyT.Set(0);
     if (pwalletMain)
         pwalletMain->Flush(false);
 #endif
@@ -451,8 +452,10 @@ std::string HelpMessage(HelpMessageMode mode)
         _("If <category> is not supplied or if <category> = 1, output all debugging information.") + _("<category> can be:") + " " + debugCategories + ".");
     if (showDebug)
         strUsage += HelpMessageOpt("-nodebug", "Turn off debugging messages, same as -debug=0");
+#ifdef ENABLE_WALLET
     strUsage += HelpMessageOpt("-gen", strprintf(_("Generate coins (default: %u)"), DEFAULT_GENERATE));
     strUsage += HelpMessageOpt("-genproclimit=<n>", strprintf(_("Set the number of threads for coin generation if enabled (-1 = all cores, default: %d)"), DEFAULT_GENERATE_THREADS));
+#endif
     strUsage += HelpMessageOpt("-help-debug", _("Show all debugging options (usage: --help -help-debug)"));
     strUsage += HelpMessageOpt("-logips", strprintf(_("Include IP addresses in debug output (default: %u)"), DEFAULT_LOGIPS));
     strUsage += HelpMessageOpt("-logtimestamps", strprintf(_("Prepend debug output with timestamp (default: %u)"), DEFAULT_LOGTIMESTAMPS));
@@ -469,10 +472,12 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-maxtxfee=<amt>", strprintf(_("Maximum total fees (in %s) to use in a single wallet transaction or raw transaction; setting this too low may abort large transactions (default: %s)"),
         CURRENCY_UNIT, FormatMoney(DEFAULT_TRANSACTION_MAXFEE)));
     strUsage += HelpMessageOpt("-printtoconsole", _("Send trace/debug info to console instead of debug.log file"));
+#ifdef ENABLE_WALLET
     if (showDebug)
     {
         strUsage += HelpMessageOpt("-printpriority", strprintf("Log transaction priority and fee per kB when mining blocks (default: %u)", DEFAULT_PRINTPRIORITY));
     }
+#endif
     strUsage += HelpMessageOpt("-shrinkdebugfile", _("Shrink debug.log file on client startup (default: 1 when no -debug)"));
 
     AppendParamsHelpMessages(strUsage, showDebug);
@@ -1727,9 +1732,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         pwalletMain->postInitProcess(threadGroup);
     if (pwalletMain && GetBoolArg("-stakegen", true))
         MintStake(threadGroup, pwalletMain);
-#endif
     // Generate coins in the background
     GenerateEmercoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS), chainparams);
+#endif
 
     // init emcdns. WARNING: this should be done after hooks initialization
     if (GetBoolArg("-emcdns", false))

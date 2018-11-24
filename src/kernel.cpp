@@ -389,8 +389,8 @@ static bool GetKernelStakeModifier(CBlockIndex* pindexPrev, uint256 hashBlockFro
         sm.nStakeModifierTime = nStakeModifierTime;
         StakeModCache.Insert(hashBlockFrom, sm);
     }
-    return true;
 #endif
+    return true;
 }
 
 // ppcoin kernel protocol

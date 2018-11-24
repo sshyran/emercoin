@@ -968,6 +968,8 @@ UniValue createrandpayaddr(const JSONRPCRequest& request)
     return result;
 }
 
+#ifdef ENABLE_WALLET
+
 static void InitMapRandKeyT() {
   static int randkeymapsz = -1;
   if(randkeymapsz < 0) {
@@ -1091,6 +1093,8 @@ UniValue randpay_createtx(const JSONRPCRequest& request)
     return EncodeHexTx(wtxNew);
 }
 
+#endif   // #ifdef ENABLE_WALLET 
+
 UniValue randpay_submittx(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 2)
@@ -1114,9 +1118,9 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
 //    if (!request.params[1].isNum())
 //        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid type provided. risk parameter must be numeric.");
 //    uint32_t nRisk = request.params[1].get_int();
-
+#ifdef ENABLE_WALLET
     InitMapRandKeyT();
-    
+#endif    
     UniValue result(UniValue::VOBJ);
 
     //emc implement this command
@@ -1135,8 +1139,10 @@ static const CRPCCommand commands[] =
     { "rawtransactions",    "signrawtransaction",     &signrawtransaction,     false, {"hexstring","prevtxs","privkeys","sighashtype"} }, /* uses wallet if enabled */
 
     // emercoin: randpay commands
+#ifdef ENABLE_WALLET
     { "hidden",    "randpay_createaddrchap",          &randpay_createaddrchap, true,  {"risk","timio"} },
     { "hidden",    "randpay_createtx",                &randpay_createtx,       true,  {"amount","addrchap","risk","timio"} },
+#endif
     { "hidden",    "randpay_submittx",                &randpay_submittx,       false, {"hexstring","risk"} },
 
     { "blockchain",         "gettxoutproof",          &gettxoutproof,          true,  {"txids", "blockhash"} },
