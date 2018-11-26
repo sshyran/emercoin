@@ -1093,11 +1093,10 @@ UniValue randpay_createtx(const JSONRPCRequest& request)
 
     // Iterate payment vins, and add into g_RandPayLockUTXO
     time_t lock_time = time(NULL) + nTimio;
-// TODO
-    for(int vin_no = 1; vin_no < 1; vin_no++) {
-//      uint256 rpLockTXkey(txNew.vin[vin_no].txid);
-//      *((uint32_t*)rpLockTXkey.GetDataPtr()) += txNew.vin[vin_no].vout;
-//      g_RandPayLockUTXO.Insert(rpLockTXkey, lock_time);
+    for (size_t vin_no = 1; vin_no < wtxNew.tx->vin.size(); vin_no++) {
+        uint256 rpLockTXkey(wtxNew.tx->vin[vin_no].prevout.hash);
+        *((uint32_t*)rpLockTXkey.GetDataPtr()) += txNew.vin[vin_no].prevout.n;
+        g_RandPayLockUTXO.Insert(rpLockTXkey, lock_time);
     }
     return EncodeHexTx(wtxNew);
 }
