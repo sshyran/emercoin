@@ -1084,6 +1084,13 @@ UniValue randpay_createtx(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
     }
 
+    // Iterate payment vins, and add into g_RandPayLockUTXO
+    time_t lock_time = time(NULL) + nTimio;
+    BOOST_FOREACH(const CTxIn &txin, wtxNew.tx->vin) {
+        uint256 rpLockTXkey(txin.prevout.hash);
+        *((uint32_t*)rpLockTXkey.GetDataPtr()) += txin.prevout.n;
+        g_RandPayLockUTXO.Insert(rpLockTXkey, lock_time);
+    }
     // add randpay input at vin[0]
     CMutableTransaction txNew(*wtxNew.tx);
     uint32_t nSequence = (wtxNew.tx->nLockTime ? std::numeric_limits<uint32_t>::max() - 1 : std::numeric_limits<uint32_t>::max());
@@ -1091,13 +1098,6 @@ UniValue randpay_createtx(const JSONRPCRequest& request)
     txNew.vin.insert(txNew.vin.begin(), in);
     wtxNew.SetTx(MakeTransactionRef(std::move(txNew)));
 
-    // Iterate payment vins, and add into g_RandPayLockUTXO
-    time_t lock_time = time(NULL) + nTimio;
-    for (size_t vin_no = 1; vin_no < wtxNew.tx->vin.size(); vin_no++) {
-        uint256 rpLockTXkey(wtxNew.tx->vin[vin_no].prevout.hash);
-        *((uint32_t*)rpLockTXkey.GetDataPtr()) += txNew.vin[vin_no].prevout.n;
-        g_RandPayLockUTXO.Insert(rpLockTXkey, lock_time);
-    }
     return EncodeHexTx(wtxNew);
 }
 
