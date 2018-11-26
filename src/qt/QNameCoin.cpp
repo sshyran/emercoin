@@ -134,6 +134,7 @@ QString QNameCoin::errorToString(UniValue& objError) {
 QString QNameCoin::toString(const std::exception& e) {
 	return QString::fromStdString(e.what());
 }
+//name_filter
 QList<QNameCoin::NVPair> QNameCoin::nameScan(const QString& prefix, int maxCount) {
 	QList<QNameCoin::NVPair> ret;
 	return ret;

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>657</width>
-    <height>451</height>
+    <width>987</width>
+    <height>565</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -63,11 +63,39 @@
         <string>Trusted Diploma</string>
        </property>
        <property name="text">
-        <string>Trusted Diploma</string>
+        <string>TD</string>
        </property>
        <property name="icon">
         <iconset resource="../bitcoin.qrc">
          <normaloff>:/icons/Trusted-diploma-16-monochrome.png</normaloff>:/icons/Trusted-diploma-16-monochrome.png</iconset>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnSsl">
+       <property name="toolTip">
+        <string>Trusted Diploma</string>
+       </property>
+       <property name="text">
+        <string>SSL</string>
+       </property>
+       <property name="icon">
+        <iconset resource="../bitcoin.qrc">
+         <normaloff>:/icons/EmerSSL-32.png</normaloff>:/icons/EmerSSL-32.png</iconset>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnInfoCard">
+       <property name="toolTip">
+        <string>Trusted Diploma</string>
+       </property>
+       <property name="text">
+        <string>InfoCard</string>
+       </property>
+       <property name="icon">
+        <iconset resource="../bitcoin.qrc">
+         <normaloff>:/icons/InfoCard-32.png</normaloff>:/icons/InfoCard-32.png</iconset>
        </property>
       </widget>
      </item>

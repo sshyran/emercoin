@@ -86,6 +86,8 @@ private Q_SLOTS:
     void onManageDomainsClicked();
 	void onManageDpoClicked();
 	void onTrustedDiplomaClicked();
+	void onSslClicked();
+	void onInfoCardClicked();
     void on_registerAddress_editingFinished();
 
 Q_SIGNALS:

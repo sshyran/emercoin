@@ -11,6 +11,8 @@
 #include "ManageDnsPage.h"
 #include "DpoWidget.h"
 #include "DiplomaWidget.h"
+//#include "InfoCardsWidget.h"
+#include "ManageSslPage.h"
 
 #include <QMessageBox>
 #include <QMenu>
@@ -99,6 +101,9 @@ ManageNamesPage::ManageNamesPage(QWidget *parent) :
     connect(ui->btnManageDomains, &QPushButton::clicked, this, &ManageNamesPage::onManageDomainsClicked);
 	connect(ui->btnDpo, &QPushButton::clicked, this, &ManageNamesPage::onManageDpoClicked);
 	connect(ui->btnTrustedDiploma, &QPushButton::clicked, this, &ManageNamesPage::onTrustedDiplomaClicked);
+	connect(ui->btnSsl, &QPushButton::clicked, this, &ManageNamesPage::onSslClicked);
+	connect(ui->btnInfoCard, &QPushButton::clicked, this, &ManageNamesPage::onInfoCardClicked);
+	ui->btnInfoCard->setVisible(false);
 
     // Context menu actions
     QAction *copyNameAction = new QAction(tr("Copy &Name"), this);
@@ -190,6 +195,20 @@ void ManageNamesPage::onTrustedDiplomaClicked() {
 		setDisplayedName(dlg.name());
 		setDisplayedValue(dlg.value());
 	}
+}
+void ManageNamesPage::onSslClicked() {
+	ManageSslPage dlg(this);
+	if(dlg.exec()==QDialog::Accepted) {
+		setDisplayedName(dlg.name());
+		setDisplayedValue(dlg.value());
+	}
+}
+void ManageNamesPage::onInfoCardClicked() {
+	/*InfoCardsWidget dlg(this);
+	if(dlg.exec()==QDialog::Accepted) {
+		setDisplayedName(dlg.name());
+		setDisplayedValue(dlg.value());
+	}*/
 }
 void ManageNamesPage::setModel(WalletModel *walletModel)
 {

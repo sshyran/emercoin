@@ -1,7 +1,6 @@
 ﻿//ManageDnsPage.h by emercoin developers
 #pragma once
 #include <QDialog>
-#include <QLineEdit>
 #include "NameValueLineEdits.h"
 class QLineEdit;
 class QFormLayout;
