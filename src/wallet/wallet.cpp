@@ -2136,8 +2136,11 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
                     continue;
 
                 uint256HashMap<time_t>::Data *p = g_RandPayLockUTXO.Search(rpLockTXkey);
-                if(p && p->value > cur_time)
+                if(p) {
+                  if(p->value > cur_time)
                     continue;
+                  g_RandPayLockUTXO.MarkDel(p);
+                }
 
                 isminetype mine = IsMine(pcoin->tx->vout[i]);
                 if (!(IsSpent(wtxid, i)) && mine != ISMINE_NO &&

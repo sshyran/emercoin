@@ -969,6 +969,7 @@ UniValue createrandpayaddr(const JSONRPCRequest& request)
 }
 
 #ifdef ENABLE_WALLET
+extern uint256HashMap<time_t> g_RandPayLockUTXO;
 
 static void InitMapRandKeyT() {
   static int randkeymapsz = -1;
@@ -1090,6 +1091,14 @@ UniValue randpay_createtx(const JSONRPCRequest& request)
     txNew.vin.insert(txNew.vin.begin(), in);
     wtxNew.SetTx(MakeTransactionRef(std::move(txNew)));
 
+    // Iterate payment vins, and add into g_RandPayLockUTXO
+    time_t lock_time = time(NULL) + nTimio;
+// TODO
+    for(int vin_no = 1; vin_no < 1; vin_no++) {
+//      uint256 rpLockTXkey(txNew.vin[vin_no].txid);
+//      *((uint32_t*)rpLockTXkey.GetDataPtr()) += txNew.vin[vin_no].vout;
+//      g_RandPayLockUTXO.Insert(rpLockTXkey, lock_time);
+    }
     return EncodeHexTx(wtxNew);
 }
 
