@@ -16,6 +16,7 @@
 #include <QDesktopServices>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QProcess>
 
 CertTableView::CertTableView(CertLogger*log): _logger(log) {
 	horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
@@ -60,7 +61,7 @@ struct CertTableView::Dialog: public QDialog {
 	QLabel * _labelError = new QLabel;
 	Dialog(QWidget*parent): QDialog(parent) {
 		setWindowTitle(tr("New certificate"));
-		setWindowFlag(Qt::WindowContextHelpButtonHint, false);
+		//setWindowFlag(Qt::WindowContextHelpButtonHint, false);
 		auto lay = new QVBoxLayout(this);
 		auto form = new QFormLayout;
 		lay->addLayout(form);
