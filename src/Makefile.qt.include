@@ -208,18 +208,8 @@ BITCOIN_QT_H = \
   qt/QNameCoin.h \
   qt/CertTableModel.h \
   qt/CertTableView.h \
-  qt/InfoCardDialog.h \
-  qt/InfoCardItemDelegate.h \
   qt/CertLogger.h \
-  qt/InfoCard.h \
   qt/EnumerDialog.h \
-  qt/InfoCardExample.h \
-  qt/InfoCardTableModel.h \
-  qt/InfoCardHighlighter.h \
-  qt/InfoCardPanel.h \
-  qt/InfoCardTableView.h \
-  qt/InfoCardTextEdit.h \
-  qt/InfoCardsWidget.h \
   qt/OpenSslConfigWriter.h \
   qt/ManageSslPage.h \
   qt/OpenSslExecutable.h \
@@ -296,18 +286,7 @@ BITCOIN_QT_H = \
  # quazip/quazip.h \
  # quazip/quazipnewinfo.h \
  # quazip/unzip.h \
- # quazip/zip.h \
- # zlib/crc32.h \
- # zlib/deflate.h \
- # zlib/gzguts.h \
- # zlib/inffast.h \
- # zlib/inffixed.h \
- # zlib/inflate.h \
- # zlib/inftrees.h \
- # zlib/trees.h \
- # zlib/zconf.h \
- # zlib/zlib.h \
- # zlib/zutil.h
+ # quazip/zip.h
 
 RES_ICONS = \
   qt/res/icons/add.png \
@@ -474,41 +453,6 @@ BITCOIN_QT_WALLET_CPP = \
   qt/walletmodel.cpp \
   qt/walletmodeltransaction.cpp \
   qt/walletview.cpp
-#  qt/InfoCard.cpp \
-#  qt/InfoCardDialog.cpp \
-#  qt/InfoCardExample.cpp \
-#  qt/InfoCardHighlighter.cpp \
- # qt/InfoCardItemDelegate.cpp \
- # qt/InfoCardTableModel.cpp \
- # qt/InfoCardTableView.cpp \
- # qt/InfoCardTextEdit.cpp \
- # qt/InfoCardsWidget.cpp \
-#  zlib/adler32.c \
-#  zlib/compress.c \
-#  zlib/crc32.c \
-#  zlib/deflate.c \
-#  zlib/gzclose.c \
-#  zlib/gzlib.c \
-#  zlib/gzread.c \
-#  zlib/gzwrite.c \
-#  zlib/infback.c \
-#  zlib/inffast.c \
-#  zlib/inflate.c \
-#  zlib/inftrees.c \
-#  zlib/trees.c \
-#  zlib/uncompr.c \
-#  zlib/zutil.c \
-#  quazip/JlCompress.cpp \
-#  quazip/qioapi.cpp \
-#  quazip/quaadler32.cpp \
-#  quazip/quacrc32.cpp \
-#  quazip/quagzipfile.cpp \
-#  quazip/quaziodevice.cpp \
-#  quazip/quazip.cpp \
-#  quazip/quazipdir.cpp \
-#  quazip/quazipfile.cpp \
-#  quazip/quazipfileinfo.cpp \
-#  quazip/quazipnewinfo.cpp
 
 BITCOIN_QT_CPP = $(BITCOIN_QT_BASE_CPP)
 if TARGET_WINDOWS
