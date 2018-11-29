@@ -14,7 +14,7 @@ class InfoCard {
 		QString save()const;//"" -> ok
 		virtual void parse();
 		static QString tr(const char *t);
-		//QString encrypt(CertLogger*logger);//"" -> ok
+		QString encrypt(CertLogger*logger);//"" -> ok
 		QString pathByExt(const QString & extension)const;
 	protected:
 		QString indexAndPassFromText(QString & index, QString & pass);

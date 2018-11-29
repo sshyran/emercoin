@@ -11,7 +11,7 @@
 #include "ManageDnsPage.h"
 #include "DpoWidget.h"
 #include "DiplomaWidget.h"
-//#include "InfoCardsWidget.h"
+#include "InfoCardsWidget.h"
 #include "ManageSslPage.h"
 
 #include <QMessageBox>
@@ -204,11 +204,11 @@ void ManageNamesPage::onSslClicked() {
 	}
 }
 void ManageNamesPage::onInfoCardClicked() {
-	/*InfoCardsWidget dlg(this);
+	InfoCardsWidget dlg(this);
 	if(dlg.exec()==QDialog::Accepted) {
 		setDisplayedName(dlg.name());
 		setDisplayedValue(dlg.value());
-	}*/
+	}
 }
 void ManageNamesPage::setModel(WalletModel *walletModel)
 {
