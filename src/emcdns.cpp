@@ -1,8 +1,8 @@
 /*
  * Simple DNS server for EmerCoin project
  *
- * Lookup for names like "dns:some-nake" in the local nameindex database.
- * Database is updates from blockchain, and keeps NMC-transactions.
+ * Lookup for names like "dns:some-name" in the local nameindex database.
+ * Database is updated from blockchain, and keeps NMC-transactions.
  *
  * Supports standard RFC1034 UDP DNS protocol only
  *
