@@ -103,7 +103,7 @@ void NameValueLineEdits::setName(const QString & name) {
 	_availability->show();
 	QString text;
 	if(QNameCoin::isMyName(name)) {
-	   text = NameCoinStrings::charCheckOk + tr(" You are owner of this name and can change it (%1)").arg(name);
+	   text = NameCoinStrings::trNameIsMy(name);
 	} else if(QNameCoin::nameActive(name)) {
 		text = NameCoinStrings::trNameAlreadyRegistered(name, false);
 	} else {

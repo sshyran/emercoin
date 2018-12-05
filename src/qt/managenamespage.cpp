@@ -5,6 +5,8 @@
 #include "walletmodel.h"
 #include "guiutil.h"
 #include "namecoin.h"
+#include "QNameCoin.h"
+#include "NameCoinStrings.h"
 #include "ui_interface.h"
 #include "validation.h"
 #include "csvmodelwriter.h"
@@ -22,6 +24,9 @@
 //
 // NameFilterProxyModel
 //
+static const QString STR_NAME_NEW = "NAME_NEW";
+static const QString STR_NAME_DELETE = "NAME_DELETE";
+static const QString STR_NAME_UPDATE = "NAME_UPDATE";
 
 NameFilterProxyModel::NameFilterProxyModel(QObject *parent /* = 0*/)
     : QSortFilterProxyModel(parent)
@@ -103,6 +108,7 @@ ManageNamesPage::ManageNamesPage(QWidget *parent) :
 	connect(ui->btnTrustedDiploma, &QPushButton::clicked, this, &ManageNamesPage::onTrustedDiplomaClicked);
 	connect(ui->btnSsl, &QPushButton::clicked, this, &ManageNamesPage::onSslClicked);
 	connect(ui->btnInfoCard, &QPushButton::clicked, this, &ManageNamesPage::onInfoCardClicked);
+	connect(ui->registerName, &QLineEdit::textChanged, this, &ManageNamesPage::showNameAvailable);
 	ui->btnInfoCard->setVisible(false);
 
     // Context menu actions
@@ -280,7 +286,7 @@ void ManageNamesPage::on_submitNameButton_clicked()
 
     QString qsName = ui->registerName->text();
     CNameVal value;  // byte-by-byte value, as is
-    QString displayValue;            // for displaying value as unicode string
+	QString displayValue; // for displaying value as unicode string
 
     if (ui->registerValue->isEnabled())
     {
@@ -294,7 +300,7 @@ void ManageNamesPage::on_submitNameButton_clicked()
         displayValue = QString::fromStdString(stringFromNameVal(value));
     }
 
-    QString txTimeType = ui->txTimeTypeSelector->currentText();
+	const QString txTimeType = ui->txTimeTypeSelector->currentText();
     int days = 0;
     if      (txTimeType == "days")
         days = ui->registerTimeUnits->text().toInt();
@@ -303,18 +309,15 @@ void ManageNamesPage::on_submitNameButton_clicked()
     else if (txTimeType == "years")
         days = ui->registerTimeUnits->text().toInt() * 365;
 
-    QString txType = ui->txTypeSelector->currentText();
-    QString newAddress = ui->registerAddress->text();
-    if (txType == "NAME_UPDATE" || txType == "NAME_NEW")
-        newAddress = ui->registerAddress->text();
-
-    if (qsName == "")
+	const QString txType = ui->txTypeSelector->currentText();
+	const QString newAddress = ui->registerAddress->text();
+	if (qsName.isEmpty())
     {
         QMessageBox::critical(this, tr("Name is empty"), tr("Enter name please"));
         return;
     }
 
-    if (value.empty() && (txType == "NAME_NEW" || txType == "NAME_UPDATE"))
+	if (value.empty() && (txType == STR_NAME_NEW || txType == STR_NAME_UPDATE))
     {
         QMessageBox::critical(this, tr("Value is empty"), tr("Enter value please"));
         return;
@@ -322,7 +325,7 @@ void ManageNamesPage::on_submitNameButton_clicked()
 
     // TODO: name needs more exhaustive syntax checking, Unicode characters etc.
     // TODO: maybe it should be done while the user is typing (e.g. show/hide a red notice below the input box)
-    if (qsName != qsName.simplified() || qsName.contains(" "))
+	if (qsName != qsName.simplified() || qsName.contains(' ') || qsName.contains('\t') || qsName.contains('\n'))
     {
         if (QMessageBox::Yes != QMessageBox::warning(this, tr("Name registration warning"),
               tr("The name you entered contains whitespace characters. Are you sure you want to use this name?"),
@@ -335,11 +338,11 @@ void ManageNamesPage::on_submitNameButton_clicked()
 
     int64_t txFee = MIN_TX_FEE;
     string strName = qsName.toStdString();
-    CNameVal name(strName.begin(), strName.end());
+	const CNameVal name(strName.begin(), strName.end());
     {
-        if (txType == "NAME_NEW")
+		if (txType == STR_NAME_NEW)
             txFee = GetNameOpFee(chainActive.Tip(), days, OP_NAME_NEW, name, value);
-        else if (txType == "NAME_UPDATE")
+		else if (txType == STR_NAME_UPDATE)
             txFee = GetNameOpFee(chainActive.Tip(), days, OP_NAME_UPDATE, name, value);
     }
 
@@ -362,19 +365,19 @@ void ManageNamesPage::on_submitNameButton_clicked()
         NameTxReturn res;
         int nHeight = 0;
         ChangeType status = CT_NEW;
-        if (txType == "NAME_NEW")
+		if (txType == STR_NAME_NEW)
         {
             nHeight = NameTableEntry::NAME_NEW;
             status = CT_NEW;
             res = name_operation(OP_NAME_NEW, name, value, days, newAddress.toStdString(), "");
         }
-        else if (txType == "NAME_UPDATE")
+		else if (txType == STR_NAME_UPDATE)
         {
             nHeight = NameTableEntry::NAME_UPDATE;
             status = CT_UPDATED;
             res = name_operation(OP_NAME_UPDATE, name, value, days, newAddress.toStdString(), "");
         }
-        else if (txType == "NAME_DELETE")
+		else if (txType == STR_NAME_DELETE)
         {
             nHeight = NameTableEntry::NAME_DELETE;
             status = CT_UPDATED; //we still want to display this name until it is deleted
@@ -540,21 +543,21 @@ void ManageNamesPage::exportClicked()
 
 void ManageNamesPage::on_txTypeSelector_currentIndexChanged(const QString &txType)
 {
-    if (txType == "NAME_NEW")
+	if (txType == STR_NAME_NEW)
     {
         ui->txTimeTypeSelector->setEnabled(true);
         ui->registerTimeUnits->setEnabled(true);
         ui->registerAddress->setEnabled(true);
         ui->registerValue->setEnabled(true);
     }
-    else if (txType == "NAME_UPDATE")
+	else if (txType == STR_NAME_UPDATE)
     {
         ui->txTimeTypeSelector->setEnabled(true);
         ui->registerTimeUnits->setEnabled(true);
         ui->registerAddress->setEnabled(true);
         ui->registerValue->setEnabled(true);
     }
-    else if (txType == "NAME_DELETE")
+	else if (txType == STR_NAME_DELETE)
     {
         ui->txTimeTypeSelector->setDisabled(true);
         ui->registerTimeUnits->setDisabled(true);
@@ -679,4 +682,20 @@ void ManageNamesPage::on_registerAddress_editingFinished()
         return;
     else
         ui->registerAddress->setText(qstrAddress);
+}
+
+void ManageNamesPage::showNameAvailable() {
+	QString name = ui->registerName->text();
+	QString text;
+	if(name.isEmpty()) {
+	} else if(QNameCoin::isMyName(name)) {
+		text = NameCoinStrings::trNameIsMy(name);
+	} else if(QNameCoin::nameActive(name)) {
+		text = NameCoinStrings::trNameAlreadyRegistered(name, false);
+	} else {
+		text = NameCoinStrings::trNameIsFree(name);
+	}
+	QChar ch = text.isEmpty() ? ' ' : text.at(0);
+	ui->labelAvailability->setText({ch});
+	ui->labelAvailability->setToolTip(text);
 }

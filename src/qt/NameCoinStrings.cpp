@@ -13,7 +13,7 @@ QString NameCoinStrings::trNameIsFree(const QString & name, bool ok) {
 	return charBy(ok) + tr(" This name is free (%1)").arg(name);
 }
 QString NameCoinStrings::trNameAlreadyRegistered(const QString & name, bool ok) {
-	return  charBy(ok) + tr(" This name is already registered in blockchain (%1)").arg(name);
+	return charBy(ok) + tr(" This name is already registered in blockchain (%1)").arg(name);
 }
 QString NameCoinStrings::nameExistOrError(const QString & name) {
 	if(name.isEmpty())
@@ -41,4 +41,7 @@ QString NameCoinStrings::nameExistOrError(const QString & name, const QString & 
 		return charBy(true) + tr(" This name is registered (%1)").arg(name);
 
 	return trNameNotFound(name);
+}
+QString NameCoinStrings::trNameIsMy(const QString & name) {
+	return charCheckOk + tr(" You are owner of this name and can change it (%1)").arg(name);
 }

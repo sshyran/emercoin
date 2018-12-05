@@ -64,7 +64,7 @@ public Q_SLOTS:
 
 private Q_SLOTS:
     void on_submitNameButton_clicked();
-
+	void showNameAvailable();
     bool eventFilter(QObject *object, QEvent *event);
     void selectionChanged();
 
