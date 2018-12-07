@@ -1,6 +1,4 @@
-#ifndef MANAGENAMESPAGE_H
-#define MANAGENAMESPAGE_H
-
+#pragma once
 #include <QDialog>
 #include <QSortFilterProxyModel>
 
@@ -35,7 +33,7 @@ private:
 };
 
 /** Page for managing names */
-class ManageNamesPage : public QDialog
+class ManageNamesPage : public QWidget
 {
     Q_OBJECT
 
@@ -93,5 +91,3 @@ private Q_SLOTS:
 Q_SIGNALS:
     void doubleClicked(const QModelIndex&);
 };
-
-#endif // MANAGENAMESPAGE_H

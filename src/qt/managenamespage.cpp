@@ -95,7 +95,7 @@ const static int COLUMN_WIDTH_NAME = 300,
                  COLUMN_WIDTH_EXPIRES_IN = 100;
 
 ManageNamesPage::ManageNamesPage(QWidget *parent) :
-    QDialog(parent),
+	QWidget(parent),
     ui(new Ui::ManageNamesPage),
     model(0),
     walletModel(0),
@@ -430,7 +430,7 @@ bool ManageNamesPage::eventFilter(QObject *object, QEvent *event)
             ui->submitNameButton->setDefault(false);
         }
     }
-    return QDialog::eventFilter(object, event);
+	return QWidget::eventFilter(object, event);
 }
 
 void ManageNamesPage::selectionChanged()
