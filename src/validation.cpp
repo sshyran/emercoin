@@ -1010,8 +1010,6 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
         // Store transaction in memory
         pool.addUnchecked(hash, entry, setAncestors, validForFeeEstimation);
-        if (isNameTx)
-            hooks->AddToPendingNames(ptx);
 
         // trim mempool and check if tx was trimmed
         if (!fOverrideMempoolLimit) {
@@ -1019,6 +1017,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             if (!pool.exists(hash))
                 return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool full");
         }
+
+        if (isNameTx)
+            hooks->AddToPendingNames(ptx);
     }
 
     GetMainSignals().SyncTransaction(tx, NULL, CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK);
@@ -1450,6 +1451,7 @@ bool CScriptCheck::operator()() {
     const CScript& scriptPubKey2 = ptxTo->vin[nIn].prevout.hash != randpaytx ?
                 scriptPubKey :
                 (assert(ptxTo->vin[nIn].prevout.n == 0), GenerateScriptForRandPay(ptxTo->vout[0].scriptPubKey));
+    // note: assert above should never trigger, because HaveInputs checks should reject any such transactions
 
     if (!VerifyScript(scriptSig, scriptPubKey2, ptxTo->nVersion, witness, nFlags, CachingTransactionSignatureChecker(ptxTo, nIn, amount, cacheStore, *txdata), &error)) {
         return false;
