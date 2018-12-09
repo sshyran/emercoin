@@ -17,6 +17,7 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QProcess>
+#include <QAction>
 
 CertTableView::CertTableView(CertLogger*log): _logger(log) {
 	horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);

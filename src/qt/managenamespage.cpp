@@ -284,7 +284,24 @@ void ManageNamesPage::on_submitNameButton_clicked()
     if (!walletModel)
         return;
 
-    QString qsName = ui->registerName->text();
+	const QString qsName = ui->registerName->text();
+	if (qsName.isEmpty()) {
+		QMessageBox::critical(this, tr("Name is empty"), tr("Enter name please"));
+		ui->registerName->setFocus();
+		return;
+	}
+	// TODO: name needs more exhaustive syntax checking, Unicode characters etc.
+	// TODO: maybe it should be done while the user is typing (e.g. show/hide a red notice below the input box)
+	if (qsName != qsName.simplified() || qsName.contains(' ') || qsName.contains('\t') || qsName.contains('\n')) {
+		if (QMessageBox::Yes != QMessageBox::warning(this, tr("Name registration warning"),
+			  tr("The name you entered contains whitespace characters. Are you sure you want to use this name?"),
+			  QMessageBox::Yes | QMessageBox::Cancel,
+			  QMessageBox::Cancel))
+		{
+			return;
+		}
+	}
+
     CNameVal value;  // byte-by-byte value, as is
 	QString displayValue; // for displaying value as unicode string
 
@@ -311,29 +328,12 @@ void ManageNamesPage::on_submitNameButton_clicked()
 
 	const QString txType = ui->txTypeSelector->currentText();
 	const QString newAddress = ui->registerAddress->text();
-	if (qsName.isEmpty())
-    {
-        QMessageBox::critical(this, tr("Name is empty"), tr("Enter name please"));
-        return;
-    }
 
 	if (value.empty() && (txType == STR_NAME_NEW || txType == STR_NAME_UPDATE))
     {
         QMessageBox::critical(this, tr("Value is empty"), tr("Enter value please"));
+		ui->registerValue->setFocus();
         return;
-    }
-
-    // TODO: name needs more exhaustive syntax checking, Unicode characters etc.
-    // TODO: maybe it should be done while the user is typing (e.g. show/hide a red notice below the input box)
-	if (qsName != qsName.simplified() || qsName.contains(' ') || qsName.contains('\t') || qsName.contains('\n'))
-    {
-        if (QMessageBox::Yes != QMessageBox::warning(this, tr("Name registration warning"),
-              tr("The name you entered contains whitespace characters. Are you sure you want to use this name?"),
-              QMessageBox::Yes | QMessageBox::Cancel,
-              QMessageBox::Cancel))
-        {
-            return;
-        }
     }
 
     int64_t txFee = MIN_TX_FEE;
@@ -359,7 +359,6 @@ void ManageNamesPage::on_submitNameButton_clicked()
         return;
 
     QString err_msg;
-
     try
     {
         NameTxReturn res;
