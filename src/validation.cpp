@@ -3272,16 +3272,10 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
                               : block.GetBlockTime();
 
     // Check that all transactions are finalized
-    // emercoin: also forbid randpay until v7 fork
     for (const auto& tx : block.vtx) {
         if (!IsFinalTx(*tx, nHeight, nLockTimeCutoff)) {
             return state.DoS(10, false, REJECT_INVALID, "bad-txns-nonfinal", false, "non-final transaction");
         }
-
-        if (!fV7Enabled)
-            for (const CTxIn& txin : tx->vin)
-                if (txin.prevout.hash == randpaytx)
-                    return state.DoS(100, false, REJECT_INVALID, "early-randpaytx", false, "randpay tx before v7 fork");
     }
 
     // Enforce rule that the coinbase starts with serialized block height
