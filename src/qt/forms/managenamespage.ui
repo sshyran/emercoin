@@ -141,7 +141,7 @@
         </sizepolicy>
        </property>
        <property name="text">
-        <string>  </string>
+        <string/>
        </property>
        <property name="alignment">
         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -422,6 +422,9 @@
          <property name="text">
           <string notr="true"/>
          </property>
+         <property name="placeholderText">
+          <string>Name filter</string>
+         </property>
         </widget>
        </item>
        <item>
@@ -431,6 +434,9 @@
          </property>
          <property name="text">
           <string notr="true"/>
+         </property>
+         <property name="placeholderText">
+          <string>Value filter</string>
          </property>
         </widget>
        </item>
@@ -447,6 +453,9 @@
          </property>
          <property name="text">
           <string notr="true"/>
+         </property>
+         <property name="placeholderText">
+          <string>Address filter</string>
          </property>
         </widget>
        </item>

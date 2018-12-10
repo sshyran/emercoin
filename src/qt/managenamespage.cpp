@@ -153,13 +153,6 @@ ManageNamesPage::ManageNamesPage(QWidget *parent) :
     ui->valueFilter->setMaxLength(MAX_VALUE_LENGTH);
     GUIUtil::setupAddressWidget(ui->addressFilter, this);
 
-#if QT_VERSION >= 0x040700
-    /* Do not move this to the XML file, Qt before 4.7 will choke on it */
-    ui->nameFilter->setPlaceholderText(tr("Name filter"));
-    ui->valueFilter->setPlaceholderText(tr("Value filter"));
-    ui->addressFilter->setPlaceholderText(tr("Address filter"));
-#endif
-
     ui->nameFilter->setFixedWidth(COLUMN_WIDTH_NAME);
     ui->addressFilter->setFixedWidth(COLUMN_WIDTH_ADDRESS);
     ui->horizontalSpacer_ExpiresIn->changeSize(
@@ -235,13 +228,8 @@ void ManageNamesPage::setModel(WalletModel *walletModel)
     // Set column widths
     ui->tableView->horizontalHeader()->resizeSection(
             NameTableModel::Name, COLUMN_WIDTH_NAME);
-#if QT_VERSION < 0x050000
-    ui->tableView->horizontalHeader()->setResizeMode(
-            NameTableModel::Value, QHeaderView::Stretch);
-#else
-    ui->tableView->horizontalHeader()->setSectionResizeMode(
-            NameTableModel::Value, QHeaderView::Stretch);
-#endif
+	ui->tableView->horizontalHeader()->setSectionResizeMode(
+			NameTableModel::Value, QHeaderView::Stretch);
     ui->tableView->horizontalHeader()->resizeSection(
             NameTableModel::Address, COLUMN_WIDTH_ADDRESS);
     ui->tableView->horizontalHeader()->resizeSection(
@@ -300,6 +288,7 @@ void ManageNamesPage::on_submitNameButton_clicked()
 		{
 			return;
 		}
+		ui->registerName->setFocus();
 	}
 
     CNameVal value;  // byte-by-byte value, as is
