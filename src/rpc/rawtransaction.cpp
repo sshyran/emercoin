@@ -1027,15 +1027,16 @@ UniValue randpay_createaddrchap(const JSONRPCRequest& request)
 
 UniValue randpay_createtx(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 4)
+    if (request.fHelp || request.params.size() < 4 || request.params.size() > 5)
         throw runtime_error(
-            "randpay_createtx amount \"addrchap\" risk timio\n"
+            "randpay_createtx amount \"addrchap\" risk timio [naive]\n"
             "\nCreates randpay tx.\n"
             "\nArguments:\n"
             "1. amount         (numeric, required) Amount of emc to send.\n"
             "2. \"addrchap\"   (string, required)  ?\n"
             "3. risk           (numeric, required) 1 / probability of success for random payments.\n"
             "4. timio          (numeric, required) Locks utxo from being spent in another tx for timio seconds.\n"
+            "5. naive          (bool, optional, default=false) Generate navive randpay-transaction, without randpay-in\n"
             "\nResult:\n"
             "\"transaction\"   (string) Hex string of the transaction.\n"
             //emc add examples:
@@ -1057,6 +1058,8 @@ UniValue randpay_createtx(const JSONRPCRequest& request)
     if (!request.params[3].isNum())
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid type provided. timio parameter must be numeric.");
     int32_t nTimio = request.params[3].get_int();
+
+    bool naive = request.params.size() == 5 && request.params[4].isBool() && request.params[4].isTrue();
 
     uint160 rand_addr;
     rand_addr.SetHex( (nRisk * addrchap + GetRand(nRisk)).ToString() );
@@ -1091,13 +1094,14 @@ UniValue randpay_createtx(const JSONRPCRequest& request)
         *((uint32_t*)rpLockTXkey.GetDataPtr()) += txin.prevout.n;
         g_RandPayLockUTXO.Insert(rpLockTXkey, lock_time);
     }
-    // add randpay input at vin[0]
-    CMutableTransaction txNew(*wtxNew.tx);
-    uint32_t nSequence = (wtxNew.tx->nLockTime ? std::numeric_limits<uint32_t>::max() - 1 : std::numeric_limits<uint32_t>::max());
-    CTxIn in(COutPoint(randpaytx, 0), CScript(), nSequence);
-    txNew.vin.insert(txNew.vin.begin(), in);
-    wtxNew.SetTx(MakeTransactionRef(std::move(txNew)));
-
+    if(!naive) {
+        // add randpay input at vin[0]
+        CMutableTransaction txNew(*wtxNew.tx);
+        uint32_t nSequence = (wtxNew.tx->nLockTime ? std::numeric_limits<uint32_t>::max() - 1 : std::numeric_limits<uint32_t>::max());
+        CTxIn in(COutPoint(randpaytx, 0), CScript(), nSequence);
+        txNew.vin.insert(txNew.vin.begin(), in);
+        wtxNew.SetTx(MakeTransactionRef(std::move(txNew)));
+    }
     return EncodeHexTx(wtxNew);
 }
 
@@ -1149,7 +1153,7 @@ static const CRPCCommand commands[] =
     // emercoin: randpay commands
 #ifdef ENABLE_WALLET
     { "hidden",    "randpay_createaddrchap",          &randpay_createaddrchap, true,  {"risk","timio"} },
-    { "hidden",    "randpay_createtx",                &randpay_createtx,       true,  {"amount","addrchap","risk","timio"} },
+    { "hidden",    "randpay_createtx",                &randpay_createtx,       true,  {"amount","addrchap","risk","timio","naive"} },
 #endif
     { "hidden",    "randpay_submittx",                &randpay_submittx,       false, {"hexstring","risk"} },
 
