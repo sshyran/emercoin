@@ -547,6 +547,16 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
                 return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
     }
 
+    // emercoin: only one randpay utxo is allowed per transaction
+    bool found = false;
+    for (const CTxIn& txin : tx.vin) {
+        if (txin.prevout.hash == randpaytx) {
+            if (found)
+                return state.DoS(100, false, REJECT_INVALID, "multiple-randpay-utxo", false, "more that one randpay utxo in a single transaction");
+            found = true;
+        }
+    }
+
     return true;
 }
 
@@ -3098,18 +3108,6 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
         // ppcoin: check transaction timestamp
         if (block.GetBlockTime() < (int64_t)tx->nTime)
             return state.DoS(50, false, REJECT_INVALID, "bad-tx-time", false, strprintf("%s : block timestamp earlier than transaction timestamp", __func__));
-
-        // emercoin: only one randpay utxo is allowed per transaction
-        bool found = false;
-        for (const CTxIn& txin : tx->vin)
-        {
-            if (txin.prevout.hash == randpaytx)
-            {
-                if (found)
-                    return state.DoS(100, false, REJECT_INVALID, "multiple-randpay-utxo", false, "more that one randpay utxo in a single transaction");
-                found = true;
-            }
-        }
     }
 
     unsigned int nSigOps = 0;
