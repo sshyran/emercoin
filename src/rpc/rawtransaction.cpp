@@ -1124,19 +1124,96 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
             //+ HelpExampleCli("randpay_submittx", "") +
         );
 
-    // commeted to remove compiler warnings
-//    vector<unsigned char> hexstring(ParseHexV(request.params[0], "hexstring"));
-
-//    if (!request.params[1].isNum())
-//        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid type provided. risk parameter must be numeric.");
-//    uint32_t nRisk = request.params[1].get_int();
 #ifdef ENABLE_WALLET
     InitMapRandKeyT();
-#endif    
+#endif
+
+    RPCTypeCheck(request.params, boost::assign::list_of(UniValue::VSTR)(UniValue::VNUM));
+    if (!g_connman)
+        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+
+    // parse hex string from parameter
+    CMutableTransaction mtx;
+    if (!DecodeHexTx(mtx, request.params[0].get_str()))
+        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
+    CTransactionRef tx(MakeTransactionRef(std::move(mtx)));
+    const uint256& hashTx = tx->GetHash();
+
+    CCoinsViewCache &view = *pcoinsTip;
+    const CCoins* existingCoins = view.AccessCoins(hashTx);
+//    bool fHaveMempool = mempool.exists(hashTx);
+    bool fHaveChain = existingCoins && existingCoins->nHeight < 1000000000;
+    if (fHaveChain)
+        throw JSONRPCError(RPC_TRANSACTION_ALREADY_IN_CHAIN, "transaction already in block chain");
+    CValidationState state;
+    bool fMissingInputs;
+    CAmount nMaxRawTxFee = 0;
+    bool fRandPayCheck = true;
+    // note: if (fRandPayCheck == true) it will do all checks but it will not accept tx to the pool at the end
+    bool fPass = AcceptToMemoryPool(mempool, state, std::move(tx), &fMissingInputs, NULL, false, nMaxRawTxFee, fRandPayCheck);
+    bool fRejectedByRandPay = fPass ? false : state.GetRejectCode() == REJECT_RANDPAY;
+    if (!fPass && !fRejectedByRandPay) {
+        if (state.IsInvalid()) {
+            throw JSONRPCError(RPC_TRANSACTION_REJECTED, strprintf("%i: %s", state.GetRejectCode(), state.GetRejectReason()));
+        } else {
+            if (fMissingInputs) {
+                throw JSONRPCError(RPC_TRANSACTION_ERROR, "Missing inputs");
+            }
+            throw JSONRPCError(RPC_TRANSACTION_ERROR, state.GetRejectReason());
+        }
+    }
+
+    int32_t rpn = -1;
+    if (fRejectedByRandPay) {
+        rpn = 0;
+        for (const CTxIn& txin : tx->vin) {
+            if (txin.prevout.hash == randpaytx)
+                break;
+            rpn++;
+        }
+    }
+
+    uint32_t nRisk = request.params[1].get_int();
+    bool fWon = false;
+    if (nRisk > 0) {
+        CTxDestination address;
+        if (!ExtractDestination(tx->vout[0].scriptPubKey, address))
+            throw JSONRPCError(RPC_TRANSACTION_ERROR, "Failed to extract destination from vout[0]");
+        CKeyID id;
+        if (!CBitcoinAddress(address).GetKeyID(id))
+            throw JSONRPCError(RPC_TRANSACTION_ERROR, "Failed to extract CKeyID from vout[0]");
+
+        arith_uint256 X = arith_uint256(id.ToString());
+        arith_uint256 addrchap = X / nRisk;
+        uint256HashMap<RandKeyT>::Data *p = MapRandKeyT.Search(ArithToUint256(addrchap));
+        if (!p)
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unable to sign");
+        if (id == p->value.key.GetPubKey().GetID()) {
+//            -- вносим Privkey в кошелёк, но без пере-сканирования БЧ.
+//            -- if(rpn >= 0) { Подписываем не-наивную randpay-in (vin[rpn]) нашим Privkey-ем }
+            fWon = true;
+        }
+        MapRandKeyT.MarkDel(p);
+    } else {
+        // Тут риск == 0. Если TX полностью подписана - то она от лёгкого клиента. Если надо подписывать randpay-in - то мы этого сделать не можем, так как risk не указали.
+        if (rpn < 0)
+            fWon = true; // Транзакция от лёгкого клиента, полностью подписанная, будетм отправлять в сеть.
+        else
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unable to sign");
+    }
+
+    // send tx to other peers
+    if (fWon) {
+        CInv inv(MSG_TX, hashTx);
+        g_connman->ForEachNode([&inv](CNode* pnode)
+        {
+            pnode->PushInventory(inv);
+        });
+    }
+
     UniValue result(UniValue::VOBJ);
-
-    //emc implement this command
-
+    result.push_back(Pair("amount", AmountFromValue(tx->vout[0].nValue)));
+    result.push_back(Pair("won", fWon));
     return result;
 }
 
