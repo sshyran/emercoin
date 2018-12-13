@@ -937,37 +937,6 @@ UniValue sendrawtransaction(const JSONRPCRequest& request)
     return hashTx.GetHex();
 }
 
-UniValue createrandpayaddr(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() > 1)
-        throw runtime_error(
-            "createrandpayaddr ( \"encryptionkey\" )\n"
-            "\nGenerates privkey and correcponding address. Command does not change anything in the wallet or databases.\n"
-            "\nArguments:\n"
-            "1. \"encryptionkey\"   (string, optional) Encrypt privkey output with this key by AES/ECB)\n"
-            "\nResult:\n"
-            "\"address\"            (string) Emercoin address.\n"
-            "\"addrhex\"            (string) Raw 160-bit hex of address (binary, without checksum, result of MD4 of pubkey).\n"
-            "\"privkey\"            (string) Privkey for this address.\n"
-            //emc add examples:
-            //"\nExamples:\n"
-            //"\nCreate an address\n"
-            //+ HelpExampleCli("createrandpayaddr", "") +
-        );
-
-    CKey key;
-    key.MakeNewKey(true);
-
-    CPrivKey privKey = key.GetPrivKey();
-    CKeyID keyID = key.GetPubKey().GetID();
-    UniValue result(UniValue::VOBJ);
-
-    result.push_back(Pair("address", CBitcoinAddress(keyID).ToString()));
-    result.push_back(Pair("addrhex", HexStr(keyID)));
-    result.push_back(Pair("privkey", HexStr<CPrivKey::iterator>(privKey.begin(), privKey.end())));
-    return result;
-}
-
 #ifdef ENABLE_WALLET
 extern uint256HashMap<time_t> g_RandPayLockUTXO;
 
@@ -1251,8 +1220,8 @@ static const CRPCCommand commands[] =
 #ifdef ENABLE_WALLET
     { "hidden",    "randpay_createaddrchap",          &randpay_createaddrchap, true,  {"risk","timio"} },
     { "hidden",    "randpay_createtx",                &randpay_createtx,       true,  {"amount","addrchap","risk","timio","naive"} },
-#endif
     { "hidden",    "randpay_submittx",                &randpay_submittx,       false, {"hexstring","risk"} },
+#endif
 
     { "blockchain",         "gettxoutproof",          &gettxoutproof,          true,  {"txids", "blockhash"} },
     { "blockchain",         "verifytxoutproof",       &verifytxoutproof,       true,  {"proof"} },
