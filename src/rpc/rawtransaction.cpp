@@ -1050,10 +1050,13 @@ UniValue randpay_createtx(const JSONRPCRequest& request)
     std::string strError;
     bool fSign = false;
 
+    {
+    LOCK2(cs_main, pwalletMain->cs_wallet);
     if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, nullptr, fSign)) {
         if (!fSubtractFeeFromAmount && nAmount + nFeeRequired > curBalance)
             strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    }
     }
 
     // Iterate payment vins, and add into g_RandPayLockUTXO
@@ -1107,6 +1110,8 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
     CTransactionRef tx(MakeTransactionRef(std::move(mtx)));
     const uint256& hashTx = tx->GetHash();
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
 
     CCoinsViewCache &view = *pcoinsTip;
     const CCoins* existingCoins = view.AccessCoins(hashTx);

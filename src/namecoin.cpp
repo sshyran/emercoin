@@ -305,6 +305,8 @@ UniValue sendtoname(const JSONRPCRequest& request)
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Emercoin is downloading blocks...");
 
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
     CNameVal name = nameValFromValue(request.params[0]);
     CAmount nAmount = AmountFromValue(request.params[1]);
 
