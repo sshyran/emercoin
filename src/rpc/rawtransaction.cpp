@@ -1151,6 +1151,26 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
     bool fRandPayCheck = true;
     // note: if (fRandPayCheck == true) it will do all checks but it will not accept tx to the pool at the end
     bool fPass = AcceptToMemoryPool(mempool, state, std::move(tx), &fMissingInputs, NULL, false, nMaxRawTxFee, fRandPayCheck);
+
+    int32_t rpn = -1; // randpay-in index in the vin[]
+    if(!fPass) {
+        if(state.GetRejectCode() == REJECT_RANDPAY) {
+            rpn = tx->vin.size();
+            while(--rpn >= 0)
+                if (tx->vin[rpn].prevout.hash == randpaytx)
+                    break;
+        } else
+        if(state.IsInvalid())
+            throw JSONRPCError(RPC_TRANSACTION_REJECTED, strprintf("%i: %s", state.GetRejectCode(), state.GetRejectReason()));
+        else
+        if(fMissingInputs)
+            throw JSONRPCError(RPC_TRANSACTION_ERROR, "Missing inputs");
+        else
+            throw JSONRPCError(RPC_TRANSACTION_ERROR, state.GetRejectReason());
+    }
+
+
+#if 0
     bool fRejectedByRandPay = fPass ? false : state.GetRejectCode() == REJECT_RANDPAY;
     if (!fPass && !fRejectedByRandPay) {
         if (state.IsInvalid()) {
@@ -1163,7 +1183,6 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
         }
     }
 
-    int32_t rpn = -1;
     if (fRejectedByRandPay) {
         rpn = 0;
         for (const CTxIn& txin : tx->vin) {
@@ -1172,6 +1191,7 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
             rpn++;
         }
     }
+#endif
 
     uint32_t nRisk = request.params[1].get_int();
     bool fWon = false;
@@ -1186,8 +1206,8 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
         arith_uint256 X = arith_uint256(id.ToString());
         arith_uint256 addrchap = X / nRisk;
         uint256HashMap<RandKeyT>::Data *p = MapRandKeyT.Search(ArithToUint256(addrchap));
-        if (!p)
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unable to sign");
+        if (p == NULL)
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Payment address out of range");
         if (id == p->value.key.GetPubKey().GetID()) {
 //            -- вносим Privkey в кошелёк, но без пере-сканирования БЧ.
 //            -- if(rpn >= 0) { Подписываем не-наивную randpay-in (vin[rpn]) нашим Privkey-ем }
@@ -1195,15 +1215,15 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
         }
         MapRandKeyT.MarkDel(p);
     } else {
-        // Тут риск == 0. Если TX полностью подписана - то она от лёгкого клиента. Если надо подписывать randpay-in - то мы этого сделать не можем, так как risk не указали.
+        // Risk == 0 here; TX from lightweight client
         if (rpn < 0)
-            fWon = true; // Транзакция от лёгкого клиента, полностью подписанная, будетм отправлять в сеть.
+            fWon = true; // All inputs signed, TX ready to send
         else
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unable to sign");
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unsigned randpay-in from a lightweight client");
     }
 
     // send tx to other peers
-    if (fWon) {
+    if (fWon) { // ??????          maybe, call sendrawtransaction here?
         CInv inv(MSG_TX, hashTx);
         g_connman->ForEachNode([&inv](CNode* pnode)
         {
