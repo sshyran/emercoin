@@ -555,6 +555,9 @@ boost::filesystem::path GetConfigFile(const std::string& confPath)
     return pathConfigFile;
 }
 
+std::string getConfigFile() {
+	return GetConfigFile(GetArg("-conf", BITCOIN_CONF_FILENAME)).string();
+}
 void ReadConfigFile(const std::string& confPath)
 {
     boost::filesystem::path path = GetConfigFile(confPath);

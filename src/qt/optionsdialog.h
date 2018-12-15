@@ -42,6 +42,7 @@ public:
 
     void setModel(OptionsModel *model);
     void setMapper();
+	virtual void accept()override;
 
 private Q_SLOTS:
     /* set OK button state (enabled / disabled) */

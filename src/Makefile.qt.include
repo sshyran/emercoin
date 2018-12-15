@@ -204,6 +204,7 @@ BITCOIN_QT_H = \
   qt/macnotificationhandler.h \
   qt/managenamespage.h \
   qt/ManageDnsPage.h \
+  qt/ConfigFile.h \
   qt/Settings.h \
   qt/QNameCoin.h \
   qt/CertTableModel.h \
@@ -410,6 +411,7 @@ BITCOIN_QT_WALLET_CPP = \
   qt/editaddressdialog.cpp \
   qt/managenamespage.cpp \
   qt/ManageDnsPage.cpp \
+  qt/ConfigFile.cpp \
   qt/Settings.cpp \
   qt/CheckDiplomaWidget.cpp \
   qt/DiplomaWidget.cpp \

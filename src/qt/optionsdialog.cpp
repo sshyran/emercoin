@@ -16,6 +16,7 @@
 #include "validation.h" // for DEFAULT_SCRIPTCHECK_THREADS and MAX_SCRIPTCHECK_THREADS
 #include "netbase.h"
 #include "txdb.h" // for -dbcache defaults
+#include "ConfigFile.h"
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h" // for CWallet::GetRequiredFee()
@@ -128,11 +129,46 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
     connect(ui->proxyIpTor, SIGNAL(validationDidChange(QValidatedLineEdit *)), this, SLOT(updateProxyValidationState()));
     connect(ui->proxyPort, SIGNAL(textChanged(const QString&)), this, SLOT(updateProxyValidationState()));
     connect(ui->proxyPortTor, SIGNAL(textChanged(const QString&)), this, SLOT(updateProxyValidationState()));
+
+	ConfigFile config;
+	QString err = config.load();
+	if(err.isEmpty()) {
+		ui->checkBox->setChecked(config.server());
+		ui->checkListenPort->setChecked(config.listen());
+		ui->rcpUserNameLineEdit->setText(config.rpcuser());
+		ui->rpcUserPasswordLineEdit->setText(config.rpcpassword());
+		ui->checkDebugRpc->setChecked(config.debug()=="rpc");
+	} else {
+		QMessageBox::critical(this, tr("Error"), err);
+	}
 }
 
 OptionsDialog::~OptionsDialog()
 {
     delete ui;
+}
+
+void OptionsDialog::accept() {
+	QDialog::accept();
+	ConfigFile config;
+	QString err = config.load();
+	if(!err.isEmpty()) {
+		QMessageBox::critical(this, tr("Error"), err);
+		return;
+	}
+
+	config.setServer(ui->checkBox->isChecked());
+	config.setListen(ui->checkListenPort->isChecked());
+	config.setRpcuser(ui->rcpUserNameLineEdit->text());
+	config.setRpcpassword(ui->rpcUserPasswordLineEdit->text());
+	if(ui->checkDebugRpc->isChecked())
+		config.setDebug("rpc");
+
+	err = config.save();
+	if(!err.isEmpty()) {
+		QMessageBox::critical(this, tr("Error"), err);
+		return;
+	}
 }
 
 void OptionsDialog::setModel(OptionsModel *_model)
@@ -219,7 +255,7 @@ void OptionsDialog::on_resetButton_clicked()
     if(model)
     {
         // confirmation dialog
-        QMessageBox::StandardButton btnRetVal = QMessageBox::question(this, tr("Confirm options reset"),
+		QMessageBox::StandardButton btnRetVal = QMessageBox::question(this, tr("Confirm options reset"),
             tr("Client restart required to activate changes.") + "<br><br>" + tr("Client will be shut down. Do you want to proceed?"),
             QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
 
