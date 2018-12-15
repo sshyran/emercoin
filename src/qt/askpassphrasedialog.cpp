@@ -17,6 +17,7 @@
 #include <QKeyEvent>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QIntValidator>
 
 AskPassphraseDialog::AskPassphraseDialog(Mode _mode, QWidget *parent) :
     QDialog(parent),
