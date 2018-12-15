@@ -44,7 +44,6 @@ unsigned int nTxConfirmTarget = DEFAULT_TX_CONFIRM_TARGET;
 bool bSpendZeroConfChange = DEFAULT_SPEND_ZEROCONF_CHANGE;
 bool fSendFreeTransactions = DEFAULT_SEND_FREE_TRANSACTIONS;
 bool fWalletRbf = DEFAULT_WALLET_RBF;
-uint256HashMap<RandKeyT> MapRandKeyT;
 
 const char * DEFAULT_WALLET_DAT = "wallet.dat";
 const uint32_t BIP32_HARDENED_KEY_LIMIT = 0x80000000;
@@ -2061,6 +2060,7 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const
 }
 
 uint256HashMap<time_t> g_RandPayLockUTXO;
+CCriticalSection cs_g_RandPayLockUTXO;
 
 void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, bool fIncludeZeroValue, uint32_t nSpendTime) const
 {
@@ -2129,6 +2129,7 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
             //? uint256  randpayTXkey(pcoin->tx->GetHash());
             uint256  rpLockTXkey(wtxid);
             uint32_t &rpLockTXn(((uint32_t*)rpLockTXkey.GetDataPtr())[0]);
+            LOCK(cs_g_RandPayLockUTXO);
             for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++, rpLockTXn++)
             {
                 // ignore namecoin TxOut

@@ -939,11 +939,17 @@ UniValue sendrawtransaction(const JSONRPCRequest& request)
 
 #ifdef ENABLE_WALLET
 extern uint256HashMap<time_t> g_RandPayLockUTXO;
+extern CCriticalSection cs_g_RandPayLockUTXO;
+
+uint256HashMap<RandKeyT> MapRandKeyT;
+CCriticalSection cs_MapRandKeyT;
+
 
 static void InitMapRandKeyT() {
   static int randkeymapsz = -1;
   if(randkeymapsz < 0) {
     randkeymapsz = GetArg("-randkeymapsz", 16);
+    LOCK(cs_MapRandKeyT);
     MapRandKeyT.Set(randkeymapsz);
   }
 }
@@ -986,6 +992,7 @@ UniValue randpay_createaddrchap(const JSONRPCRequest& request)
     arith_uint256 addrchap = X / nRisk;
     time_t t = time(NULL);
     // remove expired entries
+    LOCK(cs_MapRandKeyT);
     for(uint256HashMap<RandKeyT>::Data *p = MapRandKeyT.First(); p && p->value.expire < t; p = MapRandKeyT.Next(p))
       MapRandKeyT.MarkDel(p);
     keyt.expire = t + nTimio;
@@ -1051,20 +1058,23 @@ UniValue randpay_createtx(const JSONRPCRequest& request)
     bool fSign = false;
 
     {
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-    if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, nullptr, fSign)) {
-        if (!fSubtractFeeFromAmount && nAmount + nFeeRequired > curBalance)
-            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
-        throw JSONRPCError(RPC_WALLET_ERROR, strError);
-    }
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, nullptr, fSign)) {
+            if (!fSubtractFeeFromAmount && nAmount + nFeeRequired > curBalance)
+                strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
+            throw JSONRPCError(RPC_WALLET_ERROR, strError);
+        }
     }
 
     // Iterate payment vins, and add into g_RandPayLockUTXO
-    time_t lock_time = time(NULL) + nTimio;
-    BOOST_FOREACH(const CTxIn &txin, wtxNew.tx->vin) {
-        uint256 rpLockTXkey(txin.prevout.hash);
-        *((uint32_t*)rpLockTXkey.GetDataPtr()) += txin.prevout.n;
-        g_RandPayLockUTXO.Insert(rpLockTXkey, lock_time);
+    {
+        time_t lock_time = time(NULL) + nTimio;
+        LOCK(cs_g_RandPayLockUTXO);
+        BOOST_FOREACH(const CTxIn &txin, wtxNew.tx->vin) {
+            uint256 rpLockTXkey(txin.prevout.hash);
+            *((uint32_t*)rpLockTXkey.GetDataPtr()) += txin.prevout.n;
+            g_RandPayLockUTXO.Insert(rpLockTXkey, lock_time);
+        }
     }
     if(!naive) {
         // add randpay input at vin[0]
@@ -1179,6 +1189,7 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
 
         arith_uint256 X = arith_uint256(id.ToString());
         arith_uint256 addrchap = X / nRisk;
+        LOCK(cs_MapRandKeyT);
         uint256HashMap<RandKeyT>::Data *p = MapRandKeyT.Search(ArithToUint256(addrchap));
         if (p == NULL)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Payment address out of range");
