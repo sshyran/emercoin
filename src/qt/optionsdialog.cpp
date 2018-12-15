@@ -148,8 +148,7 @@ OptionsDialog::~OptionsDialog()
     delete ui;
 }
 
-void OptionsDialog::accept() {
-	QDialog::accept();
+void OptionsDialog::rpcFromGui() {
 	ConfigFile config;
 	QString err = config.load();
 	if(!err.isEmpty()) {
@@ -169,6 +168,31 @@ void OptionsDialog::accept() {
 		QMessageBox::critical(this, tr("Error"), err);
 		return;
 	}
+}
+
+void OptionsDialog::rpcReset() {
+	ConfigFile config;
+	QString err = config.load();
+	if(!err.isEmpty()) {
+		QMessageBox::critical(this, tr("Error"), err);
+		return;
+	}
+
+	config.setServer(false);
+	config.setListen(false);
+	config.setRpcuser({});
+	config.setRpcpassword({});
+	config.setDebug("");
+
+	err = config.save();
+	if(!err.isEmpty()) {
+		QMessageBox::critical(this, tr("Error"), err);
+		return;
+	}
+}
+void OptionsDialog::accept() {
+	QDialog::accept();
+	rpcFromGui();
 }
 
 void OptionsDialog::setModel(OptionsModel *_model)
@@ -264,6 +288,8 @@ void OptionsDialog::on_resetButton_clicked()
 
         /* reset all options and close GUI */
         model->Reset();
+
+		rpcReset();
         QApplication::quit();
     }
 }
