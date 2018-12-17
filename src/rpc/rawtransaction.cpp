@@ -1153,49 +1153,56 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
             throw JSONRPCError(RPC_TRANSACTION_ERROR, state.GetRejectReason());
     }
 
-
-#if 0
-    bool fRejectedByRandPay = fPass ? false : state.GetRejectCode() == REJECT_RANDPAY;
-    if (!fPass && !fRejectedByRandPay) {
-        if (state.IsInvalid()) {
-            throw JSONRPCError(RPC_TRANSACTION_REJECTED, strprintf("%i: %s", state.GetRejectCode(), state.GetRejectReason()));
-        } else {
-            if (fMissingInputs) {
-                throw JSONRPCError(RPC_TRANSACTION_ERROR, "Missing inputs");
-            }
-            throw JSONRPCError(RPC_TRANSACTION_ERROR, state.GetRejectReason());
-        }
-    }
-
-    if (fRejectedByRandPay) {
-        rpn = 0;
-        for (const CTxIn& txin : tx->vin) {
-            if (txin.prevout.hash == randpaytx)
-                break;
-            rpn++;
-        }
-    }
-#endif
-
     uint32_t nRisk = request.params[1].get_int();
     bool fWon = false;
     if (nRisk > 0) {
         CTxDestination address;
         if (!ExtractDestination(tx->vout[0].scriptPubKey, address))
-            throw JSONRPCError(RPC_TRANSACTION_ERROR, "Failed to extract destination from vout[0]");
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Failed to extract destination from vout[0]");
         CKeyID id;
         if (!CBitcoinAddress(address).GetKeyID(id))
-            throw JSONRPCError(RPC_TRANSACTION_ERROR, "Failed to extract CKeyID from vout[0]");
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Failed to extract CKeyID from vout[0]");
 
         arith_uint256 X = arith_uint256(id.ToString());
         arith_uint256 addrchap = X / nRisk;
         LOCK(cs_MapRandKeyT);
         uint256HashMap<RandKeyT>::Data *p = MapRandKeyT.Search(ArithToUint256(addrchap));
-        if (p == NULL)
+        if (p == nullptr)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Payment address out of range");
-        if (id == p->value.key.GetPubKey().GetID()) {
-//            -- вносим Privkey в кошелёк, но без пере-сканирования БЧ.
-//            -- if(rpn >= 0) { Подписываем не-наивную randpay-in (vin[rpn]) нашим Privkey-ем }
+
+        CKey key = p->value.key;
+        CPubKey pubkey = key.GetPubKey();
+        CKeyID id2 = pubkey.GetID();
+
+        if (id == id2) {
+            // add key to wallet
+            if (!pwalletMain->HaveKey(id2)) {
+                if (!key.IsValid())
+                    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Private key outside allowed range");
+                pwalletMain->MarkDirty();
+                pwalletMain->SetAddressBook(id2, "", "receive");
+                pwalletMain->mapKeyMetadata[id2].nCreateTime = GetTime();
+                if (!pwalletMain->AddKeyPubKey(key, pubkey))
+                    throw JSONRPCError(RPC_WALLET_ERROR, "Error adding key to wallet");
+            }
+
+            // sign randpay input (vin[rpn]) with key
+            if (rpn >= 0) {
+                const CTxIn& txin = tx->vin[rpn];
+                const CCoins* coins = view.AccessCoins(txin.prevout.hash);
+                assert(coins != nullptr && coins->IsAvailable(txin.prevout.n)); // randpay input should always be available
+                const CScript& prevPubKey = GenerateScriptForRandPay(tx->vout[0].scriptPubKey);
+                const CAmount& amount = coins->vout[txin.prevout.n].nValue;
+
+                SignatureData sigdata;
+                ProduceSignature(MutableTransactionSignatureCreator(pwalletMain, &mtx, rpn, amount, SIGHASH_ALL), prevPubKey, sigdata);
+                UpdateTransaction(mtx, rpn, sigdata);
+
+                ScriptError serror = SCRIPT_ERR_OK;
+                const CTransaction txConst(mtx);
+                if (!VerifyScript(txin.scriptSig, prevPubKey, mtx.nVersion, &txin.scriptWitness, STANDARD_SCRIPT_VERIFY_FLAGS, TransactionSignatureChecker(&txConst, rpn, amount), &serror))
+                    throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Failed to verify script: %s", ScriptErrorString(serror)));
+            }
             fWon = true;
         }
         MapRandKeyT.MarkDel(p);
