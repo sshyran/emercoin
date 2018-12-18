@@ -229,7 +229,7 @@ BITCOIN_QT_H = \
   qt/DpoCreateRecordWidget.h \
   qt/DpoCreateRootWidget.h \
   qt/DpoRegisterDocWidget.h \
-  qt/DpoWidget.h \
+  qt/DocNotarWidget.h \
   qt/YearSpinBox.h \
   qt/DpoUseCaseScheme.h \
   qt/NameValueLineEdits.h \
@@ -436,7 +436,7 @@ BITCOIN_QT_WALLET_CPP = \
   qt/DpoCreateRecordWidget.cpp \
   qt/DpoCreateRootWidget.cpp \
   qt/DpoRegisterDocWidget.cpp \
-  qt/DpoWidget.cpp \
+  qt/DocNotarWidget.cpp \
   qt/DpoUseCaseScheme.cpp \
   qt/NameValueLineEdits.cpp \
   qt/SelectableLineEdit.cpp \

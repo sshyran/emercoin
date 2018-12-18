@@ -1,4 +1,4 @@
-﻿//DpoWidget.h by Emercoin developers
+﻿//DocNotarWidget.h by Emercoin developers
 #pragma once
 #include <QTabWidget>
 #include <QDialog>
@@ -6,10 +6,10 @@ class DpoCreateRootWidget;
 class DpoCreateRecordWidget;
 class DpoRegisterDocWidget;
 
-class DpoWidget: public QDialog {
+class DocNotarWidget: public QDialog {
 	public:
-		DpoWidget(QWidget*parent = 0);
-		~DpoWidget();
+		DocNotarWidget(QWidget*parent = 0);
+		~DocNotarWidget();
 		QString name()const;
 		QString value()const;
 	protected:

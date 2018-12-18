@@ -1,5 +1,5 @@
-﻿//DpoWidget.cpp by Emercoin developers
-#include "DpoWidget.h"
+﻿//DocNotarWidget.cpp by Emercoin developers
+#include "DocNotarWidget.h"
 #include "DpoUseCaseScheme.h"
 #include "DpoCreateRootWidget.h"
 #include "DpoCreateRecordWidget.h"
@@ -10,7 +10,7 @@
 #include <QSettings>
 #include <QLabel>
 
-DpoWidget::DpoWidget(QWidget*parent): QDialog(parent) {
+DocNotarWidget::DocNotarWidget(QWidget*parent): QDialog(parent) {
 	setWindowTitle(tr("DPO"));
 	setWindowIcon(QIcon(":/icons/DPO-32.png"));
 
@@ -46,17 +46,17 @@ DpoWidget::DpoWidget(QWidget*parent): QDialog(parent) {
 	}
 
 	QSettings sett;
-	int index = sett.value("DpoWidget.tabIndex", 0).toInt();
+	int index = sett.value("DocNotarWidget.tabIndex", 0).toInt();
 	index = qBound(0, index, _tab->count()-1);
 	_tab->setCurrentIndex(index);
 }
-DpoWidget::~DpoWidget() {
+DocNotarWidget::~DocNotarWidget() {
 	QSettings sett;
-	sett.setValue("DpoWidget.tabIndex", _tab->currentIndex());
+	sett.setValue("DocNotarWidget.tabIndex", _tab->currentIndex());
 	_createRoot->updateSettings(true);
 	_createRecord->updateSettings(true);
 }
-QString DpoWidget::name()const {
+QString DocNotarWidget::name()const {
 	auto w = _tab->currentWidget();
 	if(w==_createRoot)
 		return _createRoot->_NVPair->name();
@@ -66,7 +66,7 @@ QString DpoWidget::name()const {
 		return _createRecord->_NVPair->name();
 	return {};
 }
-QString DpoWidget::value()const {
+QString DocNotarWidget::value()const {
 	auto w = _tab->currentWidget();
 	if(w==_createRoot)
 		return _createRoot->_NVPair->value();

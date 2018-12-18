@@ -46,10 +46,10 @@
      <item>
       <widget class="QPushButton" name="btnDpo">
        <property name="toolTip">
-        <string>Protect your rights using Digital Proof of Ownership.</string>
+        <string>Notarize documents using blockchain.</string>
        </property>
        <property name="text">
-        <string>DPO</string>
+        <string>DocNotar</string>
        </property>
        <property name="icon">
         <iconset resource="../bitcoin.qrc">

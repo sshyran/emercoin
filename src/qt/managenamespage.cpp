@@ -11,7 +11,7 @@
 #include "validation.h"
 #include "csvmodelwriter.h"
 #include "ManageDnsPage.h"
-#include "DpoWidget.h"
+#include "DocNotarWidget.h"
 #include "DiplomaWidget.h"
 #include "InfoCardsWidget.h"
 #include "ManageSslPage.h"
@@ -182,7 +182,7 @@ void ManageNamesPage::onManageDomainsClicked() {
 	}
 }
 void ManageNamesPage::onManageDpoClicked() {
-	DpoWidget dlg(this);
+	DocNotarWidget dlg(this);
 	if(dlg.exec()==QDialog::Accepted) {
 		setDisplayedName(dlg.name());
 		setDisplayedValue(dlg.value());

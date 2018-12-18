@@ -60,6 +60,7 @@ private Q_SLOTS:
     void updateDefaultProxyNets();
 	void rpcFromGui();
 	void rpcReset();
+	void openEmercoinConf();
 
 Q_SIGNALS:
     void proxyIpChecks(QValidatedLineEdit *pUiProxyIp, int nProxyPort);

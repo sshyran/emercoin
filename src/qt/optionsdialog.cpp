@@ -29,6 +29,8 @@
 #include <QIntValidator>
 #include <QLocale>
 #include <QMessageBox>
+#include <QDesktopServices>
+#include <QUrl>
 #include <QTimer>
 
 OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
@@ -65,6 +67,7 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
     connect(ui->connectSocksTor, SIGNAL(toggled(bool)), ui->proxyIpTor, SLOT(setEnabled(bool)));
     connect(ui->connectSocksTor, SIGNAL(toggled(bool)), ui->proxyPortTor, SLOT(setEnabled(bool)));
     connect(ui->connectSocksTor, SIGNAL(toggled(bool)), this, SLOT(updateProxyValidationState()));
+	connect(ui->labelEmercoinConf, &QLabel::linkActivated, this, &OptionsDialog::openEmercoinConf);
 
     /* Window elements init */
 #ifdef Q_OS_MAC
@@ -194,7 +197,10 @@ void OptionsDialog::accept() {
 	QDialog::accept();
 	rpcFromGui();
 }
-
+void OptionsDialog::openEmercoinConf() {
+	QString path = ConfigFile::path();
+	QDesktopServices::openUrl(QUrl::fromLocalFile(path));
+}
 void OptionsDialog::setModel(OptionsModel *_model)
 {
     this->model = _model;

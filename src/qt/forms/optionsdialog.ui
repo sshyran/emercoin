@@ -737,9 +737,9 @@
         </spacer>
        </item>
        <item row="0" column="0" colspan="2">
-        <widget class="QLabel" name="labelAboutRpc">
+        <widget class="QLabel" name="labelEmercoinConf">
          <property name="text">
-          <string>This window edits emercoin.conf file.</string>
+          <string>This window edits &lt;a href=&quot;emercoin.conf&quot;&gt;emercoin.conf&lt;/a&gt; file.</string>
          </property>
         </widget>
        </item>
