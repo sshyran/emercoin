@@ -566,6 +566,11 @@ int main(int argc, char *argv[])
     // Because of the POODLE attack it is recommended to disable SSLv3 (https://disablessl3.com/),
     // so set SSL protocols to TLS1.0+.
     QSslSocket::sslLibraryVersionString(); // An unnecessary check to solve issue #14273: bitcoin-qt stops while switching SSLv3 to TLS on Arch Linux
+	if(!QSslSocket::supportsSsl()) {
+		QMessageBox::critical(0, QObject::tr(PACKAGE_NAME),
+			QObject::tr("Error: SSL is unavailable. Try to use another version of OpenSSL library. Current is %1")
+				.arg(QSslSocket::sslLibraryVersionString()));
+	}
     Q_ASSERT( QSslSocket::supportsSsl() );
 
     QSslConfiguration sslconf = QSslConfiguration::defaultConfiguration();
