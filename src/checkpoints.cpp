@@ -149,13 +149,15 @@ uint256 AutoSelectSyncCheckpoint()
 
     // Get hash of current block stamp in specific depth
     for (int32_t i = 0; i < s_depth; i++)
-        pindex = pindex->pprev;
+        if((pindex = pindex->pprev) == NULL)
+            return uint256();
 
     const CBlockIndex *rc = pindex;
 
     // Get H-selector from checkpointed stable area +32+6 deeper
     for (int i = 0; i < 38; i++)
-        pindex = pindex->pprev;
+        if((pindex = pindex->pprev) == NULL)
+            return uint256();
 
     uint256 h = pindex->GetBlockHash();
 
@@ -163,17 +165,6 @@ uint256 AutoSelectSyncCheckpoint()
     uint256 hx = Hash(CSyncCheckpoint::strMasterPrivKey.begin(), CSyncCheckpoint::strMasterPrivKey.end(), h.GetDataPtr(), h.GetDataPtr() + 256 / 32);
 
     return (hx.GetDataPtr()[0] % s_slots == s_node_no) ? rc->GetBlockHash() : uint256();
-#if 0
-    // Proof-of-work blocks are immediately checkpointed
-    // to defend against 51% attack which rejects other miners block
-
-    // Select the last proof-of-work block
-    const CBlockIndex *pindex = GetLastBlockIndex(pindexBest, false);
-    // Search forward for a block within max span and maturity window
-    while (pindex->pnext && (pindex->GetBlockTime() + CHECKPOINT_MAX_SPAN <= pindexBest->GetBlockTime() || pindex->nHeight + std::min(6, nCoinbaseMaturity - 20) <= pindexBest->nHeight))
-        pindex = pindex->pnext;
-    return pindex->GetBlockHash();
-#endif
 }
 
 // Check against synchronized checkpoint
