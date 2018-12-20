@@ -1137,7 +1137,7 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
     bool fPass = AcceptToMemoryPool(mempool, state, std::move(tx), &fMissingInputs, NULL, false, nMaxRawTxFee, fRandPayCheck);
 
     int32_t rpn = -1; // randpay-in index in the vin[]
-    if(!fPass) {
+    if (!fPass) {
         if(state.GetRejectCode() == REJECT_RANDPAY) {
             rpn = tx->vin.size();
             while(--rpn >= 0)
@@ -1214,8 +1214,33 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unsigned randpay-in from a lightweight client");
     }
 
-    // send tx to other peers
-    if (fWon) { // ??????          maybe, call sendrawtransaction here?
+    // accept to mempool and notify other peers
+    if (fWon) {
+        CTransactionRef txUpdated(MakeTransactionRef(std::move(mtx)));
+        const uint256& hashUpdatedTx = tx->GetHash();
+
+        const CCoins* existingCoins2 = view.AccessCoins(hashUpdatedTx);
+        bool fHaveMempool2 = mempool.exists(hashUpdatedTx);
+        bool fHaveChain2 = existingCoins2 && existingCoins2->nHeight < 1000000000;
+        if (!fHaveMempool2 && !fHaveChain2) {
+            // push to local node and sync with wallets
+            CValidationState state;
+            bool fMissingInputs;
+            if (!AcceptToMemoryPool(mempool, state, std::move(txUpdated), &fMissingInputs, NULL, false, nMaxRawTxFee)) {
+                if (state.IsInvalid()) {
+                    throw JSONRPCError(RPC_TRANSACTION_REJECTED, strprintf("%i: %s", state.GetRejectCode(), state.GetRejectReason()));
+                } else {
+                    if (fMissingInputs) {
+                        throw JSONRPCError(RPC_TRANSACTION_ERROR, "Missing inputs");
+                    }
+                    throw JSONRPCError(RPC_TRANSACTION_ERROR, state.GetRejectReason());
+                }
+            }
+        } else if (fHaveChain2) {
+            throw JSONRPCError(RPC_TRANSACTION_ALREADY_IN_CHAIN, "transaction already in block chain");
+        }
+
+        // notify other peers that this tx exists
         CInv inv(MSG_TX, hashTx);
         g_connman->ForEachNode([&inv](CNode* pnode)
         {
