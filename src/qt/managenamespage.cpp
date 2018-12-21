@@ -109,7 +109,6 @@ ManageNamesPage::ManageNamesPage(QWidget *parent) :
 	connect(ui->btnSsl, &QPushButton::clicked, this, &ManageNamesPage::onSslClicked);
 	connect(ui->btnInfoCard, &QPushButton::clicked, this, &ManageNamesPage::onInfoCardClicked);
 	connect(ui->registerName, &QLineEdit::textChanged, this, &ManageNamesPage::showNameAvailable);
-	ui->btnInfoCard->setVisible(false);
 
     // Context menu actions
     QAction *copyNameAction = new QAction(tr("Copy &Name"), this);
