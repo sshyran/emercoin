@@ -193,7 +193,8 @@ int Curl_cert_hostcheck(const char *match_pattern, const char *hostname)
 
 #define HOSTNAME_MAX_SIZE 255
 
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
+//#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L)
 #define ASN1_STRING_get0_data ASN1_STRING_data
 #endif
 
@@ -474,7 +475,7 @@ HttpsLE(const char *host, const char *get, const char *post, const std::map<std:
     if(get == NULL || *get == 0)
       get = "/";
 
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L)
     // Initialize OpenSSL
     SSL_library_init();
     ERR_load_crypto_strings();
@@ -637,9 +638,9 @@ HttpsLE(const char *host, const char *get, const char *post, const std::map<std:
 
   //?? maybe, need release SSL_free(ssl);
 
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
-    EVP_cleanup();
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L)
     ERR_free_strings();
+    EVP_cleanup();
 
 #if OPENSSL_VERSION_NUMBER < 0x10000000L
     ERR_remove_state(0);
@@ -647,7 +648,7 @@ HttpsLE(const char *host, const char *get, const char *post, const std::map<std:
     ERR_remove_thread_state(NULL);
 #endif
     CRYPTO_cleanup_all_ex_data();
-    sk_SSL_COMP_free(SSL_COMP_get_compression_methods());
+// core dump with reenter:   sk_SSL_COMP_free(SSL_COMP_get_compression_methods());
 #endif /* (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER) */
 
 #ifdef _WIN32

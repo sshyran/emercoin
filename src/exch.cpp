@@ -417,8 +417,8 @@ void ExchCoinSwitch::FillHeader() {
   dummy_addr.s_addr = 0x08080808; // 8.8.8.8 - Google address
   CNetAddr fake_server_addr(dummy_addr);
   m_header["x-user-ip"] = GetLocalAddress(&fake_server_addr, NODE_NONE).ToStringIP();
-  // m_header["x-api-key"] = "ty7smoqSte5Ku3GKeRM4F3m8xrIksJfM723sutEI"; // real API key
-  m_header["x-api-key"] = "cRbHFJTlL6aSfZ0K2q7nj6MgV5Ih4hbA2fUG0ueO"; // sandbox API key
+  m_header["x-api-key"] = "ty7smoqSte5Ku3GKeRM4F3m8xrIksJfM723sutEI"; // real API key
+  // m_header["x-api-key"] = "cRbHFJTlL6aSfZ0K2q7nj6MgV5Ih4hbA2fUG0ueO"; // sandbox API key
 } // ExchCoinSwitch::FillHeader
 
 //-----------------------------------------------------
@@ -462,7 +462,7 @@ static void AddAddr(UniValue &rc, const string &key, const string &val) {
   rc.push_back(Pair(key, out));
 }
 //-----------------------------------------------------
-// Creatse SEND exchange channel for 
+// Create SEND exchange channel for 
 // Send "amount" in external currecny "to" address
 // Fills m_depAddr..m_txKey, and updates m_rate
 // Returns error text, or empty string, if OK
@@ -486,7 +486,7 @@ string ExchCoinSwitch::Send(const string &to, double amount) {
     Req.push_back(Pair("destinationCoinAmount", amount));
     AddAddr(Req, "destinationAddress", to);
     AddAddr(Req, "refundAddress", m_retAddr);
-    UniValue Resp(httpsFetch("/v2/order", &Req));
+    const UniValue Resp(httpsFetch("/v2/order", &Req));
     LogPrint("exch", "DBG: ExchCoinSwitch::Send(%s|%s) returns <%s>\n\n", Host().c_str(), m_pair.c_str(), Resp.write(0, 0, 0).c_str());
     const UniValue& r = find_value(Resp, "data");
 
@@ -508,15 +508,10 @@ string ExchCoinSwitch::Send(const string &to, double amount) {
   }
 } // ExchCoinSwitch::Send
 #if 0
-    "data": {
-        "orderId": "11111111-6c9e-4c53-9a6d-55e089aebd04",
-        "exchangeAddress": {
-            "address": "1F1tAaz5x1HUXrCNLbtMDqcw6o5GNn4xqX",
-            "tag": null
-        },
-        "expectedDepositCoinAmount": 0.004,
-        "expectedDestinationCoinAmount": 0.5017686
-    },
+{"success": true, "code": "OK", "data": 
+  {"orderId": "4ff7b926-8c6c-4c8f-b0d2-4088f86045be", 
+    "exchangeAddress": {"address": "EZCDVCgHxEB86Cku6JknueA8GcS5bCx1zx", "tag": null}, 
+    "expectedDepositCoinAmount": 197.005516154452, "expectedDestinationCoinAmount": 0.02}
 #endif
 
 //-----------------------------------------------------
@@ -529,11 +524,12 @@ string ExchCoinSwitch::TxStat(const string &txkey, UniValue &details) {
       return "-"; // Not my key
 
   char buf[400];
-  snprintf(buf, sizeof(buf), "/api/txstat/%s.json", key);
+  snprintf(buf, sizeof(buf), "/v2/order/%s", key);
   try {
     details = httpsFetch(buf, NULL);
     LogPrint("exch", "DBG: ExchCoinSwitch::TxStat(%s|%s) returns <%s>\n\n", Host().c_str(), buf, details.write(0, 0, 0).c_str());
-    return details["status"].get_str();
+    const UniValue& r = find_value(details, "data");
+    return r["status"].get_str();
   } catch(std::exception &e) { // something wrong at HTTPS
     return e.what();
   }
@@ -548,7 +544,8 @@ string ExchCoinSwitch::Cancel(const string &txkey) {
   const char *key = RawKey(txkey);
   if(key == NULL)
       return "-"; // Not my key
-
+  return txkey + "; CANCEL is not supported";
+#if 0
   char buf[400];
   snprintf(buf, sizeof(buf), "/api/cancel/%s.json", key);
   try {
@@ -559,6 +556,7 @@ string ExchCoinSwitch::Cancel(const string &txkey) {
   } catch(std::exception &e) { // something wrong at HTTPS
     return e.what();
   }
+#endif
 } // ExchCoinSwitch::Cancel
 
 //-----------------------------------------------------
@@ -572,11 +570,12 @@ int ExchCoinSwitch::Remain(const string &txkey) {
       return -1; // Not my key
 
   char buf[400];
-  snprintf(buf, sizeof(buf), "/api/timeremaining/%s.json", key);
+  snprintf(buf, sizeof(buf), "/v2/order/%s", key);
   try {
-    UniValue Resp(httpsFetch(buf, NULL));
-    LogPrint("exch", "DBG: ExchCoinReform::Cancel(%s|%s) returns <%s>\n\n", Host().c_str(), buf, Resp.write(0, 0, 0).c_str());
-    return Resp["seconds_remaining"].get_int();
+    const UniValue Resp(httpsFetch(buf, NULL));
+    LogPrint("exch", "DBG: ExchCoinSwitch::Remain(%s|%s) returns <%s>\n\n", Host().c_str(), buf, Resp.write(0, 0, 0).c_str());
+    const UniValue& r = find_value(Resp, "data");
+    return r["validTill"].get_int64() / 1000 - time(NULL);
   } catch(std::exception &e) { // something wrong at HTTPS
     return 0;
   }
@@ -612,21 +611,13 @@ void exch_test() {
       printf("exch_test:Values from exch: m_rate=%lf; m_limit=%lf; m_min=%lf; m_minerFee=%lf\n", 
 	      exch->m_rate, exch->m_limit, exch->m_min, exch->m_minerFee);
 
-      err = exch->MarketInfo("btc", 0.0);
-      printf("exch_test:MarketInfo returned: [%s]\n", err.c_str());
-      if(!err.empty()) break;
-      printf("exch_test:Values from exch: m_rate=%lf; m_limit=%lf; m_min=%lf; m_minerFee=%lf\n", 
-	      exch->m_rate, exch->m_limit, exch->m_min, exch->m_minerFee);
-
       printf("\nexch_test:Tryint to send BTC\n");
-      err = exch->Send("1Evqeh5pWphbWzmRAc4d3Wb82mAUBhWEVF", 0.02); // good addr
+      err = exch->Send("19rem1SSWTphjsFLmcNEAvnfHaBFuDMMae", 0.02); // good addr (JSN)
       // bad err = exch->Send("1Evqeh5pWphbWzmRAc4d3Wb82mAUBhWEVz", 0.02); // bad addr
       printf("exch_test:Send returned: [%s]\n", err.c_str());
       if(!err.empty()) break;
       printf("m_depAddr=%s, m_outAddr=%s m_depAmo=%lf m_outAmo=%lf m_txKey=%s\n",
 	      exch->m_depAddr.c_str(), exch->m_outAddr.c_str(), exch->m_depAmo, exch->m_outAmo, exch->m_txKey.c_str());
-
-      exit(0);
 
       MilliSleep(1000);
 
@@ -638,14 +629,14 @@ void exch_test() {
 
       printf("exch_test:Remain=%d\n", exch->Remain(""));
 
-      err = exch->Cancel("");
-      printf("exch_test:Cancel returned: [%s]\n", err.c_str());
+      //err = exch->Cancel("");
+      //printf("exch_test:Cancel returned: [%s]\n", err.c_str());
 
   } while(0);
 
+#endif
   printf("exch_test:Quit from test\n");
   exit(0);
-#endif
 }
 
 //-----------------------------------------------------
