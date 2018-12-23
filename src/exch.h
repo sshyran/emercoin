@@ -176,6 +176,10 @@ class ExchCoinSwitch : public Exch {
   private:
   // Fill exchange-specific fields into m_header for future https request
   virtual void FillHeader();
+  // Check JSON-answer for "success : true" key, and throw error
+  // message, if exists
+  virtual void CheckERR(const UniValue &reply) const;
+
 }; // class ExchCoinSwitch
 
 

@@ -12,6 +12,7 @@ using namespace std;
 //using namespace boost;
 //using namespace boost::asio;
 
+#include <boost/algorithm/string.hpp> 
 //-----------------------------------------------------
 ExchBox::ExchBox() {}
 
@@ -110,6 +111,7 @@ UniValue Exch::httpsFetch(const char *get, const UniValue *post) {
 } // Exch::httpsFetch
 
 #if 0
+// This function uses boost:io, deprecated
 UniValue Exch::httpsFetch(const char *get, const UniValue *post) {
 
   // Connect to exchange
@@ -369,8 +371,7 @@ int ExchCoinReform::Remain(const string &txkey) {
 
 //-----------------------------------------------------
 ExchCoinSwitch::ExchCoinSwitch(const string &retAddr)
-: Exch::Exch(retAddr) {
-}
+: Exch::Exch(retAddr) {}
 
 //-----------------------------------------------------
 ExchCoinSwitch::~ExchCoinSwitch() {}
@@ -383,9 +384,32 @@ const string& ExchCoinSwitch::Name() const {
 
 //-----------------------------------------------------
 const string& ExchCoinSwitch::Host() const {
-  static const string rc("sandboxapi.coinswitch.co");
+  static const string rc("api.coinswitch.co");
   return rc;
 }
+//-----------------------------------------------------
+// Check JSON-answer for "error" key, and throw error
+// message, if exists
+void ExchCoinSwitch::CheckERR(const UniValue &reply) const {
+  const char *err_str = "";
+  const UniValue& success = find_value(reply, "success");
+  if(success.isNull())
+    err_str = "Missing success code in the response";
+  else
+  if(!success.isBool())
+    err_str = "Success code in the response is not a bool";
+  else 
+  if(!success.isTrue()) {
+    const UniValue& msg = find_value(reply, "msg");
+    if(!msg.isNull() && msg.isStr())
+      err_str = msg.get_str().c_str();
+    if(err_str[0] == 0)
+      err_str = "No error message";
+  }
+  if(*err_str)
+    throw runtime_error(err_str);
+} // ExchcoinSwitch::CheckERR
+
 
 //-----------------------------------------------------
 void ExchCoinSwitch::FillHeader() {
@@ -393,31 +417,50 @@ void ExchCoinSwitch::FillHeader() {
   dummy_addr.s_addr = 0x08080808; // 8.8.8.8 - Google address
   CNetAddr fake_server_addr(dummy_addr);
   m_header["x-user-ip"] = GetLocalAddress(&fake_server_addr, NODE_NONE).ToStringIP();
-  m_header["x-api-key"] = "ty7smoqSte5Ku3GKeRM4F3m8xrIksJfM723sutEI";
-} // ExchCoinSwitch::ECSFetch
+  // m_header["x-api-key"] = "ty7smoqSte5Ku3GKeRM4F3m8xrIksJfM723sutEI"; // real API key
+  m_header["x-api-key"] = "cRbHFJTlL6aSfZ0K2q7nj6MgV5Ih4hbA2fUG0ueO"; // sandbox API key
+} // ExchCoinSwitch::FillHeader
 
 //-----------------------------------------------------
 // Get currency for exchnagge to, like btc, ltc, etc
 // Fill MarketInfo from exchange.
 // Returns empty string if OK, or error message, if error
 string ExchCoinSwitch::MarketInfo(const string &currency, double amount) {
+  m_rate = m_limit = m_min = m_minerFee = 0.0;
+  string curr_lc(boost::algorithm::to_lower_copy(currency));
+  m_pair = "emc/" + curr_lc;
+
   try {
-    const UniValue mi(RawMarketInfo("/api/marketinfo/ltc_" + currency + ".json"));
-    //const UniValue mi(RawMarketInfo("/api/marketinfo/emc_" + currency + ".json"));
-    LogPrint("exch", "DBG: ExchCoinSwitch::MarketInfo(%s|%s) returns <%s>\n\n", Host().c_str(), currency.c_str(), mi.write(0, 0, 0).c_str());
-    m_pair     = mi["pair"].get_str();
-    m_rate     = atof(mi["rate"].get_str().c_str());
-    m_limit    = atof(mi["limit"].get_str().c_str());
-    m_min      = atof(mi["min"].get_str().c_str());
-    m_minerFee = atof(mi["minerFee"].get_str().c_str());
+    UniValue Req(UniValue::VOBJ);
+    Req.push_back(Pair("depositCoin", "emc"));
+    Req.push_back(Pair("destinationCoin", curr_lc));
+    UniValue Resp(httpsFetch("/v2/rate", &Req));
+    LogPrint("exch", "DBG: ExchCoinReform::MarketInfo(%s|%s) returns <%s>\n\n", Host().c_str(), curr_lc.c_str(), Resp.write(0, 0, 0).c_str());
+    const UniValue& mi  = find_value(Resp, "data");
+    m_rate     = mi["rate"].get_real();
+    m_limit    = mi["limitMaxDestinationCoin"].get_real();
+    m_min      = mi["limitMinDestinationCoin"].get_real();
+    m_minerFee = mi["minerFee"].get_real();
     return "";
   } catch(std::exception &e) {
     return e.what();
   }
 } // ExchCoinSwitch::MarketInfo
-//coinReform
-//{"pair":"EMC_BTC","rate":"0.00016236","limit":"0.01623600","min":"0.00030000","minerFee":"0.00050000"}
+#if 0
+coinSwitch
+{"success": true, "code": "OK", 
+  "data": {"rate": 9.727e-05, "minerFee": 0.0015, "limitMinDepositCoin": 70.0, "limitMaxDepositCoin": 18419.44194394, 
+           "limitMinDestinationCoin": 0.00680915, "limitMaxDestinationCoin": 1.79172663}, 
+  "msg": ""}
+#endif
 
+
+//-----------------------------------------------------
+static void AddAddr(UniValue &rc, const string &key, const string &val) {
+  UniValue out(UniValue::VOBJ);
+  out.push_back(Pair("address", val));
+  rc.push_back(Pair(key, out));
+}
 //-----------------------------------------------------
 // Creatse SEND exchange channel for 
 // Send "amount" in external currecny "to" address
@@ -429,7 +472,7 @@ string ExchCoinSwitch::Send(const string &to, double amount) {
   if(amount > m_limit)
    return strprintf("amount=%lf is greater than limit=%lf", amount, m_limit);
 
-  // Cleanum output
+  // Cleanup output
   m_depAddr.erase();
   m_outAddr.erase();
   m_txKey.erase();
@@ -438,30 +481,43 @@ string ExchCoinSwitch::Send(const string &to, double amount) {
 
   try {
     UniValue Req(UniValue::VOBJ);
-    Req.push_back(Pair("amount", amount));
-    Req.push_back(Pair("withdrawal", to));
-    Req.push_back(Pair("pair", m_pair));
-    Req.push_back(Pair("refund_address", m_retAddr));
-    // The public disclosure for RefID usage: https://bitcointalk.org/index.php?topic=362513
-    Req.push_back(Pair("ref_id", "2f77783d"));
-
-    UniValue Resp(httpsFetch("/api/sendamount", &Req));
+    Req.push_back(Pair("depositCoin", "emc"));
+    Req.push_back(Pair("destinationCoin", string(strchr(m_pair.c_str(), '/') + 1)));
+    Req.push_back(Pair("destinationCoinAmount", amount));
+    AddAddr(Req, "destinationAddress", to);
+    AddAddr(Req, "refundAddress", m_retAddr);
+    UniValue Resp(httpsFetch("/v2/order", &Req));
     LogPrint("exch", "DBG: ExchCoinSwitch::Send(%s|%s) returns <%s>\n\n", Host().c_str(), m_pair.c_str(), Resp.write(0, 0, 0).c_str());
-    m_rate     = atof(Resp["rate"].get_str().c_str());
-    m_depAddr  = Resp["deposit"].get_str();			// Address to pay EMC
-    m_outAddr  = Resp["withdrawal"].get_str();			// Address to pay from exchange
-    m_depAmo   = atof(Resp["deposit_amount"].get_str().c_str());// amount in EMC
-    m_outAmo   = atof(Resp["withdrawal_amount"].get_str().c_str());// Amount transferred to BTC
-    m_txKey    = Name() + ':' + Resp["key"].get_str();		// TX reference key
+    const UniValue& r = find_value(Resp, "data");
 
-    // Adjust deposit amount to 1EMCent, upward
-    m_depAmo = ceil(m_depAmo * 100.0) / 100.0;
+    m_txKey    = Name() + ':' + r["orderId"].get_str();		// TX reference key
+    const UniValue& depAddr = find_value(r, "exchangeAddress");
+    if(depAddr.isNull())
+      throw runtime_error("Missing exchangeAddress");
+    m_depAddr  = depAddr["address"].get_str();			// Address to pay EMC
+    m_outAddr  = to;                    			// Address to pay from exchange
+
+    m_depAmo   = r["expectedDepositCoinAmount"].get_real();     // amount in EMC
+    m_outAmo   = r["expectedDestinationCoinAmount"].get_real(); // Amount transferred to BTC
+    m_depAmo   = ceil(m_depAmo * COIN) / COIN;
+    m_rate     = m_outAmo / m_depAmo;
 
     return "";
   } catch(std::exception &e) { // something wrong at HTTPS
     return e.what();
   }
 } // ExchCoinSwitch::Send
+#if 0
+    "data": {
+        "orderId": "11111111-6c9e-4c53-9a6d-55e089aebd04",
+        "exchangeAddress": {
+            "address": "1F1tAaz5x1HUXrCNLbtMDqcw6o5GNn4xqX",
+            "tag": null
+        },
+        "expectedDepositCoinAmount": 0.004,
+        "expectedDestinationCoinAmount": 0.5017686
+    },
+#endif
 
 //-----------------------------------------------------
 // Check status of existing transaction.
@@ -524,8 +580,7 @@ int ExchCoinSwitch::Remain(const string &txkey) {
   } catch(std::exception &e) { // something wrong at HTTPS
     return 0;
   }
-} // ExchCoinReform::TimeLeft
-
+} // ExchCoinSwitch::TimeLeft
 
 
 
@@ -552,21 +607,26 @@ void exch_test() {
 
 
       string err(exch->MarketInfo("btc", 0.0));
-      //string err(exch->MarketInfo("zzQ"));
       printf("exch_test:MarketInfo returned: [%s]\n", err.c_str());
       if(!err.empty()) break;
       printf("exch_test:Values from exch: m_rate=%lf; m_limit=%lf; m_min=%lf; m_minerFee=%lf\n", 
 	      exch->m_rate, exch->m_limit, exch->m_min, exch->m_minerFee);
 
-      exit(0);
+      err = exch->MarketInfo("btc", 0.0);
+      printf("exch_test:MarketInfo returned: [%s]\n", err.c_str());
+      if(!err.empty()) break;
+      printf("exch_test:Values from exch: m_rate=%lf; m_limit=%lf; m_min=%lf; m_minerFee=%lf\n", 
+	      exch->m_rate, exch->m_limit, exch->m_min, exch->m_minerFee);
 
       printf("\nexch_test:Tryint to send BTC\n");
-      err = exch->Send("1Evqeh5pWphbWzmRAc4d3Wb82mAUBhWEVF", 0.001); // good addr
-      // bad err = exch->Send("1Evqeh5pWphbWzmRAc4d3Wb82mAUBhWEVz", 0.001); // bad addr
+      err = exch->Send("1Evqeh5pWphbWzmRAc4d3Wb82mAUBhWEVF", 0.02); // good addr
+      // bad err = exch->Send("1Evqeh5pWphbWzmRAc4d3Wb82mAUBhWEVz", 0.02); // bad addr
       printf("exch_test:Send returned: [%s]\n", err.c_str());
       if(!err.empty()) break;
       printf("m_depAddr=%s, m_outAddr=%s m_depAmo=%lf m_outAmo=%lf m_txKey=%s\n",
 	      exch->m_depAddr.c_str(), exch->m_outAddr.c_str(), exch->m_depAmo, exch->m_outAmo, exch->m_txKey.c_str());
+
+      exit(0);
 
       MilliSleep(1000);
 
