@@ -323,7 +323,7 @@ HostnameValidationResult validate_hostname(const char *hostname, const X509 *ser
 
 //--------------- https-client here --------------
 
-static struct event_base *base;
+static struct event_base *base = NULL; // libevent base+flag for init OpenSSL once
 static int ignore_cert = 0;
 
 // Global variables for return - used, since long chain of calls/callbacks
@@ -476,11 +476,13 @@ HttpsLE(const char *host, const char *get, const char *post, const std::map<std:
       get = "/";
 
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L)
-    // Initialize OpenSSL
-    SSL_library_init();
-    ERR_load_crypto_strings();
-    SSL_load_error_strings();
-    OpenSSL_add_all_algorithms();
+    if(base == NULL) {
+      // Initialize OpenSSL
+      SSL_library_init();
+      ERR_load_crypto_strings();
+      SSL_load_error_strings();
+      OpenSSL_add_all_algorithms();
+    }
 #endif
 
     /* Create a new OpenSSL context */
@@ -637,7 +639,8 @@ HttpsLE(const char *host, const char *get, const char *post, const std::map<std:
     SSL_CTX_free(ssl_ctx);
 
   //?? maybe, need release SSL_free(ssl);
-
+#if 0
+Don't cleanup OpenSSL
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L)
     ERR_free_strings();
     EVP_cleanup();
@@ -650,6 +653,7 @@ HttpsLE(const char *host, const char *get, const char *post, const std::map<std:
     CRYPTO_cleanup_all_ex_data();
 // core dump with reenter:   sk_SSL_COMP_free(SSL_COMP_get_compression_methods());
 #endif /* (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER) */
+#endif
 
 #ifdef _WIN32
 	WSACleanup();
