@@ -416,7 +416,9 @@ void ExchCoinSwitch::FillHeader() {
   struct in_addr dummy_addr;
   dummy_addr.s_addr = 0x08080808; // 8.8.8.8 - Google address
   CNetAddr fake_server_addr(dummy_addr);
-  m_header["x-user-ip"] = GetLocalAddress(&fake_server_addr, NODE_NONE).ToStringIP();
+  string ipAddr(GetLocalAddress(&fake_server_addr, NODE_NONE).ToStringIP());
+  LogPrint("exch", "DBG: ExchCoinSwitch::FillHeader() x-user-ip=%s\n", ipAddr.c_str());
+  m_header["x-user-ip"] = ipAddr;
   m_header["x-api-key"] = "ty7smoqSte5Ku3GKeRM4F3m8xrIksJfM723sutEI"; // real API key
   // m_header["x-api-key"] = "cRbHFJTlL6aSfZ0K2q7nj6MgV5Ih4hbA2fUG0ueO"; // sandbox API key
 } // ExchCoinSwitch::FillHeader
@@ -435,7 +437,7 @@ string ExchCoinSwitch::MarketInfo(const string &currency, double amount) {
     Req.push_back(Pair("depositCoin", "emc"));
     Req.push_back(Pair("destinationCoin", curr_lc));
     UniValue Resp(httpsFetch("/v2/rate", &Req));
-    LogPrint("exch", "DBG: ExchCoinReform::MarketInfo(%s|%s) returns <%s>\n\n", Host().c_str(), curr_lc.c_str(), Resp.write(0, 0, 0).c_str());
+    LogPrint("exch", "DBG: ExchCoinSwitch::MarketInfo(%s|%s) returns <%s>\n\n", Host().c_str(), curr_lc.c_str(), Resp.write(0, 0, 0).c_str());
     const UniValue& mi  = find_value(Resp, "data");
     m_rate     = mi["rate"].get_real();
     m_limit    = mi["limitMaxDestinationCoin"].get_real();
