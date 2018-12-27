@@ -41,7 +41,7 @@ bool OpenSslExecutable::seemsOk(const QString & path) {
 	return file.exists() && file.isExecutable();
 }
 struct OpenSslExecutable::SpecifyPathDialog: public QDialog {
-	QLineEdit* _path = 0;
+	QLineEdit* _path = {};
 	QLabel* _statusLabel = 0;
 	QPixmap _pixOk;
 	QPixmap _pixFailed;
@@ -199,6 +199,30 @@ bool OpenSslExecutable::deleteOrExit(QDir & dir, const QString & file, int tries
 	_strOutput += tr("File %1 can't be removed").arg(file);
 	return false;
 }
+extern "C" int req_main(int argc, char **argv);
+class Args: public QStringList {
+	protected:
+		QVector<char*> _argv;
+		QList<QByteArray> _args;
+	public:
+		Args(const QStringList & args): QStringList(args) {
+		}
+		int argc()const {
+			return count();
+		}
+		char ** argv() {
+			_args.clear();
+			for(const QString & s: *this) {
+				_args << s.toUtf8();
+			}
+			_argv.clear();
+			for(QByteArray & s: _args) {
+				_argv << s.data();
+			}
+			return _argv.data();
+		}
+};
+
 bool OpenSslExecutable::generateKeyAndCertificateRequest(const QString & baseName, const QString & subj) {
 	log(tr("Generate key and certificate request:"));
 	const QString keyFile = baseName + ".key";
@@ -208,7 +232,7 @@ bool OpenSslExecutable::generateKeyAndCertificateRequest(const QString & baseNam
 		return false;
 	if(!deleteOrExit(dir, csrFile))
 		return false;
-	QStringList args = QString("req -config $CFG -new -newkey rsa:2048 -nodes -keyout $KEY -subj $SUBJ -out $CSR").split(' ');
+	Args args = QString("req -config $CFG -new -newkey rsa:2048 -nodes -keyout $KEY -subj $SUBJ -out $CSR").split(' ');
 	args.replaceInStrings("$KEY", keyFile);
 	args.replaceInStrings("$CSR", csrFile);
 	args.replaceInStrings("$SUBJ", subj);
