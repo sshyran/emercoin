@@ -1055,7 +1055,7 @@ UniValue randpay_createtx(const JSONRPCRequest& request)
     CAmount nFeeRequired;
     int nChangePosRet = 1;
     std::string strError;
-    bool fSign = false;
+    bool fSign = true;
 
     {
         LOCK2(cs_main, pwalletMain->cs_wallet);
