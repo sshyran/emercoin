@@ -1025,7 +1025,7 @@ UniValue randpay_createtx(const JSONRPCRequest& request)
     if (nAmount <= 0)
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
 
-    arith_uint256 addrchap = UintToArith256(uint256((ParseHexV(request.params[1], "addrchap"))));
+    arith_uint256 addrchap = UintToArith256(uint256S(request.params[1].get_str()));
 
     if (!request.params[2].isNum())
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid type provided. risk parameter must be numeric.");
