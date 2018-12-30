@@ -1012,7 +1012,7 @@ UniValue randpay_createtx(const JSONRPCRequest& request)
             "2. \"addrchap\"   (string, required)  ?\n"
             "3. risk           (numeric, required) 1 / probability of success for random payments.\n"
             "4. timio          (numeric, required) Locks utxo from being spent in another tx for timio seconds.\n"
-            "5. naive          (bool, optional, default=false) Generate navive randpay-transaction, without randpay-in\n"
+            "5. naive          (bool, optional, default=false) Generate naive randpay-transaction, without randpay-in\n"
             "\nResult:\n"
             "\"transaction\"   (string) Hex string of the transaction.\n"
             //emc add examples:
@@ -1055,7 +1055,7 @@ UniValue randpay_createtx(const JSONRPCRequest& request)
     CAmount nFeeRequired;
     int nChangePosRet = 1;
     std::string strError;
-    bool fSign = true;
+    bool fSign = naive;
 
     {
         LOCK2(cs_main, pwalletMain->cs_wallet);
@@ -1076,15 +1076,26 @@ UniValue randpay_createtx(const JSONRPCRequest& request)
             g_RandPayLockUTXO.Insert(rpLockTXkey, lock_time);
         }
     }
-    if(!naive) {
-        // add randpay input at vin[0]
-        CMutableTransaction txNew(*wtxNew.tx);
-        uint32_t nSequence = (wtxNew.tx->nLockTime ? std::numeric_limits<uint32_t>::max() - 1 : std::numeric_limits<uint32_t>::max());
-        CTxIn in(COutPoint(randpaytx, 0), CScript(), nSequence);
-        txNew.vin.insert(txNew.vin.begin(), in);
-        wtxNew.SetTx(MakeTransactionRef(std::move(txNew)));
-    }
-    return EncodeHexTx(wtxNew);
+
+    if(naive)
+        return EncodeHexTx(wtxNew);
+
+    // add randpay input at vin[0]
+    CMutableTransaction txNew(*wtxNew.tx);
+    uint32_t nSequence = (wtxNew.tx->nLockTime ? std::numeric_limits<uint32_t>::max() - 1 : std::numeric_limits<uint32_t>::max());
+    CTxIn in(COutPoint(randpaytx, 0), CScript(), nSequence);
+    txNew.vin.insert(txNew.vin.begin(), in);
+
+    // and sing other inputs by signrawtransaction
+    UniValue params(UniValue::VARR);
+    wtxNew.SetTx(MakeTransactionRef(std::move(txNew)));
+    params.push_back(EncodeHexTx(wtxNew));
+    JSONRPCRequest req;
+    req.params = params;
+    req.fHelp = false;
+    const UniValue result(signrawtransaction(req));
+    const UniValue& err = find_value(result, "error");
+    return result[(err.isNull() || err.get_str().empty())? "hex" : "error"].get_str();
 }
 
 #endif   // #ifdef ENABLE_WALLET 
