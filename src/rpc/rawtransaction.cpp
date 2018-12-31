@@ -1129,13 +1129,14 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
     CMutableTransaction mtx;
     if (!DecodeHexTx(mtx, request.params[0].get_str()))
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
-    CTransactionRef tx(MakeTransactionRef(std::move(mtx)));
-    const uint256& hashTx = tx->GetHash();
+    /// CTransactionRef tx(MakeTransactionRef(std::move(mtx)));
+    CTransactionRef tx(MakeTransactionRef(mtx));
+    /// const uint256& hashTx = tx->GetHash();
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     CCoinsViewCache &view = *pcoinsTip;
-    const CCoins* existingCoins = view.AccessCoins(hashTx);
+    const CCoins* existingCoins = view.AccessCoins(tx->GetHash());
 //    bool fHaveMempool = mempool.exists(hashTx);
     bool fHaveChain = existingCoins && existingCoins->nHeight < 1000000000;
     if (fHaveChain)
@@ -1145,7 +1146,8 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
     CAmount nMaxRawTxFee = 0;
     bool fRandPayCheck = true;
     // note: if (fRandPayCheck == true) it will do all checks but it will not accept tx to the pool at the end
-    bool fPass = AcceptToMemoryPool(mempool, state, std::move(tx), &fMissingInputs, NULL, false, nMaxRawTxFee, fRandPayCheck);
+    /// bool fPass = AcceptToMemoryPool(mempool, state, std::move(tx), &fMissingInputs, NULL, false, nMaxRawTxFee, fRandPayCheck);
+    bool fPass = AcceptToMemoryPool(mempool, state, tx, &fMissingInputs, NULL, false, nMaxRawTxFee, fRandPayCheck);
 
     int32_t rpn = -1; // randpay-in index in the vin[]
     if (!fPass) {
@@ -1191,7 +1193,7 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
                 if (!key.IsValid())
                     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Private key outside allowed range");
                 pwalletMain->MarkDirty();
-                pwalletMain->SetAddressBook(id2, "", "receive");
+                pwalletMain->SetAddressBook(id2, "RandPay", "receive");
                 pwalletMain->mapKeyMetadata[id2].nCreateTime = GetTime();
                 if (!pwalletMain->AddKeyPubKey(key, pubkey))
                     throw JSONRPCError(RPC_WALLET_ERROR, "Error adding key to wallet");
@@ -1228,7 +1230,8 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
     // accept to mempool and notify other peers
     if (fWon) {
         CTransactionRef txUpdated(MakeTransactionRef(std::move(mtx)));
-        const uint256& hashUpdatedTx = tx->GetHash();
+        /// const uint256& hashUpdatedTx = tx->GetHash();
+        const uint256& hashUpdatedTx = txUpdated->GetHash();
 
         const CCoins* existingCoins2 = view.AccessCoins(hashUpdatedTx);
         bool fHaveMempool2 = mempool.exists(hashUpdatedTx);
@@ -1252,7 +1255,8 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
         }
 
         // notify other peers that this tx exists
-        CInv inv(MSG_TX, hashTx);
+        CInv inv(MSG_TX, hashUpdatedTx);
+        /// CInv inv(MSG_TX, hashTx);
         g_connman->ForEachNode([&inv](CNode* pnode)
         {
             pnode->PushInventory(inv);
@@ -1260,7 +1264,7 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
     }
 
     UniValue result(UniValue::VOBJ);
-    result.push_back(Pair("amount", AmountFromValue(tx->vout[0].nValue)));
+    result.push_back(Pair("amount", ValueFromAmount(tx->vout[0].nValue)));
     result.push_back(Pair("won", fWon));
     return result;
 }

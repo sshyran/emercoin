@@ -209,8 +209,8 @@ public:
 
         // Note that of those with the service bits flag, most only support a subset of possible options
         vSeeds.push_back(CDNSSeedData("emercoin.com", "seed.emercoin.com"));
-        vSeeds.push_back(CDNSSeedData("emercoin.net", "seed.emercoin.net"));
-        vSeeds.push_back(CDNSSeedData("emergate.net", "seed.emergate.net"));
+        // vSeeds.push_back(CDNSSeedData("emercoin.net", "seed.emercoin.net"));
+        // vSeeds.push_back(CDNSSeedData("emergate.net", "seed.emergate.net"));
         vSeeds.push_back(CDNSSeedData("emcdns", "seed.emc"));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,33);   // emercoin: addresses begin with 'E'
@@ -306,8 +306,8 @@ public:
         // nodes with support for servicebits filtering should be at the top
         vSeeds.push_back(CDNSSeedData("emercoin", "tnseed.emercoin.com"));
 
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,111);
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,196);
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,111);     // Testnet pubkey hash: m or n
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,196);     // Testnet script hash: 2
         base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,239);
         base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container<std::vector<unsigned char> >();
         base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x35)(0x83)(0x94).convert_to_container<std::vector<unsigned char> >();
