@@ -1204,16 +1204,17 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
                 const CTxIn& txin = tx->vin[rpn];
                 const CCoins* coins = view.AccessCoins(txin.prevout.hash);
                 assert(coins != nullptr && coins->IsAvailable(txin.prevout.n)); // randpay input should always be available
-                const CScript& prevPubKey = GenerateScriptForRandPay(tx->vout[0].scriptPubKey);
-                const CAmount& amount = coins->vout[txin.prevout.n].nValue;
+                const CScript prevPubKey = GenerateScriptForRandPay(tx->vout[0].scriptPubKey);
+                const CAmount amount = coins->vout[txin.prevout.n].nValue;
 
                 SignatureData sigdata;
-                ProduceSignature(MutableTransactionSignatureCreator(pwalletMain, &mtx, rpn, amount, SIGHASH_ALL), prevPubKey, sigdata);
+                if(!ProduceSignature(MutableTransactionSignatureCreator(pwalletMain, &mtx, rpn, amount, SIGHASH_ALL), prevPubKey, sigdata))
+                  throw JSONRPCError(RPC_WALLET_ERROR, "Cannot ProduceSignature for Randpay");
                 UpdateTransaction(mtx, rpn, sigdata);
 
                 ScriptError serror = SCRIPT_ERR_OK;
                 const CTransaction txConst(mtx);
-                if (!VerifyScript(txin.scriptSig, prevPubKey, mtx.nVersion, &txin.scriptWitness, STANDARD_SCRIPT_VERIFY_FLAGS, TransactionSignatureChecker(&txConst, rpn, amount), &serror))
+                if (!VerifyScript(txConst.vin[rpn].scriptSig, prevPubKey, mtx.nVersion, &txConst.vin[rpn].scriptWitness, STANDARD_SCRIPT_VERIFY_FLAGS, TransactionSignatureChecker(&txConst, rpn, amount), &serror))
                     throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Failed to verify script: %s", ScriptErrorString(serror)));
             }
             fWon = true;
