@@ -997,8 +997,7 @@ UniValue randpay_createaddrchap(const JSONRPCRequest& request)
       MapRandKeyT.MarkDel(p);
     keyt.expire = t + nTimio;
     MapRandKeyT.Insert(ArithToUint256(addrchap), keyt);
-
-    return addrchap.ToString();
+    return addrchap.ToString().substr(24); // cut 24 leading zeroes 256->160
 }
 
 UniValue randpay_createtx(const JSONRPCRequest& request)
