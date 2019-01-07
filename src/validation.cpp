@@ -1782,7 +1782,7 @@ bool DisconnectBlock(const CBlock& block, CValidationState& state, const CBlockI
             vector<reference_wrapper<const CTxIn>> vinWithoutRandpay;
             vinWithoutRandpay.reserve(tx.vin.size());
             for (const CTxIn& txin : tx.vin)
-                if (txin.prevout.hash != uint256())
+                if (txin.prevout.hash != randpaytx)
                     vinWithoutRandpay.push_back(txin);
 
             if (txundo.vprevout.size() != vinWithoutRandpay.size())
