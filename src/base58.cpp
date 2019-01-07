@@ -274,8 +274,7 @@ CTxDestination CBitcoinAddress::Get() const
 
 bool CBitcoinAddress::GetKeyID(CKeyID& keyID) const
 {
-    // OLEG if (!IsValid() || vchVersion != Params().Base58Prefix(CChainParams::PUBKEY_ADDRESS))
-    if (!IsValid())
+    if (!IsValid() || vchVersion != Params().Base58Prefix(CChainParams::PUBKEY_ADDRESS))
         return false;
     uint160 id;
     memcpy(&id, &vchData[0], 20);

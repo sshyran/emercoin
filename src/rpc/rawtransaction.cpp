@@ -1043,7 +1043,7 @@ UniValue randpay_createtx(const JSONRPCRequest& request)
     SendMoneyCheck(nAmount, curBalance);
 
     // Parse Bitcoin address
-    CScript scriptPubKey = GetScriptForDestination(CScriptID(rand_addr));
+    CScript scriptPubKey = GetScriptForDestination(CKeyID(rand_addr));
     bool fSubtractFeeFromAmount = false;
     vector<CRecipient> vecSend;
     CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount};
