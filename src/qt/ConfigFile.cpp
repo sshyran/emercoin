@@ -35,7 +35,7 @@ QString ConfigFile::save() {
 			.arg(QDir::toNativeSeparators(_fileName)).arg(errorString());
 	return {};
 }
-QVariant ConfigFile::option(const QString& name)const {
+QVariant ConfigFile::option(const QString& name, const QString& strDefault)const {
 	if(name.isEmpty()) {
 		Q_ASSERT(0);
 		return {};
@@ -46,7 +46,7 @@ QVariant ConfigFile::option(const QString& name)const {
 			return line.mid(start.length());
 		}
 	}
-	return {};
+	return strDefault;
 }
 void ConfigFile::setOption(const QString& name, const QString& value) {
 	const QString start = name + '=';
@@ -61,11 +61,33 @@ void ConfigFile::setOption(const QString& name, const QString& value) {
 void ConfigFile::setOption(const QString& name, int n) {
 	setOption(name, QString::number(n));
 }
-bool ConfigFile::server()const { return option(QStringLiteral("server")).toInt(); }
-bool ConfigFile::listen()const { return option(QStringLiteral("listen")).toInt(); }
-QString ConfigFile::rpcuser()const { return option(QStringLiteral("rpcuser")).toString(); }
-QString ConfigFile::rpcpassword()const{ return option(QStringLiteral("rpcpassword")).toString(); }
-QString ConfigFile::debug()const { return option(QStringLiteral("debug")).toString(); }
+bool ConfigFile::server()const {
+	return option(QStringLiteral("server")).toInt();
+}
+bool ConfigFile::listen()const {
+	return option(QStringLiteral("listen")).toInt();
+}
+int ConfigFile::randPayTimeout()const {
+	return option(QStringLiteral("rp_timeout"), "30").toInt();
+}
+double ConfigFile::randPayMaxAmount()const {
+	return option(QStringLiteral("rp_max_amount")).toDouble();
+}
+double ConfigFile::randPayMaxPayment()const {
+	return option(QStringLiteral("rp_max_payment")).toDouble();
+}
+bool ConfigFile::randPaySubmit()const {
+	return option("rp_submit").toBool();
+}
+QString ConfigFile::rpcuser()const {
+	return option(QStringLiteral("rpcuser")).toString();
+}
+QString ConfigFile::rpcpassword()const {
+	return option(QStringLiteral("rpcpassword")).toString();
+}
+QString ConfigFile::debug()const {
+	return option(QStringLiteral("debug")).toString();
+}
 void ConfigFile::setServer(bool b) {
 	setOption(QStringLiteral("server"), b ? 1 : 0);
 }

@@ -1010,7 +1010,7 @@ UniValue randpay_createtx(const JSONRPCRequest& request)
             "1. amount         (numeric, required) Amount of emc to send.\n"
             "2. \"addrchap\"   (string, required)  ?\n"
             "3. risk           (numeric, required) 1 / probability of success for random payments.\n"
-            "4. timio          (numeric, required) Locks utxo from being spent in another tx for timio seconds.\n"
+			"4. timeout        (numeric, required) Locks utxo from being spent in another tx for timio seconds.\n"
             "5. naive          (bool, optional, default=false) Generate naive randpay-transaction, without randpay-in\n"
             "\nResult:\n"
             "\"transaction\"   (string) Hex string of the transaction.\n"

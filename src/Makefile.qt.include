@@ -235,6 +235,7 @@ BITCOIN_QT_H = \
   qt/DocNotarWidget.h \
   qt/YearSpinBox.h \
   qt/DpoUseCaseScheme.h \
+  qt/RandPayRequest.h \
   qt/NameValueLineEdits.h \
   qt/SelectableLineEdit.h \
   qt/SelectableTextEdit.h \
@@ -439,6 +440,7 @@ BITCOIN_QT_WALLET_CPP = \
   qt/ValidatorToLabel.cpp \
   qt/EmailLineEdit.cpp \
   qt/EmailValidator.cpp \
+  qt/RandPayRequest.cpp \
   qt/DpoCreateRecordWidget.cpp \
   qt/DpoCreateRootWidget.cpp \
   qt/DpoRegisterDocWidget.cpp \

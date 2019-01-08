@@ -40,11 +40,8 @@
 #include <QStringList>
 #include <QTextDocument>
 
-#if QT_VERSION < 0x050000
-#include <QUrl>
-#else
 #include <QUrlQuery>
-#endif
+#include "RandPayRequest.h"
 
 const int BITCOIN_IPC_CONNECT_TIMEOUT = 1000; // milliseconds
 const QString BITCOIN_IPC_PREFIX("emercoin:");
@@ -214,6 +211,11 @@ void PaymentServer::ipcParseCommandLine(int argc, char* argv[])
         if (arg.startsWith(BITCOIN_IPC_PREFIX, Qt::CaseInsensitive)) // bitcoin: URI
         {
             savedPaymentRequests.append(arg);
+			const QUrl url = arg;
+			if(RandPayRequest::isRandPayUrl(url)) {
+				//just skip warning
+				continue;
+			}
 
             std::vector<SendCoinsRecipient> rv;
             if (GUIUtil::parseBitcoinURI(arg, rv) && !rv[0].address.isEmpty())
@@ -265,7 +267,7 @@ void PaymentServer::ipcParseCommandLine(int argc, char* argv[])
 bool PaymentServer::ipcSendCommandLine()
 {
     bool fResult = false;
-    Q_FOREACH (const QString& r, savedPaymentRequests)
+	for (const QString& r : savedPaymentRequests)
     {
         QLocalSocket* socket = new QLocalSocket();
         socket->connectToServer(ipcServerName(), QIODevice::WriteOnly);
@@ -379,10 +381,8 @@ void PaymentServer::initNetManager()
     else
         qDebug() << "PaymentServer::initNetManager: No active proxy server found.";
 
-    connect(netManager, SIGNAL(finished(QNetworkReply*)),
-            this, SLOT(netRequestFinished(QNetworkReply*)));
-    connect(netManager, SIGNAL(sslErrors(QNetworkReply*, const QList<QSslError> &)),
-            this, SLOT(reportSslErrors(QNetworkReply*, const QList<QSslError> &)));
+	connect(netManager, &QNetworkAccessManager::finished, this, &PaymentServer::netRequestFinished);
+	connect(netManager, &QNetworkAccessManager::sslErrors, this, &PaymentServer::reportSslErrors);
 }
 
 void PaymentServer::uiReady()
@@ -390,10 +390,10 @@ void PaymentServer::uiReady()
     initNetManager();
 
     saveURIs = false;
-    Q_FOREACH (const QString& s, savedPaymentRequests)
-    {
-        handleURIOrFile(s);
-    }
+	for (const QString& s : savedPaymentRequests)
+	{
+		handleURIOrFile(s);
+	}
     savedPaymentRequests.clear();
 }
 
@@ -407,12 +407,20 @@ void PaymentServer::handleURIOrFile(const QString& s)
 
     if (s.startsWith(BITCOIN_IPC_PREFIX, Qt::CaseInsensitive)) // bitcoin: URI
     {
-#if QT_VERSION < 0x050000
-        QUrl uri(s);
-#else
-        QUrlQuery uri((QUrl(s)));
-#endif
-        if (uri.hasQueryItem("r")) // payment request URI
+		QString s2 = s;//ensure // after ':' so QUrl parses properly
+		const QString moreDetailedPrefix = BITCOIN_IPC_PREFIX + "//";
+		if(!s.startsWith(moreDetailedPrefix)) {
+			s2.remove(0, BITCOIN_IPC_PREFIX.length());
+			s2.prepend(moreDetailedPrefix);
+		}
+		const QUrl url = s2;
+		if(RandPayRequest::isRandPayUrl(url)) {
+			RandPayRequest::process(url, this);
+			return;
+		}
+
+		const QUrlQuery uri(url);
+		if (uri.hasQueryItem("r")) // payment request URI
         {
             QByteArray temp;
             temp.append(uri.queryItemValue("r"));
@@ -429,31 +437,29 @@ void PaymentServer::handleURIOrFile(const QString& s)
                 qWarning() << "PaymentServer::handleURIOrFile: Invalid URL: " << fetchUrl;
                 Q_EMIT message(tr("URI handling"),
                     tr("Payment request fetch URL is invalid: %1").arg(fetchUrl.toString()),
-                    CClientUIInterface::ICON_WARNING);
+					CClientUIInterface::MSG_WARNING);
             }
 
             return;
         }
-        else // normal URI
-        {
-            std::vector<SendCoinsRecipient> recipients;
-            if (GUIUtil::parseBitcoinURI(s, recipients))
-            {
-                CBitcoinAddress address(recipients[0].address.toStdString());
-                if (!address.IsValid()) {
-                    Q_EMIT message(tr("URI handling"), tr("Invalid payment address %1").arg(recipients[0].address),
-                        CClientUIInterface::MSG_ERROR);
-                }
-                else
-                    Q_EMIT receivedPaymentRequest(recipients[0]);
-            }
-            else
-                Q_EMIT message(tr("URI handling"),
-                    tr("URI cannot be parsed! This can be caused by an invalid Emercoin address or malformed URI parameters."),
-                    CClientUIInterface::ICON_WARNING);
+		// normal URI
+		std::vector<SendCoinsRecipient> recipients;
+		if (GUIUtil::parseBitcoinURI(s, recipients))
+		{
+			CBitcoinAddress address(recipients[0].address.toStdString());
+			if (!address.IsValid()) {
+				Q_EMIT message(tr("URI handling"), tr("Invalid payment address %1").arg(recipients[0].address),
+					CClientUIInterface::MSG_ERROR);
+			}
+			else
+				Q_EMIT receivedPaymentRequest(recipients[0]);
+		}
+		else
+			Q_EMIT message(tr("URI handling"),
+				tr("URI cannot be parsed! This can be caused by an invalid Emercoin address or malformed URI parameters."),
+				CClientUIInterface::MSG_WARNING);
 
-            return;
-        }
+		return;
     }
 
     if (QFile::exists(s)) // payment request file
@@ -464,7 +470,7 @@ void PaymentServer::handleURIOrFile(const QString& s)
         {
             Q_EMIT message(tr("Payment request file handling"),
                 tr("Payment request file cannot be read! This can be caused by an invalid payment request file."),
-                CClientUIInterface::ICON_WARNING);
+				CClientUIInterface::MSG_WARNING);
         }
         else if (processPaymentRequest(request, recipient))
             Q_EMIT receivedPaymentRequest(recipient);
@@ -477,11 +483,11 @@ void PaymentServer::handleURIConnection()
 {
     QLocalSocket *clientConnection = uriServer->nextPendingConnection();
 
-    while (clientConnection->bytesAvailable() < (int)sizeof(quint32))
+	while (clientConnection->bytesAvailable() < (int)sizeof(quint32)) {
         clientConnection->waitForReadyRead();
+	}
 
-    connect(clientConnection, SIGNAL(disconnected()),
-            clientConnection, SLOT(deleteLater()));
+	connect(clientConnection, &QLocalSocket::disconnected, clientConnection, &QLocalSocket::deleteLater);
 
     QDataStream in(clientConnection);
     in.setVersion(QDataStream::Qt_4_0);
@@ -616,6 +622,15 @@ void PaymentServer::fetchRequest(const QUrl& url)
     netRequest.setRawHeader("User-Agent", CLIENT_NAME.c_str());
     netRequest.setRawHeader("Accept", BIP71_MIMETYPE_PAYMENTREQUEST);
     netManager->get(netRequest);
+}
+
+void PaymentServer::postRequest(const QUrl& url, const QByteArray & data) {
+	QNetworkRequest netRequest;
+	netRequest.setAttribute(QNetworkRequest::User, BIP70_MESSAGE_PAYMENTREQUEST);
+	netRequest.setUrl(url);
+	netRequest.setRawHeader("User-Agent", CLIENT_NAME.c_str());
+	netRequest.setRawHeader("Accept", BIP71_MIMETYPE_PAYMENTREQUEST);
+	netManager->post(netRequest, data);
 }
 
 void PaymentServer::fetchPaymentACK(CWallet* wallet, SendCoinsRecipient recipient, QByteArray transaction)

@@ -96,7 +96,7 @@ public:
     static bool verifySize(qint64 requestSize);
     // Verify the payment request amount is valid
     static bool verifyAmount(const CAmount& requestAmount);
-
+	void postRequest(const QUrl& url, const QByteArray & data);
 Q_SIGNALS:
     // Fired when a valid payment request is received
     void receivedPaymentRequest(SendCoinsRecipient);
@@ -132,7 +132,7 @@ protected:
 private:
     static bool readPaymentRequestFromFile(const QString& filename, PaymentRequestPlus& request);
     bool processPaymentRequest(const PaymentRequestPlus& request, SendCoinsRecipient& recipient);
-    void fetchRequest(const QUrl& url);
+	void fetchRequest(const QUrl& url);
 
     // Setup networking
     void initNetManager();

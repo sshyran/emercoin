@@ -1,6 +1,7 @@
 #include "QNameCoin.h"
 #include <QDate>
 #include "../rpc/server.h"
+#include "RandPayRequest.h"
 
 using CNameVal = std::vector<unsigned char>;
 std::vector<CNameVal> NameCoin_myNames();
@@ -105,6 +106,26 @@ QNameCoin::SignMessageRet QNameCoin::signMessageByName(const QString& name, cons
 		ret.error = toString(e);
 	}
 	return ret;
+}
+
+UniValue randpay_createtx(const JSONRPCRequest& request);
+QString QNameCoin::randPayCreateTx(const RandPayRequest & r, QString & error) {
+	try {
+		JSONRPCRequest request;
+		request.params.setArray();
+		request.params.push_back(UniValue(r._amount));
+		request.params.push_back(UniValue(r._chap.toStdString()));
+		request.params.push_back(UniValue((double)r._risk));
+		request.params.push_back(UniValue((double)r._timeout));
+		//request.params.push_back();[naive]
+		UniValue res = randpay_createtx(request);
+		return QString::fromStdString(res.write());
+	} catch (UniValue& objError) {
+		error = errorToString(objError);
+	} catch (const std::exception& e) {
+		error = toString(e);
+	}
+	return {};
 }
 UniValue signmessage(const JSONRPCRequest& request);
 UniValue QNameCoin::signMessageByAddress(const QString& address, const QString& message) {
