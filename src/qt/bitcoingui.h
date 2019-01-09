@@ -31,6 +31,8 @@ class WalletModel;
 class HelpMessageDialog;
 class ModalOverlay;
 
+class MintingView;
+
 class CWallet;
 
 QT_BEGIN_NAMESPACE
@@ -94,6 +96,7 @@ private:
     QMenuBar *appMenuBar = 0;
     QAction *overviewAction = 0;
     QAction *historyAction = 0;
+    QAction *mintingAction = 0;
     QAction *quitAction = 0;
     QAction *sendCoinsAction = 0;
     QAction *sendCoinsMenuAction = 0;
@@ -118,6 +121,7 @@ private:
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
     Notificator *notificator;
+    MintingView *mintingView;
     RPCConsole *rpcConsole;
     HelpMessageDialog *helpMessageDialog;
     ModalOverlay *modalOverlay;
@@ -175,6 +179,8 @@ public Q_SLOTS:
     void gotoSendCoinsPage(QString addr = "");
     /** Switch to manage names page */
     void gotoManageNamesPage();
+    /** Switch to minting page */
+    void gotoMintingPage();
 
     /** Notify the user of an event from the core network or transaction handling code.
        @param[in] title     the message box / notification title

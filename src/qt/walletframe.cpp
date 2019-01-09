@@ -134,6 +134,12 @@ void WalletFrame::gotoManageNamesPage()
         view->gotoManageNamesPage();
 }
 
+void WalletFrame::gotoMintingPage()
+{
+    for (auto view: mapWalletViews.values())
+        view->gotoMintingPage();
+}
+
 void WalletFrame::gotoSignMessageTab(QString addr)
 {
     WalletView *walletView = currentWalletView();
