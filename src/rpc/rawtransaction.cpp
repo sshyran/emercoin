@@ -448,7 +448,7 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
         if (name_ == "data") {
             std::vector<unsigned char> data = ParseHexV(sendTo[name_].getValStr(),"Data");
 
-            CTxOut out(0, CScript() << OP_RETURN << data);
+            CTxOut out(MIN_TXOUT_AMOUNT, CScript() << OP_RETURN << data);
             rawTx.vout.push_back(out);
         } else {
             CBitcoinAddress address(name_);
