@@ -985,7 +985,7 @@ UniValue randpay_createaddrchap(const JSONRPCRequest& request)
     do {
         keyt.key.MakeNewKey(true);
         X = arith_uint256(keyt.key.GetPubKey().GetID().ToString());  // class CKeyID : public uint160
-    } while (X >= barrier);
+    } while (X >= barrier || !keyt.key.IsValid());
 
     InitMapRandKeyT();
 
@@ -1128,15 +1128,12 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
     CMutableTransaction mtx;
     if (!DecodeHexTx(mtx, request.params[0].get_str()))
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
-    /// CTransactionRef tx(MakeTransactionRef(std::move(mtx)));
     CTransactionRef tx(MakeTransactionRef(mtx));
-    /// const uint256& hashTx = tx->GetHash();
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     CCoinsViewCache &view = *pcoinsTip;
     const CCoins* existingCoins = view.AccessCoins(tx->GetHash());
-//    bool fHaveMempool = mempool.exists(hashTx);
     bool fHaveChain = existingCoins && existingCoins->nHeight < 1000000000;
     if (fHaveChain)
         throw JSONRPCError(RPC_TRANSACTION_ALREADY_IN_CHAIN, "transaction already in block chain");
@@ -1145,7 +1142,6 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
     CAmount nMaxRawTxFee = 0;
     bool fRandPayCheck = true;
     // note: if (fRandPayCheck == true) it will do all checks but it will not accept tx to the pool at the end
-    /// bool fPass = AcceptToMemoryPool(mempool, state, std::move(tx), &fMissingInputs, NULL, false, nMaxRawTxFee, fRandPayCheck);
     bool fPass = AcceptToMemoryPool(mempool, state, tx, &fMissingInputs, NULL, false, nMaxRawTxFee, fRandPayCheck);
 
     int32_t rpn = -1; // randpay-in index in the vin[]
@@ -1230,7 +1226,6 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
     // accept to mempool and notify other peers
     if (fWon) {
         CTransactionRef txUpdated(MakeTransactionRef(std::move(mtx)));
-        /// const uint256& hashUpdatedTx = tx->GetHash();
         const uint256& hashUpdatedTx = txUpdated->GetHash();
 
         const CCoins* existingCoins2 = view.AccessCoins(hashUpdatedTx);
@@ -1256,7 +1251,6 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
 
         // notify other peers that this tx exists
         CInv inv(MSG_TX, hashUpdatedTx);
-        /// CInv inv(MSG_TX, hashTx);
         g_connman->ForEachNode([&inv](CNode* pnode)
         {
             pnode->PushInventory(inv);
