@@ -12,6 +12,7 @@
 #include "recentrequeststablemodel.h"
 #include "transactiontablemodel.h"
 #include "nametablemodel.h"
+#include "mintingtablemodel.h"
 
 #include "base58.h"
 #include "keystore.h"
@@ -47,6 +48,7 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, O
     transactionTableModel = new TransactionTableModel(platformStyle, wallet, this);
     recentRequestsTableModel = new RecentRequestsTableModel(wallet, this);
     nameTableModel = new NameTableModel(wallet, this);
+    mintingTableModel = new MintingTableModel(wallet, this);
 
     // This timer will be fired repeatedly to update the balance
     pollTimer = new QTimer(this);
@@ -414,6 +416,11 @@ RecentRequestsTableModel *WalletModel::getRecentRequestsTableModel()
 NameTableModel *WalletModel::getNameTableModel()
 {
     return nameTableModel;
+}
+
+MintingTableModel *WalletModel::getMintingTableModel()
+{
+    return mintingTableModel;
 }
 
 WalletModel::EncryptionStatus WalletModel::getEncryptionStatus() const

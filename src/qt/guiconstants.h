@@ -53,4 +53,9 @@ static const int MAX_URI_LENGTH = 255;
 #define QAPP_APP_NAME_DEFAULT "Emercoin-Qt"
 #define QAPP_APP_NAME_TESTNET "Emercoin-Qt-testnet"
 
+/* Colors for minting tab for each coin age group */
+#define COLOR_MINT_YOUNG QColor(128, 64, 64)
+#define COLOR_MINT_MATURE QColor(64, 128, 64)
+#define COLOR_MINT_OLD QColor(26, 77, 26)
+
 #endif // BITCOIN_QT_GUICONSTANTS_H

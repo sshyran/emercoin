@@ -1,6 +1,7 @@
 #pragma once
 #include <QObject>
 class UniValue;
+class RandPayRequest;
 
 //Qt NameCoin interface
 class QNameCoin: public QObject {//for tr()
@@ -29,4 +30,6 @@ class QNameCoin: public QObject {//for tr()
         static QString currentSecondsPseudoBase64();
         static QString errorToString(UniValue& v);
 		static QString toString(const std::exception& e);
+
+		static QString randPayCreateTx(const RandPayRequest & r, QString & error);
 };

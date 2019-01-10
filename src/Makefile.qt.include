@@ -161,7 +161,10 @@ QT_MOC_CPP = \
   qt/moc_utilitydialog.cpp \
   qt/moc_walletframe.cpp \
   qt/moc_walletmodel.cpp \
-  qt/moc_walletview.cpp
+  qt/moc_walletview.cpp \
+  qt/moc_mintingfilterproxy.cpp \
+  qt/moc_mintingtablemodel.cpp \
+  qt/moc_mintingview.cpp
 
 BITCOIN_MM = \
   qt/macdockiconhandler.mm \
@@ -232,6 +235,7 @@ BITCOIN_QT_H = \
   qt/DocNotarWidget.h \
   qt/YearSpinBox.h \
   qt/DpoUseCaseScheme.h \
+  qt/RandPayRequest.h \
   qt/NameValueLineEdits.h \
   qt/SelectableLineEdit.h \
   qt/SelectableTextEdit.h \
@@ -296,7 +300,10 @@ BITCOIN_QT_H = \
   quazip/quazip.h \
   quazip/quazipnewinfo.h \
   quazip/unzip.h \
-  quazip/zip.h
+  quazip/zip.h \
+  qt/mintingfilterproxy.h \
+  qt/mintingtablemodel.h \
+  qt/mintingview.h
 
 RES_ICONS = \
   qt/res/icons/add.png \
@@ -433,6 +440,7 @@ BITCOIN_QT_WALLET_CPP = \
   qt/ValidatorToLabel.cpp \
   qt/EmailLineEdit.cpp \
   qt/EmailValidator.cpp \
+  qt/RandPayRequest.cpp \
   qt/DpoCreateRecordWidget.cpp \
   qt/DpoCreateRootWidget.cpp \
   qt/DpoRegisterDocWidget.cpp \
@@ -485,7 +493,10 @@ BITCOIN_QT_WALLET_CPP = \
   quazip/quazipfileinfo.cpp \
   quazip/quazipnewinfo.cpp \
   quazip/unzip.c \
-  quazip/zip.c
+  quazip/zip.c \
+  qt/mintingfilterproxy.cpp \
+  qt/mintingtablemodel.cpp \
+  qt/mintingview.cpp
 
 BITCOIN_QT_CPP = $(BITCOIN_QT_BASE_CPP)
 if TARGET_WINDOWS

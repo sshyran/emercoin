@@ -1236,7 +1236,7 @@ CAmount GetProofOfWorkReward(unsigned int nBits, bool fV7Enabled)
     CBigNum bnUpperBound = bnSubsidyLimit;
     CBigNum bnMidPart, bnRewardPart;
 
-    bool bLowDiff = GetDifficulty(nBits) < 512;
+    bool bLowDiff = GetDifficulty(nBits) < 512;  //emcTODO - replace this with fixed height
     bnRewardPart = bLowDiff ? bnSubsidyLimit * bnSubsidyLimit * bnSubsidyLimit * bnSubsidyLimit * bnSubsidyLimit * bnSubsidyLimit :
                               bnSubsidyLimit * bnSubsidyLimit * bnSubsidyLimit * bnSubsidyLimit;
     while (bnLowerBound + CENT <= bnUpperBound)

@@ -173,7 +173,8 @@ BITCOIN_CORE_H = \
   emcdns.h \
   checkpoints_eb.h \
   ministun.h \
-  exch.h
+  exch.h \
+  kernelrecord.h
 
 
 obj/build.h: FORCE
@@ -253,6 +254,7 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/walletdb.cpp \
   policy/rbf.cpp \
   namecoin.cpp \
+  kernelrecord.cpp \
   $(BITCOIN_CORE_H)
 
 # crypto primitives library
