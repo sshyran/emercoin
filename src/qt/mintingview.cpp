@@ -128,24 +128,17 @@ void MintingView::setModel(WalletModel *model)
         mintingView->sortByColumn(MintingTableModel::CoinDay, Qt::DescendingOrder);
         mintingView->verticalHeader()->hide();
 
-        mintingView->horizontalHeader()->resizeSection(
-                MintingTableModel::Address, 300);
-#if QT_VERSION < 0x050000
-        mintingView->horizontalHeader()->setResizeMode(
-                MintingTableModel::TxHash, QHeaderView::Stretch);
-#else
-        mintingView->horizontalHeader()->setSectionResizeMode(
-                MintingTableModel::TxHash, QHeaderView::Stretch);
-#endif
-
-        mintingView->horizontalHeader()->resizeSection(
-                MintingTableModel::Age, 60);
-        mintingView->horizontalHeader()->resizeSection(
-                MintingTableModel::Balance, 100);
-        mintingView->horizontalHeader()->resizeSection(
-                MintingTableModel::CoinDay,100);
-        mintingView->horizontalHeader()->resizeSection(
-                MintingTableModel::MintProbability, 120);
+		auto hh = mintingView->horizontalHeader();
+		hh->resizeSection(MintingTableModel::Address, 300);
+		//hh->setSectionResizeMode(MintingTableModel::TxHash, QHeaderView::Stretch);
+		hh->resizeSection(MintingTableModel::Age, 60);
+		hh->resizeSection(MintingTableModel::Balance, 100);
+		hh->resizeSection(MintingTableModel::CoinDay,100);
+		hh->resizeSection(MintingTableModel::MintProbability, 120);
+		//hh->setSectionResizeMode(QHeaderView::ResizeToContents);
+		hh->setSectionResizeMode(QHeaderView::Interactive);
+		hh->setStretchLastSection(true);
+		//hh->setSectionResizeMode(QHeaderView::Interactive);
     }
 }
 

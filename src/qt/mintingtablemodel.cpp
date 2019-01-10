@@ -243,7 +243,14 @@ MintingTableModel::MintingTableModel(CWallet* wallet, WalletModel *parent) :
         priv(new MintingTablePriv(wallet, this)),
         cachedNumBlocks(0)
 {
-    columns << tr("Transaction") <<  tr("Address") << tr("Age") << tr("Balance") << tr("CoinDay") << tr("MintProbability");
+	for(int i = 0; i<ColCount; ++i)
+		columns << QString();
+	columns[TxHash] = tr("Transaction");
+	columns[Address] = tr("Address");
+	columns[Age] = tr("Age");
+	columns[Balance] = tr("Balance");
+	columns[CoinDay] = tr("CoinDay");
+	columns[MintProbability] = tr("MintProbability");
 
     priv->refreshWallet();
 

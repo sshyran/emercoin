@@ -21,14 +21,15 @@ public:
     ~MintingTableModel();
 
     enum ColumnIndex {
-        TxHash = 0,
-        Address = 1,
-        Age = 2,
-        Balance = 3,
-        CoinDay = 4,
-        MintProbability = 5
-    };
+		Address,
+		Age,
+		Balance,
+		CoinDay,
+		MintProbability,
+		TxHash,
 
+		ColCount
+    };
 
     void setMintingProxyModel(MintingFilterProxy *mintingProxy);
     int rowCount(const QModelIndex &parent) const;
