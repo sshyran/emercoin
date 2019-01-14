@@ -559,7 +559,9 @@ int main(int argc, char *argv[])
     QApplication::setAttribute(Qt::AA_DontShowIconsInMenus);
 #endif
 #ifdef Q_OS_WIN
-	QApplication::setAttribute(Qt::AA_DisableWindowContextHelpButton);
+#if QT_VERSION > QT_VERSION_CHECK(5, 10, 1)
+	//QApplication::setAttribute(Qt::AA_DisableWindowContextHelpButton);
+#endif
 #endif
 #if QT_VERSION >= 0x050500
     // Because of the POODLE attack it is recommended to disable SSLv3 (https://disablessl3.com/),
