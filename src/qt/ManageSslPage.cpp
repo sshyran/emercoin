@@ -85,8 +85,9 @@ struct ManageSslPage::TemplateDialog: public QDialog {
 	QPushButton* _okBtn = 0;
 	TemplateDialog(QWidget*parent): QDialog(parent) {
 		setWindowTitle(tr("New certificate template"));
-		//setWindowFlag(Qt::WindowContextHelpButtonHint, false);
-
+#if QT_VERSION > QT_VERSION_CHECK(5, 9, 0)
+		setWindowFlag(Qt::WindowContextHelpButtonHint, false);
+#endif
 		auto lay = new QVBoxLayout(this);
 		auto form = new QFormLayout;
 		lay->addLayout(form);

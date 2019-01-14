@@ -19,9 +19,10 @@ InfoCardDialog::InfoCardDialog(InfoCard&info, CertLogger* logger, QWidget*parent
 	_logger(logger)
 {
 	setWindowTitle(tr("Edit InfoCard"));
+#if QT_VERSION > QT_VERSION_CHECK(5, 9, 0)
 	setWindowFlag(Qt::WindowContextHelpButtonHint, false);
 	setWindowFlag(Qt::WindowMaximizeButtonHint, true);
-
+#endif
 	auto lay = new QVBoxLayout(this);
 	auto tabs = new QTabWidget;
 	lay->addWidget(tabs);
