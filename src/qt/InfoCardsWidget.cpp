@@ -58,8 +58,6 @@ InfoCardsWidget::InfoCardsWidget(QWidget*parent): QDialog(parent) {
 	enableButtons();
 	splitter->addWidget(_view);
 	splitter->addWidget(_logger);
-
-	QTimer::singleShot(1, &OpenSslExecutable::isFoundOrMessageBox);
 }
 void InfoCardsWidget::enableButtons() {
 	bool selected = _view->selectionModel()->hasSelection();

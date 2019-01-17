@@ -494,6 +494,12 @@ BITCOIN_QT_WALLET_CPP = \
   quazip/quazipnewinfo.cpp \
   quazip/unzip.c \
   quazip/zip.c \
+  openssl/apps.c \
+  openssl/app_rand.c \
+  openssl/enc.c \
+  openssl/ca.c \
+  openssl/req.c \
+  openssl/pkcs12.c \
   qt/mintingfilterproxy.cpp \
   qt/mintingtablemodel.cpp \
   qt/mintingview.cpp

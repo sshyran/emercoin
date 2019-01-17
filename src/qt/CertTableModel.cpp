@@ -102,7 +102,7 @@ QString CertTableModel::Item::generateCert(CertLogger*logger, CertType ctype, co
 	} else {
 		Q_ASSERT(0);
 	}
-	const QString CA_DIR = "CA-" + certType;
+	const QString CA_DIR = Settings::certDir().absoluteFilePath("CA-" + certType);
 
 	const QDir cur = Settings::certDir();
 	QDir db = cur.absoluteFilePath("db");

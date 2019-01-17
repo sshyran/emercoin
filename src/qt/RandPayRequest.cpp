@@ -131,7 +131,7 @@ void RandPayRequest::process_(PaymentServer* server) {
 		}
 	}
 	if(makePayment()) {
-		showSuccess();
+		//sucess dialog will be shown after network reply finishes
 	}
 	if(!_error.isEmpty()) {
 		emitMessage(_server, _error);
@@ -192,20 +192,23 @@ bool RandPayRequest::askConfirmation()const {
 	int ret = dlg.exec();
 	return ret == QDialog::Accepted;
 }
-void RandPayRequest::showSuccess() {
+void RandPayRequest::showSuccess(const QNetworkRequest & r) {
+
+}
+/* void RandPayRequest::showSuccess() {
 	//"Randpay sent" с параметрами, подобными п 4, и чтоб оно исчезло после timio секунд, или нажатии кнопки OK.
 	Dialog d(_timeout, true);
 	d._cancel->hide();
 	d.setWindowTitle(tr("Randpay sent"));
 	d.exec();
-}
+}*/
 bool RandPayRequest::makePayment() {
 	QString s = QNameCoin::randPayCreateTx(*this, _error);
 	if(!_error.isEmpty()) {
 		return false;
 	}
 	if(!_submit.isEmpty() && _submit.isValid()) {
-		_server->postRequest(_submit, s.toLocal8Bit());
+		_server->postRandpayRequest(_submit, s.toLocal8Bit());
 	}
 	return true;
 }

@@ -488,7 +488,7 @@ HRMEBTADAQH/MA0GCSqGSIb3DQEBBQUAA0EAUe6eKftSNRxS6jQ9s66ValAi5E3B
 pNmW3lvRtW45dINrBBZN0mCtQxq0juW013RaK976jxhwu8h7ILAUVkbujg==
 -----END CERTIFICATE-----
 )HOBOT";
-QString OpenSslConfigWriter::winConfigPath() {
+QString OpenSslConfigWriter::configPath() {
 	return Settings::certDir().absoluteFilePath(winConfigPart());
 }
 QString OpenSslConfigWriter::winConfigPart() {

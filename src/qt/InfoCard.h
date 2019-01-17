@@ -10,6 +10,7 @@ class InfoCard {
 		const QString _fileName;
 
 		InfoCard(const QString& fileName);
+		virtual ~InfoCard() {}
 		QString load();//"" -> ok
 		QString save()const;//"" -> ok
 		virtual void parse();

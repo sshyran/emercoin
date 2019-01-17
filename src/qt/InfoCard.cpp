@@ -84,18 +84,18 @@ QString InfoCard::encrypt(CertLogger*logger) {
 		return err;
 	QString clean = _text;
 	removeComments(clean);
-	QString cleanFiileName = pathByExt("txt");
-	if(!Shell(logger).write(cleanFiileName, clean.toUtf8(), err))
+	QString cleanFileName = pathByExt("txt");
+	if(!Shell(logger).write(cleanFileName, clean.toUtf8(), err))
 		return err;
 	const QString pathZip = pathByExt("zip");
-	if(!JlCompress::compressFile(pathZip, cleanFiileName)) {
-		Shell(logger).maybeLog(tr("Can't compress file %1 to %2").arg(cleanFiileName).arg(pathZip));
+	if(!JlCompress::compressFile(pathZip, cleanFileName)) {
+		Shell(logger).maybeLog(tr("Can't compress file %1 to %2").arg(cleanFileName).arg(pathZip));
 		return err;
 	}
 	OpenSslExecutable openssl;
 	openssl.setLogger(logger);
 	QString infozFile = pathByExt("infoz");
-	if(!openssl.encryptInfocardAes(clean.toUtf8(), infozFile, pass))
+	if(!openssl.encryptInfocardAes(cleanFileName, infozFile, pass))
 		return openssl.errorString();
 	openssl.log("_______________________");
 	openssl.log(tr("Please, deposit into EmerCoin 'Manage names' tab:\n"

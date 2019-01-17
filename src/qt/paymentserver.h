@@ -96,7 +96,7 @@ public:
     static bool verifySize(qint64 requestSize);
     // Verify the payment request amount is valid
     static bool verifyAmount(const CAmount& requestAmount);
-	void postRequest(const QUrl& url, const QByteArray & data);
+	void postRandpayRequest(const QUrl& url, const QByteArray & data);
 Q_SIGNALS:
     // Fired when a valid payment request is received
     void receivedPaymentRequest(SendCoinsRecipient);

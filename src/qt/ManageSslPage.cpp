@@ -70,7 +70,6 @@ ManageSslPage::ManageSslPage(QWidget*parent): QDialog(parent) {
 
 	splitter->addWidget(_logger);
 	OpenSslConfigWriter(_logger).checkAndWrite();
-	QTimer::singleShot(1, &OpenSslExecutable::isFoundOrMessageBox);
 }
 void ManageSslPage::enableButtons() {
 	bool selected = _view->selectionModel()->hasSelection();

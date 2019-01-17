@@ -2,6 +2,7 @@
 #pragma once
 #include <QUrlQuery>
 #include <QObject>
+class QNetworkRequest;
 class PaymentServer;
 
 class RandPayRequest: public QUrlQuery {
@@ -10,6 +11,7 @@ class RandPayRequest: public QUrlQuery {
 	public:
 		static bool isRandPayUrl(const QUrl&u);
 		static void process(const QUrl & url, PaymentServer* server);
+		static void showSuccess(const QNetworkRequest & r);
 		double _amount = 0;
 		QString _chap;//short for 'challenge protocol'
 		quint64 _risk = 0;
@@ -32,7 +34,6 @@ class RandPayRequest: public QUrlQuery {
 		bool askConfirmation()const;
 		bool makePayment();
 		QString checkAmountInWallet()const;
-		void showSuccess();
 		static void emitMessage(PaymentServer* server, const QString & s);
 
 		struct Dialog;

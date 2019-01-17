@@ -624,12 +624,13 @@ void PaymentServer::fetchRequest(const QUrl& url)
     netManager->get(netRequest);
 }
 
-void PaymentServer::postRequest(const QUrl& url, const QByteArray & data) {
+void PaymentServer::postRandpayRequest(const QUrl& url, const QByteArray & data) {
 	QNetworkRequest netRequest;
 	netRequest.setAttribute(QNetworkRequest::User, BIP70_MESSAGE_PAYMENTREQUEST);
 	netRequest.setUrl(url);
 	netRequest.setRawHeader("User-Agent", CLIENT_NAME.c_str());
 	netRequest.setRawHeader("Accept", BIP71_MIMETYPE_PAYMENTREQUEST);
+	netRequest.setRawHeader("RandPay", "true");
 	netManager->post(netRequest, data);
 }
 
@@ -691,6 +692,13 @@ void PaymentServer::fetchPaymentACK(CWallet* wallet, SendCoinsRecipient recipien
 void PaymentServer::netRequestFinished(QNetworkReply* reply)
 {
     reply->deleteLater();
+
+	if(reply->request().rawHeader("RandPay").length()>0 &&
+	   reply->error() == QNetworkReply::NoError)
+	{
+		RandPayRequest::showSuccess(reply->request());
+		return;
+	}
 
     // BIP70 DoS protection
     if (!verifySize(reply->size())) {

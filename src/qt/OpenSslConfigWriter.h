@@ -6,7 +6,7 @@ class QString;
 class OpenSslConfigWriter {
 	public:
 		OpenSslConfigWriter(CertLogger*logger);
-		static QString winConfigPath();
+		static QString configPath();
 		QString checkAndWrite();
 	protected:
 		CertLogger* _logger = 0;
