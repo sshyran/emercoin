@@ -55,8 +55,8 @@
  */
 /*---------------------------------------------------*/
 
-#define BUF_SIZE (512 + 512)
-#define MAX_OUT  512	// Old DNS restricts UDP to 512 bytes
+#define MAX_OUT  1024	// Old DNS restricts UDP to 512 bytes; changed to 1024
+#define BUF_SIZE (2 * MAX_OUT)
 #define MAX_TOK  64	// Maximal TokenQty in the vsl_list, like A=IP1,..,IPn
 #define MAX_DOM  20	// Maximal domain level; min 10 is needed for NAPTR E164
 
@@ -681,7 +681,7 @@ uint16_t EmcDns::HandleQuery() {
       Answer_ALL(qtype, m_value);
       break;
   } // switch
-
+  Answer_OPT();
   return 0;
 } // EmcDns::HandleQuery
 
@@ -827,6 +827,23 @@ void EmcDns::Answer_ALL(uint16_t qtype, char *buf) {
     m_hdr->ANCount += tokQty;
 } // EmcDns::Answer_ALL 
 
+/*---------------------------------------------------*/
+/*
+NAME 	domain name 	MUST be 0 (root domain)
+TYPE 	u_int16_t 	OPT (41)
+CLASS 	u_int16_t 	requestor's UDP payload size
+TTL 	u_int32_t 	extended RCODE and flags
+RDLEN 	u_int16_t 	length of all RDATA
+RDATA 	octet stream 	{attribute,value} pairs
+*/
+void EmcDns::Answer_OPT() {
+  *m_snd++ = 0; // Name: =0
+  Out2(41);     // Type: OPT record 0x29
+  Out2(MAX_OUT);// Class: Out size
+  Out4(0);      // TTL - all zeroes
+  Out2(0);      // RDLEN
+  m_hdr->ARCount++;
+} // EmcDns::Answer_OPT
 /*---------------------------------------------------*/
 
 void EmcDns::Fill_RD_IP(char *ipddrtxt, int af) {
@@ -1016,23 +1033,25 @@ int EmcDns::SpfunENUM(uint8_t len, uint8_t **domain_start, uint8_t **domain_end)
       } // for 
     } // if
 
-      // If notheing found in the ENUM - try to search in the Toll-Free
-      m_ttl = 24 * 3600; // 24h by default
-      boost::xpressive::smatch nameparts;
-      for(vector<TollFree>::const_iterator tf = m_tollfree.begin(); 
+    // If notheing found in the ENUM - try to search in the Toll-Free
+    m_ttl = 24 * 3600; // 24h by default
+    boost::xpressive::smatch nameparts;
+    for(vector<TollFree>::const_iterator tf = m_tollfree.begin(); 
 	      m_hdr->ANCount == 0 && tf != m_tollfree.end(); 
 	      tf++) {
-	bool matched = regex_match(string(itut_num), nameparts, tf->regex);
-	// bool matched = regex_search(string(itut_num), nameparts, tf->regex);
-        if(m_verbose > 2) 
+      bool matched = regex_match(string(itut_num), nameparts, tf->regex);
+      // bool matched = regex_search(string(itut_num), nameparts, tf->regex);
+      if(m_verbose > 2) 
           LogPrintf("\tEmcDns::SpfunENUM TF-match N=[%s] RE=[%s] -> %u\n", itut_num, tf->regex_str.c_str(), matched);
-        if(matched)
-	  for(vector<string>::const_iterator e2u = tf->e2u.begin(); e2u != tf->e2u.end(); e2u++)
-	      HandleE2U(strcpy(m_value, e2u->c_str()));
-      } // tf processing
+      if(matched)
+        for(vector<string>::const_iterator e2u = tf->e2u.begin(); e2u != tf->e2u.end(); e2u++)
+          HandleE2U(strcpy(m_value, e2u->c_str()));
+    } // tf processing
 
-      if(m_hdr->ANCount)
-	return 0; // if collected some answers - OK
+    if(m_hdr->ANCount) {
+      Answer_OPT();
+      return 0; // if collected some answers - OK
+    }
 
   } while(false);
 

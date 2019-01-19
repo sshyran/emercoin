@@ -86,6 +86,7 @@ class EmcDns {
     int  LocalSearch(const uint8_t *key, uint8_t pos, uint8_t step);
     int  Tokenize(const char *key, const char *sep2, char **tokens, char *buf);
     void Answer_ALL(uint16_t qtype, char *buf);
+    void Answer_OPT();
     void Fill_RD_IP(char *ipddrtxt, int af);
     int  Fill_RD_DName(char *txt, uint8_t mxsz, int8_t txtcor); // return ref to name
     int  TryMakeref(uint16_t label_ref);
