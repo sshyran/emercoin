@@ -473,6 +473,9 @@ int EmcDns::HandlePacket() {
     m_snd -= ar_len;
   }
 
+  // Add an empty EDNS RR record
+  Answer_OPT();
+
   // Truncate answer, if needed
   if(m_snd >= m_bufend) {
     m_hdr->Bits |= m_hdr->TC_MASK;
@@ -681,7 +684,6 @@ uint16_t EmcDns::HandleQuery() {
       Answer_ALL(qtype, m_value);
       break;
   } // switch
-  Answer_OPT();
   return 0;
 } // EmcDns::HandleQuery
 
@@ -1049,7 +1051,6 @@ int EmcDns::SpfunENUM(uint8_t len, uint8_t **domain_start, uint8_t **domain_end)
     } // tf processing
 
     if(m_hdr->ANCount) {
-      Answer_OPT();
       return 0; // if collected some answers - OK
     }
 
