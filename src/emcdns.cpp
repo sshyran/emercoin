@@ -55,7 +55,7 @@
  */
 /*---------------------------------------------------*/
 
-#define MAX_OUT  1024	// Old DNS restricts UDP to 512 bytes; changed to 1024
+#define MAX_OUT  512	// Old DNS restricts UDP to 512 bytes; keep compatible
 #define BUF_SIZE (2 * MAX_OUT)
 #define MAX_TOK  64	// Maximal TokenQty in the vsl_list, like A=IP1,..,IPn
 #define MAX_DOM  20	// Maximal domain level; min 10 is needed for NAPTR E164
