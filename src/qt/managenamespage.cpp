@@ -145,6 +145,7 @@ ManageNamesPage::ManageNamesPage(QWidget *parent) :
     ui->nameFilter->installEventFilter(this);
     ui->valueFilter->installEventFilter(this);
     ui->addressFilter->installEventFilter(this);
+	ui->btnInfoCard->setVisible(false);
 
     ui->registerName->setMaxLength(MAX_NAME_LENGTH);
 

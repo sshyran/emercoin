@@ -74,6 +74,7 @@ QString InfoCard::pathByExt(const QString & extension)const {
 	return _dir.absoluteFilePath(_baseName + '.' + extension);
 }
 QString InfoCard::encrypt(CertLogger*logger) {
+	return "n impl";
 	if(logger) {
 		logger->clear(true);
 		logger->append(tr("Running file encryption at ") + QDateTime::currentDateTime().toString("yyyy.MM.dd hh:mm:ss"));
@@ -95,7 +96,7 @@ QString InfoCard::encrypt(CertLogger*logger) {
 	OpenSslExecutable openssl;
 	openssl.setLogger(logger);
 	QString infozFile = pathByExt("infoz");
-	if(!openssl.encryptInfocardAes(cleanFileName, infozFile, pass))
+	/*if(!openssl.encryptInfocardAes(cleanFileName, infozFile, pass))
 		return openssl.errorString();
 	openssl.log("_______________________");
 	openssl.log(tr("Please, deposit into EmerCoin 'Manage names' tab:\n"
@@ -108,7 +109,7 @@ QString InfoCard::encrypt(CertLogger*logger) {
 	openssl.log(tr("To link EMCSSL Certificate to this info file, create certificate in Certificates tab and use value for UID: info:%1:%2")
 		.arg(index).arg(pass));
 	openssl.log("_______________________");
-	return {};
+	return {};*/
 }
 void InfoCard::parse() {
 	QString text = _text;
