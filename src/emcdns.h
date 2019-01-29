@@ -99,7 +99,7 @@ class EmcDns {
     void HandleE2U(char *e2u);
     bool CheckEnumSig(const char *q_str, char *sig_str);
     void AddTF(char *tf_tok);
-    bool CheckDAP(uint32_t ip_addr, uint32_t packet_size);
+    bool CheckDAP(void *key, int len, uint32_t packet_size);
 
     inline void Out2(uint16_t x) { x = htons(x); memcpy(m_snd, &x, 2); m_snd += 2; }
     inline void Out4(uint32_t x) { x = htonl(x); memcpy(m_snd, &x, 4); m_snd += 4; }
@@ -112,6 +112,7 @@ class EmcDns {
     uint8_t  *m_buf, *m_bufend, *m_snd, *m_rcv, *m_rcvend;
     SOCKET    m_sockfd;
     int       m_rcvlen;
+    uint32_t m_timestamp;
     uint32_t  m_daprand;	// DAP random value for universal hashing
     uint32_t  m_dapmask, m_dap_treshold;
     uint32_t  m_ttl;
@@ -120,13 +121,9 @@ class EmcDns {
     char     *m_allowed_base;
     char     *m_local_base;
     int16_t   m_ht_offset[0x100]; // Hashtable for allowed TLD-suffixes(>0) and local names(<0)
-    struct sockaddr_in m_clientAddress;
-    struct sockaddr_in m_address;
-    socklen_t m_addrLen;
     uint8_t   m_gw_suf_dots;
     uint8_t   m_allowed_qty;
     uint8_t   m_verbose;	// LAST bzero element
-
     int8_t    m_status;
     boost::thread m_thread;
     map<string, Verifier> m_verifiers;

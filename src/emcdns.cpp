@@ -49,9 +49,10 @@
  * 0 = disabled
  * 1 = error, DAP blocking
  * 2 = start/stop, set domains, etc
- * 3 = handle packets
- * 4 = details fo handle packets
- * 5 = more details, debug info
+ * 3 = single statistic message for packet received
+ * 4 = handle packets
+ * 5 = details for handle packets
+ * 6 = more details, debug info
  */
 /*---------------------------------------------------*/
 
@@ -94,6 +95,14 @@ int inet_pton(int af, const char *src, void *dst)
   return 0;
 }
 
+const char *inet_ntop(int af, const void *src, char *dst, socklen_t size) {
+  if(size > 16) size = 16;
+  uint8_t *p = (uint8_t *)src;
+  while(size--)
+    dst += sprintf(dst, "%02x:", *p++);
+  dst[-1] = 0;
+}
+
 char *strsep(char **s, const char *ct)
 {
     char *sstart = *s;
@@ -123,26 +132,56 @@ EmcDns::EmcDns(const char *bind_ip, uint16_t port_no,
     m_verbose = verbose;
 
     // Create and socket
-    int ret = socket(PF_INET, SOCK_DGRAM, 0);
-    if(ret < 0) {
+    int ret = socket(PF_INET6, SOCK_DGRAM, 0);
+    if(ret < 0) 
       throw runtime_error("EmcDns::EmcDns: Cannot create socket");
-    } else {
-      m_sockfd = ret;
+    m_sockfd = ret;
+
+    struct sockaddr_in6 sin6;
+    const int sin6len = sizeof(struct sockaddr_in6);
+    memset(&sin6, 0, sin6len);
+    sin6.sin6_port = htons(port_no);
+    sin6.sin6_family = AF_INET6;
+
+    if(*bind_ip == 0 || inet_pton(AF_INET6, bind_ip, &sin6.sin6_addr) != 1) {
+      sin6.sin6_addr = in6addr_any;
+      bind_ip = NULL;
     }
 
-    m_address.sin_family = AF_INET;
-    m_address.sin_port = htons(port_no);
+#if 0    
+    char bind6ip[80];
 
-    if(!inet_pton(AF_INET, bind_ip, &m_address.sin_addr.s_addr)) 
-      m_address.sin_addr.s_addr = htonl(INADDR_ANY);
+    do { // ret here >= 0, since sock fd
+      if(*bind_ip == 0) break;
+      if(strchr(bind_ip, ':'))
+        ret = ~inet_pton(AF_INET6, bind_ip, &sin6.sin6_addr);
+//      else
+//        ret = ~inet_pton(AF_INET, bind_ip, &sin6.sin_addr);
 
-    if(::bind(m_sockfd, (struct sockaddr *) &m_address,
-                     sizeof (struct sockaddr_in)) < 0) {
+      // Convert bind_IP to IPV6 format
+//      if(*bind_ip && strchr(bind_ip, ':') == NULL) {
+//        sprintf(bind6ip, "::ffff:%s", bind_ip);
+//        bind_ip = bind6ip;
+//      }
+//      ret = ~inet_pton(AF_INET6, bind_ip, &sin6.sin6_addr);
+    } while(false);
+    if(ret != ~1) {
+      sin6.sin6_addr = in6addr_any;
+      bind_ip = NULL;
+    }
+#endif
+
+    int no = 0;     
+    if(setsockopt(m_sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&no, sizeof(no)) < 0)
+      throw runtime_error("EmcDns::EmcDns: Cannot switch socket to IPV4 compatibility mode");
+
+    if(::bind(m_sockfd, (struct sockaddr *)&sin6, sin6len) < 0) {
       char buf[80];
       sprintf(buf, "EmcDns::EmcDns: Cannot bind to port %u", port_no);
       throw runtime_error(buf);
     }
 
+    // Upload Local DNS entries
     // Create temporary local buf on stack
     int local_len = 0;
     char local_tmp[1 << 15]; // max 32Kb
@@ -280,8 +319,8 @@ EmcDns::EmcDns(const char *bind_ip, uint16_t port_no,
     } //  if(local_len)
 
     if(m_verbose > 1)
-	 LogPrintf("EmcDns::EmcDns: Created/Attached: %s:%u; Qty=%u:%u\n", 
-		 m_address.sin_addr.s_addr == INADDR_ANY? "INADDR_ANY" : bind_ip, 
+	 LogPrintf("EmcDns::EmcDns: Created/Attached: [%s]:%u; TLD=%u Local=%u\n", 
+		 (bind_ip == NULL)? "INADDR_ANY" : bind_ip,
 		 port_no, m_allowed_qty, local_qty);
 
     // Hack - pass TF file list through m_value to HandlePacket()
@@ -317,7 +356,7 @@ void EmcDns::AddTF(char *tf_tok) {
         m_tollfree.back().e2u.push_back(string(tf_tok));
 
   if(m_verbose > 1)
-    LogPrintf("\tEmcDns::AddTF: Added token [%s] %u:%u\n", tf_tok, m_tollfree.size(), m_tollfree.back().e2u.size()); 
+    LogPrintf("\tEmcDns::AddTF: Added token [%s] tf/e2u=%u:%u\n", tf_tok, m_tollfree.size(), m_tollfree.back().e2u.size()); 
 } // EmcDns::AddTF
 
 /*---------------------------------------------------*/
@@ -353,19 +392,27 @@ void EmcDns::Run() {
     MilliSleep(133);
 
   for( ; ; ) {
-    m_addrLen = sizeof(m_clientAddress);
-    m_rcvlen  = recvfrom(m_sockfd, (char *)m_buf, BUF_SIZE, 0,
-	            (struct sockaddr *) &m_clientAddress, &m_addrLen);
+    struct sockaddr_in6 sin6;
+    socklen_t sin6len = sizeof(struct sockaddr_in6);
+
+    m_rcvlen = recvfrom(m_sockfd, (char *)m_buf, BUF_SIZE, 0,
+	            (struct sockaddr *)&sin6, &sin6len);
     if(m_rcvlen <= 0)
 	break;
 
-    if(CheckDAP(m_clientAddress.sin_addr.s_addr, m_rcvlen)) {
+    if(m_dap_ht) {
+      uint32_t now = time(NULL);
+      if(((now ^ m_daprand) & 0xfffff) == 0) // ~weekly update daprand
+        m_daprand = GetRand(0xffffffff) | 1;
+      m_timestamp = now >> EMCDNS_DAPSHIFTDECAY; // time in 256s (~4 min)
+    }
+    if(CheckDAP(&sin6.sin6_addr, sin6len, m_rcvlen)) {
       m_buf[BUF_SIZE] = 0; // Set terminal for infinity QNAME
       if(HandlePacket() == 0) {
         sendto(m_sockfd, (const char *)m_buf, m_snd - m_buf, MSG_NOSIGNAL,
-	             (struct sockaddr *) &m_clientAddress, m_addrLen);
+	             (struct sockaddr *)&sin6, sin6len);
 
-        CheckDAP(m_clientAddress.sin_addr.s_addr, m_snd - m_buf); // update for long answer
+        CheckDAP(&sin6.sin6_addr, sin6len, m_snd - m_buf); // update for long answer
       }
     } // dap check
   } // for
@@ -377,7 +424,7 @@ void EmcDns::Run() {
 /*---------------------------------------------------*/
 
 int EmcDns::HandlePacket() {
-  if(m_verbose > 2) LogPrintf("EmcDns::HandlePacket: Handle packet_len=%d\n", m_rcvlen);
+  if(m_verbose > 3) LogPrintf("*\tEmcDns::HandlePacket: Handle packet_len=%d\n", m_rcvlen);
 
   m_hdr = (DNSHeader *)m_buf;
   // Decode input header from network format
@@ -386,7 +433,7 @@ int EmcDns::HandlePacket() {
   m_rcv = m_buf + sizeof(DNSHeader);
   m_rcvend = m_snd = m_buf + m_rcvlen;
 
-  if(m_verbose > 3) {
+  if(m_verbose > 4) {
     LogPrintf("\tEmcDns::HandlePacket: msgID  : %d\n", m_hdr->msgID);
     LogPrintf("\tEmcDns::HandlePacket: Bits   : %04x\n", m_hdr->Bits);
     LogPrintf("\tEmcDns::HandlePacket: QDCount: %d\n", m_hdr->QDCount);
@@ -426,7 +473,7 @@ int EmcDns::HandlePacket() {
         char *tf_str = m_value;
         // Iterate the list of Toll-Free fnames; can be fnames and NVS records
         while(char *tf_fname = strsep(&tf_str, "|")) {
-          if(m_verbose > 3)
+          if(m_verbose > 1)
 	    LogPrintf("\tEmcDns::HandlePacket: handle deferred toll-free=%s\n", tf_fname);
           if(tf_fname[0] == '@') { // this is NVS record
             string value;
@@ -501,16 +548,13 @@ uint16_t EmcDns::HandleQuery() {
   // Convert DNS request (QNAME) to dot-separated printed domaon name in LC
   // Fill domain_ndx - indexes for domain entries
   uint8_t dom_len;
-  uint32_t quasiIP = 0xDeadBeef; // pseudo-IP to DAP-check searched domains - mitigate botnets C2
   while((dom_len = *m_rcv++) != 0) {
     // wrong domain length | key too long, over BUF_SIZE | too mant domains, max is MAX_DOM
     if((dom_len & 0xc0) || key_end >= key + BUF_SIZE || domain_ndx_p >= domain_ndx + MAX_DOM)
       return 1; // Invalid request
     *domain_ndx_p++ = key_end;
-    quasiIP ^= m_daprand * dom_len;
     do {
       char c = 040 | *m_rcv++; // tolower char
-      quasiIP = ((quasiIP << 6) | (quasiIP >> (32 - 6))) + c;
       *key_end++ = c;
     } while(--dom_len);
     *key_end++ = '.'; // Set DOT at domain end
@@ -518,20 +562,20 @@ uint16_t EmcDns::HandleQuery() {
 
   *--key_end = 0; // Remove last dot, set EOLN
 
-  if(!CheckDAP(quasiIP, 0)) {
+  if(!CheckDAP(key, key - key_end, 0)) {
     if(m_verbose > 0)
       LogPrintf("\tEmcDns::HandleQuery: Aborted domain %s by DAP\n", key);
     return 0xDead; // Botnet detected, abort query processing
   }
 
-  if(m_verbose > 3) 
+  if(m_verbose > 4) 
     LogPrintf("EmcDns::HandleQuery: Translated domain name: [%s]; DomainsQty=%d\n", key, (int)(domain_ndx_p - domain_ndx));
 
   uint16_t qtype  = *m_rcv++; qtype  = (qtype  << 8) + *m_rcv++; 
   uint16_t qclass = *m_rcv++; qclass = (qclass << 8) + *m_rcv++;
 
   if(m_verbose > 2) 
-    LogPrintf("EmcDns::HandleQuery: Key=%s QType=%x QClass=%x\n", key, qtype, qclass);
+    LogPrintf("EmcDns::HandleQuery: Key=%s QType=0x%x QClass=0x%x\n", key, qtype, qclass);
 
   if(qclass != 1)
     return 4; // Not implemented - support INET only
@@ -564,7 +608,7 @@ uint16_t EmcDns::HandleQuery() {
 
   uint8_t *p = key_end;
 
-  if(m_verbose > 3) 
+  if(m_verbose > 4) 
     LogPrintf("EmcDns::HandleQuery: After TLD-suffix cut: [%s]\n", key);
 
   while(p > key) {
@@ -778,7 +822,7 @@ void EmcDns::Answer_ALL(uint16_t qtype, char *buf) {
   char *tokens[MAX_TOK];
   int tokQty = Tokenize(key, ",", tokens, buf);
 
-  if(m_verbose > 2) LogPrintf("EmcDns::Answer_ALL(QT=%d, key=%s); TokenQty=%d\n", qtype, key, tokQty);
+  if(m_verbose > 4) LogPrintf("EmcDns::Answer_ALL(QT=%d, key=%s); TokenQty=%d\n", qtype, key, tokQty);
 
   // Shuffle tokens for randomization output order
   for(int i = tokQty; i > 1; ) {
@@ -790,7 +834,7 @@ void EmcDns::Answer_ALL(uint16_t qtype, char *buf) {
   }
 
   for(int tok_no = 0; tok_no < tokQty; tok_no++) {
-      if(m_verbose > 2) 
+      if(m_verbose > 4) 
 	LogPrintf("\tEmcDns::Answer_ALL: Token:%u=[%s]\n", tok_no, tokens[tok_no]);
       Out2(m_label_ref);
       Out2(qtype); // A record, or maybe something else
@@ -909,7 +953,7 @@ int EmcDns::Fill_RD_DName(char *txt, uint8_t mxsz, int8_t txtcor) {
 /*---------------------------------------------------*/
 
 int EmcDns::Search(uint8_t *key) {
-  if(m_verbose > 2) 
+  if(m_verbose > 4) 
     LogPrintf("EmcDns::Search(%s)\n", key);
 
   string value;
@@ -923,12 +967,12 @@ int EmcDns::Search(uint8_t *key) {
 /*---------------------------------------------------*/
 
 int EmcDns::LocalSearch(const uint8_t *key, uint8_t pos, uint8_t step) {
-  if(m_verbose > 2) 
+  if(m_verbose > 4) 
     LogPrintf("EmcDns::LocalSearch(%s, %u, %u) called\n", key, pos, step);
     do {
       pos += step;
       if(m_ht_offset[pos] == 0) {
-        if(m_verbose > 3) 
+        if(m_verbose > 4) 
   	  LogPrintf("EmcDns::LocalSearch: Local key=[%s] not found; go to nameindex search\n", key);
          return 0; // Reached EndOfList 
       } 
@@ -941,18 +985,23 @@ int EmcDns::LocalSearch(const uint8_t *key, uint8_t pos, uint8_t step) {
 
 
 /*---------------------------------------------------*/
+#define ROLADD(h,s,x)   h = ((h << s) | (h >> (32 - s))) + (x)
 // Returns true - can handle packet; false = ignore
-bool EmcDns::CheckDAP(uint32_t ip_addr, uint32_t packet_size) { 
+bool EmcDns::CheckDAP(void *key, int len, uint32_t packet_size) { 
   if(m_dap_ht == NULL)
     return true; // Filter is inactive
 
-  uint32_t now = time(NULL);
-  if(((now ^ m_daprand) & 0xfffff) == 0) // ~weekly update daprand
-    m_daprand = GetRand(0xffffffff) | 1;
-
+  uint32_t ip_addr = 0;
+  if(len < 0) { // domain string
+    for(int i = 0; i < -len; i++)
+      ROLADD(ip_addr, 6, ((const char *)key)[i]);
+  } else { // IP addr
+    for(int i = 0; i < (len / 4); i++)
+      ROLADD(ip_addr, 1, ((const uint32_t *)key)[i]);
+  }
+  
   uint16_t inctemp = (packet_size >> 5) + 1; // 1 degr = 32 bytes unit
   uint32_t hash = m_daprand, mintemp = ~0;
-  uint16_t timestamp = now >> EMCDNS_DAPSHIFTDECAY; // time in 256s (~4 min)
 
   int used_ndx[EMCDNS_DAPBLOOMSTEP];
   for(int bloomstep = 0; bloomstep < EMCDNS_DAPBLOOMSTEP; bloomstep++) {
@@ -969,18 +1018,21 @@ bool EmcDns::CheckDAP(uint32_t ip_addr, uint32_t packet_size) {
     } while(ndx < 0);
 
     DNSAP *dap = &m_dap_ht[used_ndx[bloomstep] = ndx];
-    uint16_t dt = timestamp - dap->timestamp;
+    uint16_t dt = m_timestamp - dap->timestamp;
     uint32_t new_temp = (dt > 15? 0 : dap->temp >> dt) + inctemp;
     dap->temp = (new_temp > 0xffff)? 0xffff : new_temp;
-    dap->timestamp = timestamp;
+    dap->timestamp = m_timestamp;
     if(new_temp < mintemp) 
       mintemp = new_temp;
   } // for
 
   bool rc = mintemp < m_dap_treshold;
-  if(m_verbose > 4 || (rc && m_verbose > 0))
-    LogPrintf("\tEmcDns::CheckDAP: IP=%08x packet_size=%u, mintemp=%u dap_treshold=%u rc=%d\n", 
-		    ip_addr, packet_size, mintemp, m_dap_treshold, rc);
+  if(m_verbose > 5 || (!rc && m_verbose > 0)) {
+    char buf[80];
+    LogPrintf("EmcDns::CheckDAP: IP=[%s] packet_size=%u, mintemp=%u dap_treshold=%u rc=%d\n", 
+		    len < 0? (const char *)key : inet_ntop(len == 4? AF_INET : AF_INET6, key, buf, len),
+                    packet_size, mintemp, m_dap_treshold, rc);
+  }
   return rc;
 } // EmcDns::CheckDAP 
 
@@ -991,7 +1043,7 @@ int EmcDns::SpfunENUM(uint8_t len, uint8_t **domain_start, uint8_t **domain_end)
   int dom_length = domain_end - domain_start;
   const char *tld = (const char*)domain_end[-1];
 
-  if(m_verbose > 2)
+  if(m_verbose > 3)
     LogPrintf("\tEmcDns::SpfunENUM: Domain=[%s] N=%u TLD=[%s] Len=%u\n", 
 	    (const char*)*domain_start, dom_length, tld, len);
 
@@ -1015,7 +1067,7 @@ int EmcDns::SpfunENUM(uint8_t len, uint8_t **domain_start, uint8_t **domain_end)
     if(pitut == itut_num)
       break; // Empty phone number - NXDOMAIN
 
-    if(m_verbose > 3)
+    if(m_verbose > 4)
       LogPrintf("\tEmcDns::SpfunENUM: ITU-T num=[%s]\n", itut_num);
 
     // Itrrate all available ENUM-records, and build joined answer from them
@@ -1023,7 +1075,7 @@ int EmcDns::SpfunENUM(uint8_t len, uint8_t **domain_start, uint8_t **domain_end)
       for(int16_t qno = 0; qno >= 0; qno++) {
         char q_str[100];
         sprintf(q_str, "%s:%s:%u", tld, itut_num, qno); 
-        if(m_verbose > 2) 
+        if(m_verbose > 4) 
           LogPrintf("\tEmcDns::SpfunENUM Search(%s)\n", q_str);
 
         string value;
@@ -1043,7 +1095,7 @@ int EmcDns::SpfunENUM(uint8_t len, uint8_t **domain_start, uint8_t **domain_end)
 	      tf++) {
       bool matched = regex_match(string(itut_num), nameparts, tf->regex);
       // bool matched = regex_search(string(itut_num), nameparts, tf->regex);
-      if(m_verbose > 2) 
+      if(m_verbose > 4) 
           LogPrintf("\tEmcDns::SpfunENUM TF-match N=[%s] RE=[%s] -> %u\n", itut_num, tf->regex_str.c_str(), matched);
       if(matched)
         for(vector<string>::const_iterator e2u = tf->e2u.begin(); e2u != tf->e2u.end(); e2u++)
@@ -1133,7 +1185,7 @@ void EmcDns::HandleE2U(char *e2u) {
   if(sscanf(data, "%u | %u | %s", &ord, &pref, re) != 3)
     return;
 
-  if(m_verbose > 3)
+  if(m_verbose > 5)
     LogPrintf("\tEmcDns::HandleE2U: Parsed: %u %u %s %s\n", ord, pref, e2u, re);
 
   if(m_snd + strlen(re) + strlen(e2u) + 24 >= m_bufend)
