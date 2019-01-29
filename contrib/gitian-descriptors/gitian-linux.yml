@@ -27,6 +27,8 @@ packages:
 - "bsdmainutils"
 - "ca-certificates"
 - "python"
+- "mc"
+- "nano"
 remotes:
 - "url": "https://github.com/Emercoin/emercoin.git"
   "dir": "emercoin"

@@ -21,6 +21,8 @@ packages:
 - "zip"
 - "ca-certificates"
 - "python"
+- "mc"
+- "nano"
 remotes:
 - "url": "https://github.com/Emercoin/emercoin.git"
   "dir": "emercoin"
@@ -39,6 +41,7 @@ script: |
   export TAR_OPTIONS="--mtime="$REFERENCE_DATE\\\ $REFERENCE_TIME""
   export TZ="UTC"
   export BUILD_DIR=`pwd`
+  export TERM="xterm"
   mkdir -p ${WRAP_DIR}
   if test -n "$GBUILD_CACHE_ENABLED"; then
     export SOURCES_PATH=${GBUILD_COMMON_CACHE}
