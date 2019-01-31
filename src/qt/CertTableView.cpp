@@ -21,17 +21,17 @@
 
 CertTableView::CertTableView(CertLogger*log): _logger(log) {
 	horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
-	_model = new Model(this);
+	_model = new CertTableModel(this);
 	setModel(_model);
 	setSelectionBehavior(QAbstractItemView::SelectRows);
 	setSelectionMode(QAbstractItemView::SingleSelection);
 	connect(selectionModel(), &QItemSelectionModel::selectionChanged, this, &CertTableView::reloadLog);
 	
 	recreateButtons();
-	connect(_model, &Model::modelReset, this, &CertTableView::recreateButtons);
+	connect(_model, &CertTableModel::modelReset, this, &CertTableView::recreateButtons);
 	connect(this, &CertTableView::doubleClicked, this, &CertTableView::installSelectedIntoSystem);
 }
-CertTableView::Model* CertTableView::model()const {
+CertTableModel* CertTableView::model()const {
 	return _model;
 }
 void CertTableView::reloadLog() {
@@ -41,7 +41,7 @@ void CertTableView::reloadLog() {
 void CertTableView::recreateButtons() {
 	for(int row = 0; row < _model->rowCount(); ++row) {
 		auto w = new QToolBar;
-		setIndexWidget(_model->index(row, Model::ColMenu), w);
+		setIndexWidget(_model->index(row, CertTableModel::ColMenu), w);
 		
 		auto gen = new QAction(tr("Generate again"), w);
 		gen->setToolTip(tr("Generate again\nRegenerate certificate (for same nickname and email) if it has been expired or has been compromised"));
@@ -222,7 +222,9 @@ void CertTableView::generateCertForSelectedRow() {
 	{
 		row.installIntoSystem();
 	}
+	QString file = row._templateFile;
 	_model->reload();
+	selectRow(_model->indexByFile(file));
 }
 void CertTableView::installSelectedIntoSystem() {
 	int nRow = selectedRow();

@@ -8,8 +8,7 @@ class CertLogger;
 class CertTableView: public TableView {
 	public:
 		CertTableView(CertLogger*l);
-		using Model = CertTableModel;
-		Model* model()const;
+		CertTableModel* model()const;
 		void generateCertForSelectedRow();
 		int selectedRow()const;
 		QString selectedLogPath();

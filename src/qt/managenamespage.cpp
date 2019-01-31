@@ -197,10 +197,9 @@ void ManageNamesPage::onTrustedDiplomaClicked() {
 }
 void ManageNamesPage::onSslClicked() {
 	ManageSslPage dlg(this);
-	if(dlg.exec()==QDialog::Accepted) {
-		setDisplayedName(dlg.name());
-		setDisplayedValue(dlg.value());
-	}
+	dlg.exec();//always accepted
+	setDisplayedName(dlg.name());
+	setDisplayedValue(dlg.value());
 }
 void ManageNamesPage::onInfoCardClicked() {
 	InfoCardsWidget dlg(this);

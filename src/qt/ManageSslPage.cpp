@@ -17,8 +17,8 @@
 #include <QPushButton>
 #include <QUuid>
 #include <QDialogButtonBox>
+#include <QMessageBox>
 #include <QCryptographicHash>
-
 
 ManageSslPage::ManageSslPage(QWidget*parent): QDialog(parent) {
 	setWindowTitle(tr("EmerSSL certificates"));
@@ -183,8 +183,26 @@ void ManageSslPage::onDelete() {
 	_view->model()->removeRows(rows);
 }
 QString ManageSslPage::name()const {
-	return {};
+	int row = _view->selectedRow();
+	if(-1==row)
+		return {};
+	const auto & item = _view->model()->_rows[row];
+	QString sha;
+	QString err = item.sha256FromCertificate(sha);
+	if(!err.isEmpty())
+		return {};
+	return "ssl:" + item._baseName;
 }
 QString ManageSslPage::value()const {
-	return {};
+	int row = _view->selectedRow();
+	if(-1==row)
+		return {};
+	const auto & item = _view->model()->_rows[row];
+	QString sha;
+	QString err = item.sha256FromCertificate(sha);
+	if(!err.isEmpty()) {
+		QMessageBox::warning(0, tr("Certificate not ready"), err);
+		return {};
+	}
+	return "sha256=" + sha;
 }
