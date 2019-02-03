@@ -306,7 +306,7 @@ void BitcoinGUI::createActions()
     receiveCoinsMenuAction->setStatusTip(receiveCoinsAction->statusTip());
     receiveCoinsMenuAction->setToolTip(receiveCoinsMenuAction->statusTip());
 
-    manageNamesAction = new QAction(QIcon(":/icons/name2"), tr("&Manage Names"), this);
+	manageNamesAction = new QAction(platformStyle->SingleColorIcon(":/icons/name2"), tr("&Manage Names"), this);
     manageNamesAction->setStatusTip(tr("Manage values registered via Emercoin"));
     manageNamesAction->setToolTip(manageNamesAction->statusTip());
     manageNamesAction->setCheckable(true);
@@ -320,7 +320,7 @@ void BitcoinGUI::createActions()
     historyAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_4));
     tabGroup->addAction(historyAction);
 
-    mintingAction = new QAction(platformStyle->TextColorIcon(":/icons/history"), tr("&Minting"), this);
+	mintingAction = new QAction(platformStyle->SingleColorIcon(":/icons/history"), tr("&Minting"), this);
     mintingAction->setStatusTip(tr("Show your minting capacity"));
     mintingAction->setToolTip(mintingAction->statusTip());
     mintingAction->setCheckable(true);
