@@ -171,8 +171,12 @@ EmcDns::EmcDns(const char *bind_ip, uint16_t port_no,
     }
 #endif
 
-    int no = 0;     
+    int no = 0;
+#ifdef WIN32
+    if(setsockopt(m_sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (char *)&no, sizeof(no)) < 0)
+#else
     if(setsockopt(m_sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&no, sizeof(no)) < 0)
+#endif
       throw runtime_error("EmcDns::EmcDns: Cannot switch socket to IPV4 compatibility mode");
 
     if(::bind(m_sockfd, (struct sockaddr *)&sin6, sin6len) < 0) {
