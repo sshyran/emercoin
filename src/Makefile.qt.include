@@ -527,13 +527,13 @@ BITCOIN_QT_WALLET_CPP = \
   zlib/inftrees.c \
   zlib/trees.c \
   zlib/uncompr.c \
-  zlib/zutil.c
-  #ossl/apps.c \
-  #ossl/app_rand.c \
-  #ossl/enc.c \
-  #ossl/ca.c \
-  #ossl/req.c \
-  #ossl/pkcs12.c
+  zlib/zutil.c \
+  ossl/apps.c \
+  ossl/app_rand.c \
+  ossl/enc.c \
+  ossl/ca.c \
+  ossl/req.c \
+  ossl/pkcs12.c
 
 BITCOIN_QT_CPP = $(BITCOIN_QT_BASE_CPP)
 if TARGET_WINDOWS

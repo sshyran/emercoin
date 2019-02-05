@@ -37,6 +37,7 @@
 #include <openssl/rsa.h>
 #endif
 #include <openssl/bn.h>
+#define OPENSSL_NO_JPAKE
 #ifndef OPENSSL_NO_JPAKE
 #include <openssl/jpake.h>
 #endif
