@@ -958,11 +958,11 @@ UniValue randpay_createaddrchap(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 2)
         throw runtime_error(
-            "randpay_createaddrchap risk timio\n"
+            "randpay_createaddrchap risk timeout\n"
             "\nCreates privkey/pubkey pair for a given risk. Does not write anything into wallet.dat.\n"
             "\nArguments:\n"
             "1. risk          (numeric, required) 1 / probability of success for random payments.\n"
-            "2. timio         (numeric, required) ?\n"
+            "2. timeout         (numeric, required) ?\n"
             "\nResult:\n"
             "\"addrchap\"     (string) Challenge packet that needs to be solved.\n"
             //emc add examples:
@@ -976,7 +976,7 @@ UniValue randpay_createaddrchap(const JSONRPCRequest& request)
     uint32_t nRisk = request.params[0].get_int();
 
     if (!request.params[1].isNum())
-        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid type provided. timio parameter must be numeric.");
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid type provided. timeout parameter must be numeric.");
     int32_t nTimio = request.params[1].get_int();
 
     arith_uint256 barrier = ((arith_uint256(1) << 160) / nRisk) * nRisk;
@@ -1004,13 +1004,13 @@ UniValue randpay_createtx(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() < 4 || request.params.size() > 5)
         throw runtime_error(
-            "randpay_createtx amount \"addrchap\" risk timio [naive]\n"
+            "randpay_createtx amount \"addrchap\" risk timeout [naive]\n"
             "\nCreates randpay tx.\n"
             "\nArguments:\n"
             "1. amount         (numeric, required) Amount of emc to send.\n"
             "2. \"addrchap\"   (string, required)  ?\n"
             "3. risk           (numeric, required) 1 / probability of success for random payments.\n"
-			"4. timeout        (numeric, required) Locks utxo from being spent in another tx for timio seconds.\n"
+			"4. timeout        (numeric, required) Locks utxo from being spent in another tx for timeout seconds.\n"
             "5. naive          (bool, optional, default=false) Generate naive randpay-transaction, without randpay-in\n"
             "\nResult:\n"
             "\"transaction\"   (string) Hex string of the transaction.\n"
@@ -1031,7 +1031,7 @@ UniValue randpay_createtx(const JSONRPCRequest& request)
     uint32_t nRisk = request.params[2].get_int();
 
     if (!request.params[3].isNum())
-        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid type provided. timio parameter must be numeric.");
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid type provided. timeout parameter must be numeric.");
     int32_t nTimio = request.params[3].get_int();
 
     bool naive = request.params.size() == 5 && request.params[4].isBool() && request.params[4].isTrue();
@@ -1103,7 +1103,7 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 2)
         throw runtime_error(
-            "createrandpaytx \"hexstring\" risk\n"
+            "randpay_submittx \"hexstring\" risk\n"
             "\nVerifies and submits randpaytx.\n"
             "\nArguments:\n"
             "1. \"hexstring\"     (string, required)  The hex string of the randpay transaction.\n"
@@ -1275,9 +1275,9 @@ static const CRPCCommand commands[] =
 
     // emercoin: randpay commands
 #ifdef ENABLE_WALLET
-    { "hidden",    "randpay_createaddrchap",          &randpay_createaddrchap, true,  {"risk","timio"} },
-    { "hidden",    "randpay_createtx",                &randpay_createtx,       true,  {"amount","addrchap","risk","timio","naive"} },
-    { "hidden",    "randpay_submittx",                &randpay_submittx,       false, {"hexstring","risk"} },
+    { "randpay",    "randpay_createaddrchap",          &randpay_createaddrchap, true,  {"risk","timeout"} },
+    { "randpay",    "randpay_createtx",                &randpay_createtx,       true,  {"amount","addrchap","risk","timeout","naive"} },
+    { "randpay",    "randpay_submittx",                &randpay_submittx,       false, {"hexstring","risk"} },
 #endif
 
     { "blockchain",         "gettxoutproof",          &gettxoutproof,          true,  {"txids", "blockhash"} },
