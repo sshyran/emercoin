@@ -224,6 +224,7 @@ void BlockingHttp::networkError(QNetworkReply::NetworkError nErr) {
 		QString str = reply->errorString();
 		qWarning() << QStringLiteral("BlockingHttp::networkError (%1): %2\n")
 			.arg(nErr).arg(str);
+		_response._data = str.toUtf8();
 	}
 	onErrorCommon();
 }
@@ -252,3 +253,44 @@ void SignalEmitter::emitv(QString str, QString data) {
 void SignalEmitter::emitv(int n) {
 	Q_EMIT vInt(n);
 }
+//__________________________
+std::string FormatFullVersion();
+// https request using Qt.
+// Returns HTTP status code if OK, or -1 if error
+// Ret contains server answer (if OK), orr error text (-1)
+int HttpsLE(const char *host, const char *get, const char *post,
+			const std::map<std::string,std::string> &header, std::string *ret)
+{
+	if(!get || !host)
+		return -1;
+	QString url = QString(host) + get;
+	if(!url.startsWith("http", Qt::CaseInsensitive)) {
+		url.prepend("https://");
+	}
+	BlockingHttp http;
+	http.addPersistentHeader(QStringLiteral("Host"), host);
+	http.addPersistentHeader(QStringLiteral("User-Agent"),
+			QStringLiteral("emercoin-json-rpc/%1").arg(FormatFullVersion().c_str()));
+	http.addPersistentHeader(QStringLiteral("Accept"), "application/json");
+	http.addPersistentHeader(QStringLiteral("Connection"), "close");
+
+	if(post) {
+	  http.addPersistentHeader(QStringLiteral("Content-Type"), "application/json");
+	  http.addPersistentHeader(QStringLiteral("Content-Length"), QString::number(strlen(post)));
+	}
+
+	// Additional header fields from client
+	for(auto it = header.begin(); it != header.end(); ++it)
+	  http.addPersistentHeader(QString::fromStdString(it->first), QString::fromStdString(it->second));
+
+	BlockingHttp::Response resp;
+	if(post) {
+		resp = http.blockingPost(url, QByteArray(post));
+	} else {
+		resp = http.blockingGet(url);
+	}
+	if(ret)
+		*ret = resp._data.data();
+	return resp._httpCode;
+}
+

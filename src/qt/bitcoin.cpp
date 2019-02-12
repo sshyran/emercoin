@@ -309,7 +309,6 @@ void BitcoinCore::shutdown()
         handleRunawayException(NULL);
     }
 }
-
 BitcoinApplication::BitcoinApplication(int &argc, char **argv):
     QApplication(argc, argv),
     coreThread(0),
@@ -526,6 +525,8 @@ WId BitcoinApplication::getMainWinId() const
     return window->winId();
 }
 
+void exch_test();
+
 #ifndef BITCOIN_QT_TEST
 int main(int argc, char *argv[])
 {
@@ -694,6 +695,10 @@ int main(int argc, char *argv[])
 
     if (GetBoolArg("-splash", DEFAULT_SPLASHSCREEN) && !GetBoolArg("-min", false))
         app.createSplashScreen(networkStyle.data());
+
+	if(GetBoolArg("-exchtest", false)) {
+		exch_test();// DEBUG from olegarch - exchange test
+	}
 
     try
     {
