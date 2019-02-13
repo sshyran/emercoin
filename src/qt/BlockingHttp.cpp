@@ -258,17 +258,17 @@ std::string FormatFullVersion();
 // https request using Qt.
 // Returns HTTP status code if OK, or -1 if error
 // Ret contains server answer (if OK), orr error text (-1)
-int HttpsLE(const char *host, const char *get, const char *post,
-			const std::map<std::string,std::string> &header, std::string *ret)
+int blockingHttps(const std::string & host, const std::string &path, const char *post,
+			const std::map<std::string,std::string> &header, std::string & ret)
 {
-	if(!get || !host)
+	if(host.empty())
 		return -1;
-	QString url = QString(host) + get;
+	QString url = QString::fromStdString(host) + QString::fromStdString(path);
 	if(!url.startsWith("http", Qt::CaseInsensitive)) {
 		url.prepend("https://");
 	}
 	BlockingHttp http;
-	http.addPersistentHeader(QStringLiteral("Host"), host);
+	http.addPersistentHeader(QStringLiteral("Host"), QString::fromStdString(host));
 	http.addPersistentHeader(QStringLiteral("User-Agent"),
 			QStringLiteral("emercoin-json-rpc/%1").arg(FormatFullVersion().c_str()));
 	http.addPersistentHeader(QStringLiteral("Accept"), "application/json");
@@ -281,7 +281,7 @@ int HttpsLE(const char *host, const char *get, const char *post,
 
 	// Additional header fields from client
 	for(auto it = header.begin(); it != header.end(); ++it)
-	  http.addPersistentHeader(QString::fromStdString(it->first), QString::fromStdString(it->second));
+		http.addPersistentHeader(QString::fromStdString(it->first), QString::fromStdString(it->second));
 
 	BlockingHttp::Response resp;
 	if(post) {
@@ -289,8 +289,7 @@ int HttpsLE(const char *host, const char *get, const char *post,
 	} else {
 		resp = http.blockingGet(url);
 	}
-	if(ret)
-		*ret = resp._data.data();
+	ret = resp._data.data();
 	return resp._httpCode;
 }
 

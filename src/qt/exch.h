@@ -6,18 +6,10 @@ class UniValue;
 
 using namespace std;
 
-//-----------------------------------------------------
-// https request using libevent. Body in the https-cli.cpp
-// ATTN: Function is NOT REENTERABLE
-// Returns HTTP status code if OK, or -1 if error
-// Ret contains server answer (if OK), orr error text (-1)
-int HttpsLE(const char *host, const char *get, const char *post, const std::map<std::string,std::string> &header, std::string *ret);
-
-//-----------------------------------------------------
 class Exch {
   public:
   Exch(const string &retAddr); 
-  virtual ~Exch() {};
+  virtual ~Exch() {}
 
   virtual const string& Name() const = 0;
   virtual const string& Host() const = 0;
@@ -42,7 +34,7 @@ class Exch {
   // If key is empty, used the last key
   // Returns error text, or an empty string, if OK
   // Returns minus "-", if "not my" key
-  virtual string Cancel(const string &txkey) = 0;
+  virtual string CancelTX(const string &txkey) = 0;
 
   // Check time in secs, remain in the contract, created by prev Send()
   // If key is empty, used the last key
@@ -50,11 +42,11 @@ class Exch {
   // Returns -1, if "not my" key
   virtual int Remain(const string &txkey) = 0;
 
-
   // Returns extimated EMC to pay for specific pay_amount
   // Must be called after MarketInfo
   double EstimatedEMC(double pay_amount) const;
 
+  bool _sandBox = false;
   string m_retAddr; // Return EMC Addr
 
   // MarketInfo fills these params
@@ -102,82 +94,76 @@ class ExchCoinReform : public Exch {
   public:
   ExchCoinReform(const string &retAddr);
 
-  virtual ~ExchCoinReform();
-
-  virtual const string& Name() const;
-  virtual const string& Host() const;
+  virtual const string& Name() const override;
+  virtual const string& Host() const override;
 
   // Get currency for exchnagge to, like btc, ltc, etc
   // Fill MarketInfo from exchange.
   // Returns the empty string if OK, or error message, if error
-  virtual string MarketInfo(const string &currency, double amount);
+  virtual string MarketInfo(const string &currency, double amount)override;
 
   // Creatse SEND exchange channel for 
   // Send "amount" in external currecny "to" address
   // Fills m_depAddr..m_txKey, and updates m_rate
-  virtual string Send(const string &to, double amount);
+  virtual string Send(const string &to, double amount)override;
 
   // Check status of existing transaction.
   // If key is empty, used the last key
   // Returns status (including err), or minus "-", if "not my" key
-  virtual string TxStat(const string &txkey, UniValue &details);
+  virtual string TxStat(const string &txkey, UniValue &details)override;
 
-  // Cancel TX by txkey.
   // If key is empty, used the last key
   // Returns error text, or an empty string, if OK
   // Returns minus "-", if "not my" key
-  virtual string Cancel(const string &txkey);
+  virtual string CancelTX(const string &txkey)override;
 
   // Check time in secs, remain in the contract, created by prev Send()
   // If key is empty, used the last key
   // Returns time or zero, if contract expired
   // Returns -1, if "not my" key
-  virtual int Remain(const string &txkey);
+  virtual int Remain(const string &txkey)override;
 
 }; // class ExchCoinReform
 
-//-----------------------------------------------------
+// See https://developer.coinswitch.co
 class ExchCoinSwitch : public Exch {
   public:
   ExchCoinSwitch(const string &retAddr);
 
-  virtual ~ExchCoinSwitch();
-
-  virtual const string& Name() const;
-  virtual const string& Host() const;
+  virtual const string& Name() const override;
+  virtual const string& Host() const override;
 
   // Get currency for exchnagge to, like btc, ltc, etc
   // Fill MarketInfo from exchange.
   // Returns the empty string if OK, or error message, if error
-  virtual string MarketInfo(const string &currency, double amount);
+  virtual string MarketInfo(const string &currency, double amount)override;
 
   // Creatse SEND exchange channel for 
   // Send "amount" in external currecny "to" address
   // Fills m_depAddr..m_txKey, and updates m_rate
-  virtual string Send(const string &to, double amount);
+  virtual string Send(const string &to, double amount)override;
 
   // Check status of existing transaction.
   // If key is empty, used the last key
   // Returns status (including err), or minus "-", if "not my" key
-  virtual string TxStat(const string &txkey, UniValue &details);
+  virtual string TxStat(const string &txkey, UniValue &details)override;
 
   // Cancel TX by txkey.
   // If key is empty, used the last key
   // Returns error text, or an empty string, if OK
   // Returns minus "-", if "not my" key
-  virtual string Cancel(const string &txkey);
+  virtual string CancelTX(const string &txkey)override;
 
   // Check time in secs, remain in the contract, created by prev Send()
   // If key is empty, used the last key
   // Returns time or zero, if contract expired
   // Returns -1, if "not my" key
-  virtual int Remain(const string &txkey);
+  virtual int Remain(const string &txkey)override;
 
   private:
   // Fill exchange-specific fields into m_header for future https request
-  virtual void FillHeader();
-  // Check JSON-answer for "success : true" key, and throw error
-  // message, if exists
+  virtual void FillHeader()override;
+  // Check JSON-answer for "error" key, and throw error message, if exists
   virtual void CheckERR(const UniValue &reply) const;
 
 }; // class ExchCoinSwitch

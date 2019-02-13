@@ -437,7 +437,7 @@ void SendCoinsEntry::on_exchComboBox_currentIndexChanged(int index)
     QString qsHost = QString::fromStdString(exch->Name());
 
     // remove previous request and clear info label
-    exch->Cancel("");
+	exch->CancelTX("");
     ui->infoExchLabel->setText(qsExchInfo);
 
     string err = exch->Send(ui->payToExch->text().toStdString(), dPay);
@@ -452,7 +452,7 @@ void SendCoinsEntry::on_exchComboBox_currentIndexChanged(int index)
     if (exch->m_outAddr != ui->payToExch->text().toStdString())
     {
         ui->infoExchLabel->setText(tr("Error: Send request to %1 failed:\nAddress returned from exchange does not match requested address").arg(qsHost));
-        exch->Cancel(exch->m_txKey);
+		exch->CancelTX(exch->m_txKey);
         return;
     }
 
@@ -488,6 +488,6 @@ void SendCoinsEntry::on_exchComboBox_currentIndexChanged(int index)
     }
     else if (msgBox.clickedButton() == pButtonCancel)
     {
-        exch->Cancel(exch->m_txKey);
+		exch->CancelTX(exch->m_txKey);
     }
 }
