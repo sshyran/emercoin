@@ -7,7 +7,6 @@
 #include "ShellImitation.h"
 #include "Settings.h"
 #include "OpenSslExecutable.h"
-#include "InfoCardDialog.h"
 #include "InfoCardExample.h"
 #include <QVBoxLayout>
 #include <QPushButton>

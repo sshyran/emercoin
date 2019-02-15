@@ -12,6 +12,7 @@
 #include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QDialogButtonBox>
+#include <QMessageBox>
 
 InfoCardDialog::InfoCardDialog(InfoCard&info, CertLogger* logger, QWidget*parent):
 	QDialog(parent),
@@ -72,6 +73,9 @@ void InfoCardDialog::accept() {
 	_info.save();
 	_info.parse();
 	auto err = _info.encrypt(_logger);
+	if(err.isEmpty())
+		return;
+	QMessageBox::critical(parentWidget(), tr("InoCard encryption error"), err);
 }
 QString InfoCardDialog::Item::text()const {
 	if(!_multiline && _line) {

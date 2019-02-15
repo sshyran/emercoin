@@ -594,7 +594,7 @@ int ExchCoinSwitch::Remain(const string &txkey) {
 */
 
 //-----------------------------------------------------
-//=====================================================
+// launch with -exchtest command line param
 void exch_test() {
 #if 1
   ExchBox eBox;
