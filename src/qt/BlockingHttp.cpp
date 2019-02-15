@@ -37,7 +37,7 @@ void BlockingHttp::run() {
 
 	QNetworkAccessManager manager;
 	_manager = &manager;
-	connect(_manager, &QNetworkAccessManager::finished, this, &BlockingHttp::replyFinished);
+	connect(&manager, &QNetworkAccessManager::finished, this, &BlockingHttp::replyFinished);
 	_initialized = true;
 
 	_loop->exec();
