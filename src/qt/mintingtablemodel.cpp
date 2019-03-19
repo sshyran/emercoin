@@ -239,7 +239,7 @@ MintingTableModel::MintingTableModel(CWallet* wallet, WalletModel *parent) :
         QAbstractTableModel(parent),
         wallet(wallet),
         walletModel(parent),
-        mintingInterval(10),
+        mintingInterval(60*24),
         priv(new MintingTablePriv(wallet, this)),
         cachedNumBlocks(0)
 {

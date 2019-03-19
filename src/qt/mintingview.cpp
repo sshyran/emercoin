@@ -64,6 +64,7 @@ MintingView::MintingView(QWidget *parent) :
     mintingCombo->addItem(tr("24 hours"), Minting1day);
     mintingCombo->addItem(tr("30 days"), Minting30days);
     mintingCombo->addItem(tr("90 days"), Minting90days);
+    mintingCombo->setCurrentIndex(1);
     mintingCombo->setFixedWidth(120);
 
 
