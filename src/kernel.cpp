@@ -514,7 +514,7 @@ bool CheckProofOfStake(CValidationState& state, CBlockIndex* pindexPrev, const C
     // Verify signature
     CCoins coins(*txTmp, 0);
     PrecomputedTransactionData txdata(*tx);
-    if (!CScriptCheck(coins, *tx, 0, 0, true, &txdata)())
+    if (!CScriptCheck(coins, *tx, 0, SCRIPT_VERIFY_P2SH, true, &txdata)())
         return state.DoS(100, false, REJECT_INVALID, "invalid-pos-script", false, strprintf("%s: VerifyScript failed on coinstake %s", __func__, tx->GetHash().ToString()));
 
     // Get transaction index for the previous transaction
