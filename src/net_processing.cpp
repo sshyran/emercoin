@@ -2277,6 +2277,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         headers.resize(nCount);
         {
         LOCK(cs_main);
+        int nPoSTemperature = pfrom->nPoSTemperature;
         for (unsigned int n = 0; n < nCount; n++) {
             vRecv >> headers[n];
             ReadCompactSize(vRecv); // ignore tx count; assume it is 0.
@@ -2285,7 +2286,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             // emercoin: quick check to see if we should ban peers for PoS spam
             // note: at this point we don't know if PoW headers are valid - we just assume they are
             // so we need to update pfrom->nPoSTemperature once we actualy check them
-            int nPoSTemperature = pfrom->nPoSTemperature;
             bool fPoS = headers[n].nFlags & BLOCK_PROOF_OF_STAKE;
             nPoSTemperature += fPoS ? 1 : -POW_HEADER_COOLING;
             // peer cannot cool himself by PoW headers from other branches
