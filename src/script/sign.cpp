@@ -327,16 +327,19 @@ static Stacks CombineSignatures(const CScript& scriptPubKey, const BaseSignature
         return sigs2;
     case TX_PUBKEY:
     case TX_PUBKEYHASH:
+    case TX_NAME_PUBKEYHASH:
         // Signatures are bigger than placeholders or empty scripts:
         if (sigs1.script.empty() || sigs1.script[0].empty())
             return sigs2;
         return sigs1;
     case TX_WITNESS_V0_KEYHASH:
+    case TX_NAME_WITNESS_V0_KEYHASH:
         // Signatures are bigger than placeholders or empty scripts:
         if (sigs1.witness.empty() || sigs1.witness[0].empty())
             return sigs2;
         return sigs1;
     case TX_SCRIPTHASH:
+    case TX_NAME_SCRIPTHASH:
         if (sigs1.script.empty() || sigs1.script.back().empty())
             return sigs2;
         else if (sigs2.script.empty() || sigs2.script.back().empty())
@@ -359,6 +362,7 @@ static Stacks CombineSignatures(const CScript& scriptPubKey, const BaseSignature
     case TX_MULTISIG:
         return Stacks(CombineMultisig(scriptPubKey, checker, vSolutions, sigs1.script, sigs2.script, sigversion));
     case TX_WITNESS_V0_SCRIPTHASH:
+    case TX_NAME_WITNESS_V0_SCRIPTHASH:
         if (sigs1.witness.empty() || sigs1.witness.back().empty())
             return sigs2;
         else if (sigs2.witness.empty() || sigs2.witness.back().empty())
