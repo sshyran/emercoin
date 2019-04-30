@@ -22,6 +22,7 @@ void ExchBox::Reset(const string &retAddr) {
     delete m_v_exch[i];
   m_v_exch.clear();
   // out of service m_v_exch.push_back(new ExchCoinReform(retAddr));
+  m_v_exch.push_back(new ExchEasyRabbit(retAddr));
   m_v_exch.push_back(new ExchCoinSwitch(retAddr));
 } // ExchBox::Reset
 
@@ -476,7 +477,6 @@ string ExchCoinSwitch::Send(const string &to, double amount) {
   m_outAddr.erase();
   m_txKey.erase();
   m_depAmo = m_outAmo = 0.0;
-  m_txKey.erase();
 
   try {
     UniValue Req(UniValue::VOBJ);
@@ -579,6 +579,157 @@ int ExchCoinSwitch::Remain(const string &txkey) {
     return 0;
   }
 } // ExchCoinSwitch::TimeLeft
+
+//=====================================================
+
+const static char EasyRabbitAPIKey[] = "B2bYf04VPN34uo8pjDgMerVXc";
+ExchEasyRabbit::ExchEasyRabbit(const string &retAddr)
+: Exch::Exch(retAddr) {}
+
+//-----------------------------------------------------
+const string& ExchEasyRabbit::Name() const { 
+  static const string rc("EasyRabbit");
+  return rc;
+}
+
+//-----------------------------------------------------
+const string& ExchEasyRabbit::Host() const {
+  static const string rc("easyrabbit.net");
+  return rc;
+}
+//-----------------------------------------------------
+// Check JSON-answer for "error" key, and throw error message, if exists
+void ExchEasyRabbit::CheckERR(const UniValue &reply) const {
+  const char *err_str = "";
+  const UniValue& resp_txt = find_value(reply, "Response");
+  if(resp_txt.isNull() || !resp_txt.isStr())
+    err_str = "Missing response text";
+  else
+  if(resp_txt.get_str() != "success") {
+    const UniValue& msg = find_value(reply, "Message");
+    if(!msg.isNull() && msg.isStr())
+      err_str = msg.get_str().c_str();
+    if(err_str[0] == 0)
+      err_str = "Empty error message";
+  }
+  if(*err_str)
+    throw runtime_error(err_str);
+} // ExchcoinSwitch::CheckERR
+
+//-----------------------------------------------------
+// Get currency for exchnagge to, like btc, ltc, etc
+// Fill MarketInfo from exchange.
+// Returns empty string if OK, or error message, if error
+string ExchEasyRabbit::MarketInfo(const string &currency, double amount) {
+  m_rate = m_limit = m_min = m_minerFee = 0.0;
+  string curUC(boost::algorithm::to_upper_copy(currency));
+  try {
+    char https_get[200];
+    sprintf(https_get, "/api/pairinfo?apikey=%s&from=EMC&to=%s", EasyRabbitAPIKey, curUC.c_str());
+    const UniValue Resp1(httpsFetch(https_get, NULL));
+    LogPrint("exch", "DBG: ExchEasyRabbit::MarketInfo1(%s|%s) returns <%s>\n\n", Host().c_str(), https_get, Resp1.write(0, 0, 0).c_str());
+    const UniValue& mi1(find_value(Resp1, "Data")[0]);
+    m_pair     = "EMC/" + curUC;
+    m_min      = atof(mi1["Min"].get_str().c_str());
+    m_limit    = atof(mi1["Max"].get_str().c_str());
+    m_minerFee = atof(mi1["Network_fee"].get_str().c_str());
+    sprintf(https_get, "/api/exrates?apikey=%s&from=EMC&to=%s&amount=%.4lf", EasyRabbitAPIKey, curUC.c_str(), m_min + 0.1);
+    const UniValue Resp2(httpsFetch(https_get, NULL));
+    LogPrint("exch", "DBG: ExchEasyRabbit::MarketInfo2(%s|%s) returns <%s>\n\n", Host().c_str(), https_get, Resp2.write(0, 0, 0).c_str());
+    const UniValue& mi2(find_value(Resp2, "Data")[0]);
+    m_rate     = atof(mi2["Rate"].get_str().c_str());
+    m_min     *= m_rate; // SRC->DST
+    m_limit   *= m_rate;
+// incorrect doc?    m_minerFee*= m_rate;
+    return "";
+  } catch(std::exception &e) {
+    return e.what();
+  }
+} // ExchEasyRabbit::MarketInfo
+
+//-----------------------------------------------------
+// Create SEND exchange channel for 
+// Send "amount" in external currecny "to" address
+// Fills m_depAddr..m_txKey, and updates m_rate
+// Returns error text, or empty string, if OK
+string ExchEasyRabbit::Send(const string &to, double amount) {
+  if(amount < m_min)
+   return strprintf("amount=%lf is less than minimum=%lf", amount, m_min);
+  if(amount > m_limit)
+   return strprintf("amount=%lf is greater than limit=%lf", amount, m_limit);
+
+  amount = (amount + m_minerFee) / m_rate;
+
+  // Cleanup output
+  m_depAddr.erase();
+  m_outAddr.erase();
+  m_txKey.erase();
+  m_depAmo = m_outAmo = 0.0;
+
+  try {
+    char https_get[600];
+    sprintf(https_get, "/api/placeorder?apikey=%s&from=EMC&to=%s&amount=%lf&address=%s&refundaddress=%s", EasyRabbitAPIKey, strchr(m_pair.c_str(), '/') + 1, amount, to.c_str(), m_retAddr.c_str());
+    const UniValue Resp(httpsFetch(https_get, NULL));
+    LogPrint("exch", "DBG: ExchEasyRabbit::Send(%s|%s) returns <%s>\n\n", Host().c_str(), https_get, Resp.write(0, 0, 0).c_str());
+    const UniValue& r(find_value(Resp, "Data")[0]);
+    m_txKey    = Name() + ':' + r["Id"].get_str();		// TX reference key
+    m_depAddr  = r["Deposit_address"].get_str();                // Address to pay EMC
+    m_outAddr  = r["Receive_address"].get_str();                // Address to pay from exchange
+    m_depAmo   = atof(r["Deposit_amount"].get_str().c_str());   // amount in EMC
+    m_outAmo   = atof(r["Receive_amount"].get_str().c_str());   // Amount transferred to BTC
+    // Adjust deposit amount to 1Subent, upward
+    m_depAmo   = ceil(m_depAmo * COIN) / COIN;
+    // ?? m_rate     = m_outAmo / m_depAmo;
+    return "";
+  } catch(std::exception &e) { // something wrong at HTTPS
+    return e.what();
+  }
+} // ExchEasyRabbit::Send
+
+//-----------------------------------------------------
+// Check status of existing transaction.
+// If key is empty, used the last key
+// Returns status (including err), or minus "-", if "not my" key
+string ExchEasyRabbit::TxStat(const string &txkey, UniValue &details) {
+  const char *key = RawKey(txkey);
+  if(key == NULL)
+      return "-"; // Not my key
+
+  char buf[400];
+  snprintf(buf, sizeof(buf), "/api/orderstatus?apikey=%s&id=%s", EasyRabbitAPIKey, key);
+  try {
+    details = httpsFetch(buf, NULL);
+    LogPrint("exch", "DBG: ExchEasyRabbit::TxStat(%s|%s) returns <%s>\n\n", Host().c_str(), buf, details.write(0, 0, 0).c_str());
+    const UniValue& r = find_value(details, "Data")[0];
+    return r["Status"].get_str();
+  } catch(std::exception &e) { // something wrong at HTTPS
+    return e.what();
+  }
+} // ExchEasyRabbit::TxStat
+
+//-----------------------------------------------------
+// Cancel TX by txkey.
+// If key is empty, used the last key
+// Returns error text, or an empty string, if OK
+// Returns minus "-", if "not my" key
+string ExchEasyRabbit::CancelTX(const string &txkey) {
+  const char *key = RawKey(txkey);
+  if(key == NULL)
+      return "-"; // Not my key
+  return txkey + "; CANCEL is not supported";
+}
+
+//-----------------------------------------------------
+// Check time in secs, left in the contract, created by prev Send()
+// If key is empty, used the last key
+// Returns time or zero, if contract expired
+// Returns -1, if "not my" key
+int ExchEasyRabbit::Remain(const string &txkey) {
+  const char *key = RawKey(txkey);
+  if(key == NULL)
+      return -1; // Not my key
+  return 600; // fictive, ER does not support this
+} // ExchEasyRabbit::TimeLeft
 
 
 

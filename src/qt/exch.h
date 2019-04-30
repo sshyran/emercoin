@@ -51,10 +51,10 @@ class Exch {
 
   // MarketInfo fills these params
   string m_pair;
-  double m_rate;
-  double m_limit;
-  double m_min;
-  double m_minerFee;
+  double m_rate;        // $EMC/$BTC
+  double m_limit;       // BTC
+  double m_min;         // BTC
+  double m_minerFee;    // BTC
 
   // Send fills these params + m_rate above
   string m_depAddr;	// Address to pay EMC
@@ -167,6 +167,53 @@ class ExchCoinSwitch : public Exch {
   virtual void CheckERR(const UniValue &reply) const;
 
 }; // class ExchCoinSwitch
+
+
+// See https://easyrabbit.net/
+class ExchEasyRabbit : public Exch {
+  public:
+  ExchEasyRabbit(const string &retAddr);
+
+  virtual const string& Name() const override;
+  virtual const string& Host() const override;
+
+  // Get currency for exchnagge to, like btc, ltc, etc
+  // Fill MarketInfo from exchange.
+  // Returns the empty string if OK, or error message, if error
+  virtual string MarketInfo(const string &currency, double amount)override;
+
+  // Creatse SEND exchange channel for 
+  // Send "amount" in external currecny "to" address
+  // Fills m_depAddr..m_txKey, and updates m_rate
+  virtual string Send(const string &to, double amount)override;
+
+  // Check status of existing transaction.
+  // If key is empty, used the last key
+  // Returns status (including err), or minus "-", if "not my" key
+  virtual string TxStat(const string &txkey, UniValue &details)override;
+
+  // Cancel TX by txkey.
+  // If key is empty, used the last key
+  // Returns error text, or an empty string, if OK
+  // Returns minus "-", if "not my" key
+  virtual string CancelTX(const string &txkey)override;
+
+  // Check time in secs, remain in the contract, created by prev Send()
+  // If key is empty, used the last key
+  // Returns time or zero, if contract expired
+  // Returns -1, if "not my" key
+  virtual int Remain(const string &txkey)override;
+
+  private:
+  // Fill exchange-specific fields into m_header for future https request
+//  virtual void FillHeader()override;
+  // Check JSON-answer for "error" key, and throw error message, if exists
+  virtual void CheckERR(const UniValue &reply) const;
+
+}; // class ExchEasyRabbit
+
+
+
 
 
 //-----------------------------------------------------
