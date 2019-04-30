@@ -85,12 +85,12 @@ UniValue Exch::httpsFetch(const char *get, const UniValue *post) {
   if(rc < 0)
     throw runtime_error(strReply.c_str());
 
-  LogPrint("exch", "DBG: Exch::httpsFetch: Server returned HTTP: %d\n", rc);
+  LogPrint("exch", "DBG: Exch::httpsFetch(%s): Server returned HTTP: %d\n", get, rc);
 
   if(strReply.empty())
     throw runtime_error("Response from server is empty");
 
-  LogPrint("exch", "DBG: Exch::httpsFetch: Reply from server: [%s]\n", strReply.c_str());
+  LogPrint("exch", "DBG: Exch::httpsFetch(%s): Reply from server: [%s]\n", get, strReply.c_str());
 
   size_t json_beg = strReply.find('{');
   size_t json_end = strReply.rfind('}');
@@ -114,89 +114,6 @@ UniValue Exch::httpsFetch(const char *get, const UniValue *post) {
   return reply;
 
 } // Exch::httpsFetch
-
-#if 0
-// This function uses boost:io, deprecated
-UniValue Exch::httpsFetch(const char *get, const UniValue *post) {
-
-  // Connect to exchange
-  asio::io_service io_service;
-  ssl::context context(io_service, ssl::context::sslv23);
-  context.set_options(ssl::context::no_sslv2 | ssl::context::no_sslv3);
-  asio::ssl::stream<asio::ip::tcp::socket> sslStream(io_service, context);
-  SSL_set_tlsext_host_name(sslStream.native_handle(), Host().c_str());
-  SSLIOStreamDevice<asio::ip::tcp> d(sslStream, true); // use SSL
-  iostreams::stream< SSLIOStreamDevice<asio::ip::tcp> > stream(d);
-
-  if(!d.connect(Host(), "443"))
-    throw runtime_error("Couldn't connect to server");
-
-  string postBody;
-  const char *reqType = "GET ";
-
-  if(post != NULL) {
-    // This is POST request - prepare postBody
-    reqType = "POST ";
-    postBody = post->write(0, 0, 0) + '\n';
-  }
-
-  LogPrint("exch", "DBG: Exch::httpsFetch: Req: method=[%s] path=[%s] H=[%s]\n", reqType, get, Host().c_str());
-
-  // Send request
-  stream << reqType << (get? get : "/") << " HTTP/1.1\r\n"
-         << "Host: " << Host() << "\r\n"
-         << "User-Agent: emercoin-json-rpc/" << FormatFullVersion() << "\r\n";
-
-  if(postBody.size()) {
-    stream << "Content-Type: application/json\r\n"
-           << "Content-Length: " << postBody.size() << "\r\n";
-  }
-
-  stream << "Connection: close\r\n"
-         << "Accept: application/json\r\n\r\n"
-	 << postBody << std::flush;
-
-  // Receive HTTP reply status
-  int nProto = 0;
-  int nStatus = ReadHTTPStatus(stream, nProto);
-
-  if(nStatus >= 400)
-    throw runtime_error(strprintf("Server returned HTTP error %d", nStatus));
-
-  // Receive HTTP reply message headers and body
-  map<string, string> mapHeaders;
-  string strReply;
-  ReadHTTPMessage(stream, mapHeaders, strReply, nProto, 4 * 1024);
-
-  LogPrint("exch", "DBG: Exch::httpsFetch: Server returned HTTP: %d\n", nStatus);
-
-  if(strReply.empty())
-    throw runtime_error("No response from server");
-
-  LogPrint("exch", "DBG: Exch::httpsFetch: Reply from server: [%s]\n", strReply.c_str());
-
-  size_t json_beg = strReply.find('{');
-  size_t json_end = strReply.rfind('}');
-  if(json_beg == string::npos || json_end == string::npos)
-    throw runtime_error("Reply is not JSON");
-
-   // Parse reply
-  UniValue valReply(UniValue::VSTR);
-
-  if(!valReply.read(strReply.substr(json_beg, json_end - json_beg + 1), 0))
-    throw runtime_error("Couldn't parse reply from server");
-
-  const UniValue& reply = valReply.get_obj();
-
-  if(reply.empty())
-    throw runtime_error("Empty JSON reply");
-
-  // Check for error message in the reply
-  CheckERR(reply);
-
-  return reply;
-} // UniValue Exch::httpsFetch
-#endif
 
 //-----------------------------------------------------
 // Check JSON-answer for "error" key, and throw error
@@ -498,7 +415,7 @@ string ExchCoinSwitch::Send(const string &to, double amount) {
 
     m_depAmo   = r["expectedDepositCoinAmount"].get_real();     // amount in EMC
     m_outAmo   = r["expectedDestinationCoinAmount"].get_real(); // Amount transferred to BTC
-    m_depAmo   = ceil(m_depAmo * COIN) / COIN;
+    // m_depAmo   = ceil(m_depAmo * COIN) / COIN;
     m_rate     = m_outAmo / m_depAmo;
 
     return "";
@@ -658,7 +575,7 @@ string ExchEasyRabbit::Send(const string &to, double amount) {
   if(amount > m_limit)
    return strprintf("amount=%lf is greater than limit=%lf", amount, m_limit);
 
-  amount = (amount + m_minerFee) / m_rate;
+  amount = (amount + m_minerFee) / m_rate + 0.00005;
 
   // Cleanup output
   m_depAddr.erase();
@@ -668,7 +585,8 @@ string ExchEasyRabbit::Send(const string &to, double amount) {
 
   try {
     char https_get[600];
-    sprintf(https_get, "/api/placeorder?apikey=%s&from=EMC&to=%s&amount=%lf&address=%s&refundaddress=%s", EasyRabbitAPIKey, strchr(m_pair.c_str(), '/') + 1, amount, to.c_str(), m_retAddr.c_str());
+    sprintf(https_get, "/api/placeorder?apikey=%s&from=EMC&to=%s&amount=%.4lf&address=%s&refundaddress=%s", EasyRabbitAPIKey, strchr(m_pair.c_str(), '/') + 1, amount, to.c_str(), m_retAddr.c_str());
+    // sprintf(https_get, "/api/placeorder?apikey=%s&from=EMC&to=%s&amount=%.4lf&address=%s", EasyRabbitAPIKey, strchr(m_pair.c_str(), '/') + 1, amount, to.c_str());
     const UniValue Resp(httpsFetch(https_get, NULL));
     LogPrint("exch", "DBG: ExchEasyRabbit::Send(%s|%s) returns <%s>\n\n", Host().c_str(), https_get, Resp.write(0, 0, 0).c_str());
     const UniValue& r(find_value(Resp, "Data")[0]);
@@ -677,9 +595,6 @@ string ExchEasyRabbit::Send(const string &to, double amount) {
     m_outAddr  = r["Receive_address"].get_str();                // Address to pay from exchange
     m_depAmo   = atof(r["Deposit_amount"].get_str().c_str());   // amount in EMC
     m_outAmo   = atof(r["Receive_amount"].get_str().c_str());   // Amount transferred to BTC
-    // Adjust deposit amount to 1Subent, upward
-    m_depAmo   = ceil(m_depAmo * COIN) / COIN;
-    // ?? m_rate     = m_outAmo / m_depAmo;
     return "";
   } catch(std::exception &e) { // something wrong at HTTPS
     return e.what();

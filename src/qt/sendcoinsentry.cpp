@@ -470,10 +470,14 @@ void SendCoinsEntry::on_exchComboBox_currentIndexChanged(int index)
     QMessageBox msgBox;
     msgBox.setStyleSheet("QLabel{min-width: 650px;}");
     msgBox.setWindowTitle(tr("Payment confirmation."));
+    char depAmo_str[20];
+    sprintf(depAmo_str, "%.6lf", exch->m_depAmo);
+    QString depAmo(depAmo_str);
+    // QString depAmo(QString::number(exch->m_depAmo, 'g', 6));
     msgBox.setText(tr("%1 will send %2%3 to %4\n").arg(qsHost, QString::number(exch->m_outAmo), ui->payTypeExch->text().toLower(), QString::fromStdString(exch->m_outAddr))+
-                   tr("You will need to send %1emc to %2\n").arg(QString::number(exch->m_depAmo), QString::fromStdString(exch->m_depAddr))+
+                   tr("You will need to send %1 emc to %2\n").arg(depAmo, QString::fromStdString(exch->m_depAddr))+
                    tr("Payment id: %1\n").arg(QString::fromStdString(exch->m_txKey))+
-                   tr("Time to complete: %1 minutes").arg(ttl/60));
+                   tr("Time to complete: %1 minutes").arg(ttl / 60));
     QAbstractButton* pButtonSend = msgBox.addButton(tr("Send Now"), QMessageBox::YesRole);
     QAbstractButton* pButtonCopy = msgBox.addButton(tr("Copy to GUI"), QMessageBox::YesRole);
     QAbstractButton* pButtonCancel = msgBox.addButton(tr("Cancel"), QMessageBox::RejectRole);
@@ -483,7 +487,7 @@ void SendCoinsEntry::on_exchComboBox_currentIndexChanged(int index)
     {
         ui->payTo->setText(QString::fromStdString(exch->m_depAddr));
         ui->payAmount->setDisplayUnit(BitcoinUnits::BTC);
-        ui->payAmount->setString(QString::number(exch->m_depAmo));
+        ui->payAmount->setString(depAmo);
         this->comment = exch->m_txKey;
         this->commentto = exch->Name();
         ui->infoExchLabel->setText(tr("Payment id: %1, Time to complete: %2 minutes").arg(QString::fromStdString(exch->m_txKey), QString::number(ttl/60)));
