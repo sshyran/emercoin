@@ -13,6 +13,7 @@ using namespace std;
 //using namespace boost::asio;
 
 #include <boost/algorithm/string.hpp> 
+
 //-----------------------------------------------------
 ExchBox::ExchBox() {}
 
@@ -54,8 +55,18 @@ const UniValue Exch::RawMarketInfo(const string &path) {
 // Must be called after MarketInfo
 double Exch::EstimatedEMC(double pay_amount) const {
   return (m_rate <= 0.0)?
-    m_rate : ceil(100.0 * (pay_amount + m_minerFee) / m_rate) / 100.0;
+    m_rate : ceil(10000.0 * (pay_amount + m_minerFee) / m_rate) / 10000.0;
 } // Exch::EstimatedEMC
+
+//-----------------------------------------------------
+// Adjust amount for un-precise exchange calculation and market fluctuations
+// by adding add_percent (default) or config param "adjexchEXCHANGE_NAME"
+double Exch::AdjustExchAmount(double amo, double add_percent) const {
+  string percent_str(GetArg("-adjustexch" + Name(), ""));
+  if(!percent_str.empty())
+    add_percent = atof(percent_str.c_str());
+  return amo * (1 + add_percent / 100.0);
+} // Exch::AdjustExchAmount
 
 //-----------------------------------------------------
 // Blocking https request using Qt.
@@ -570,6 +581,7 @@ string ExchEasyRabbit::MarketInfo(const string &currency, double amount) {
 // Fills m_depAddr..m_txKey, and updates m_rate
 // Returns error text, or empty string, if OK
 string ExchEasyRabbit::Send(const string &to, double amount) {
+  amount = AdjustExchAmount(amount, 1.0); // Add extra 1% for EasyRabbit discrepancy and exch-rate fluctuations
   if(amount < m_min)
    return strprintf("amount=%lf is less than minimum=%lf", amount, m_min);
   if(amount > m_limit)

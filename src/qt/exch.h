@@ -44,7 +44,11 @@ class Exch {
 
   // Returns extimated EMC to pay for specific pay_amount
   // Must be called after MarketInfo
-  double EstimatedEMC(double pay_amount) const;
+  double EstimatedEMC(double pay_amount) const;  
+
+  // Adjust amount for un-precise exchange calculation and market fluctuations
+  // by adding add_percent (default) or config param "adjexchEXCHANGE_NAME"
+  double AdjustExchAmount(double amo, double add_percent) const;
 
   bool _sandBox = false;
   string m_retAddr; // Return EMC Addr
