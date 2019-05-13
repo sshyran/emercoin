@@ -1943,7 +1943,7 @@ UniValue walletpassphrase(const JSONRPCRequest& request)
             "This is needed prior to performing transactions related to private keys such as sending emercoins\n"
             "\nArguments:\n"
             "1. \"passphrase\"     (string, required) The wallet passphrase\n"
-            "2. timeout            (numeric, required) The time to keep the decryption key in seconds.\n"
+            "2. timeout            (numeric, required) The time to keep the decryption key in seconds. 0 = unlimited.\n"
             "3. mintonly           optional true/false allowing only block minting.\n"
             "\nNote:\n"
             "Issuing the walletpassphrase command while the wallet is already unlocked will set a new unlock\n"
@@ -1984,9 +1984,12 @@ UniValue walletpassphrase(const JSONRPCRequest& request)
     pwalletMain->TopUpKeyPool();
 
     int64_t nSleepTime = request.params[1].get_int64();
-    LOCK(cs_nWalletUnlockTime);
-    nWalletUnlockTime = GetTime() + nSleepTime;
-    RPCRunLater("lockwallet", boost::bind(LockWallet, pwalletMain), nSleepTime);
+    if (nSleepTime > 0)
+    {
+        LOCK(cs_nWalletUnlockTime);
+        nWalletUnlockTime = GetTime() + nSleepTime;
+        RPCRunLater("lockwallet", boost::bind(LockWallet, pwalletMain), nSleepTime);
+    }
 
     // ppcoin: if user OS account compromised prevent trivial sendmoney commands
     if (request.params.size() > 2)

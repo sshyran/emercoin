@@ -95,7 +95,7 @@
      <item row="3" column="0">
       <widget class="QLabel" name="passLabelDuration">
        <property name="text">
-        <string>Lock duration (sec)</string>
+        <string>Unlock duration (sec)</string>
        </property>
       </widget>
      </item>

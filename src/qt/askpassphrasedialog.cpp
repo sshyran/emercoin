@@ -63,7 +63,7 @@ AskPassphraseDialog::AskPassphraseDialog(Mode _mode, QWidget *parent) :
             setWindowTitle(tr("Unlock wallet"));
             break;
         case UnlockExtended: // Ask passphrase, duration and full / mint only modes
-            ui->warningLabel->setText(tr("This operation needs your wallet passphrase to unlock the wallet."));
+            ui->warningLabel->setText(tr("This operation needs your wallet passphrase to unlock the wallet. 0 duration = unlimited."));
             ui->passLabel2->hide();
             ui->passEdit2->hide();
             ui->passLabel3->hide();
