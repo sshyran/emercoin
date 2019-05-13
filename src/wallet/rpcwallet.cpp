@@ -1943,7 +1943,8 @@ UniValue walletpassphrase(const JSONRPCRequest& request)
             "This is needed prior to performing transactions related to private keys such as sending emercoins\n"
             "\nArguments:\n"
             "1. \"passphrase\"     (string, required) The wallet passphrase\n"
-            "2. timeout            (numeric, required) The time to keep the decryption key in seconds. 0 = unlimited.\n"
+            "2. timeout            (numeric, required) The time to keep the decryption key in seconds."
+            " Values < 1 or >= " + std::to_string(std::numeric_limits<int>::max()) + " equals to unlimited.\n"
             "3. mintonly           optional true/false allowing only block minting.\n"
             "\nNote:\n"
             "Issuing the walletpassphrase command while the wallet is already unlocked will set a new unlock\n"
@@ -1984,7 +1985,7 @@ UniValue walletpassphrase(const JSONRPCRequest& request)
     pwalletMain->TopUpKeyPool();
 
     int64_t nSleepTime = request.params[1].get_int64();
-    if (nSleepTime > 0)
+    if (nSleepTime > 0 || nSleepTime < std::numeric_limits<int>::max())
     {
         LOCK(cs_nWalletUnlockTime);
         nWalletUnlockTime = GetTime() + nSleepTime;
