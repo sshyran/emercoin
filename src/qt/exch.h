@@ -44,7 +44,7 @@ class Exch {
 
   // Returns extimated EMC to pay for specific pay_amount
   // Must be called after MarketInfo
-  double EstimatedEMC(double pay_amount) const;  
+  virtual double EstimatedEMC(double pay_amount) const;  
 
   // Adjust amount for un-precise exchange calculation and market fluctuations
   // by adding add_percent (default) or config param "adjexchEXCHANGE_NAME"
@@ -185,6 +185,10 @@ class ExchEasyRabbit : public Exch {
   // Fill MarketInfo from exchange.
   // Returns the empty string if OK, or error message, if error
   virtual string MarketInfo(const string &currency, double amount)override;
+
+  // Returns extimated EMC to pay for specific pay_amount
+  // Must be called after MarketInfo
+  virtual double EstimatedEMC(double pay_amount) const;  
 
   // Creatse SEND exchange channel for 
   // Send "amount" in external currecny "to" address

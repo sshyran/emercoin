@@ -561,19 +561,24 @@ string ExchEasyRabbit::MarketInfo(const string &currency, double amount) {
     m_min      = atof(mi1["Min"].get_str().c_str());
     m_limit    = atof(mi1["Max"].get_str().c_str());
     m_minerFee = atof(mi1["Network_fee"].get_str().c_str());
-    sprintf(https_get, "/api/exrates?apikey=%s&from=EMC&to=%s&amount=%.4lf", EasyRabbitAPIKey, curUC.c_str(), m_min + 0.1);
+    sprintf(https_get, "/api/exrates?apikey=%s&from=EMC&to=%s&amount=%.4lf&amounttype=receive", EasyRabbitAPIKey, curUC.c_str(), amount);
     const UniValue Resp2(httpsFetch(https_get, NULL));
     LogPrint("exch", "DBG: ExchEasyRabbit::MarketInfo2(%s|%s) returns <%s>\n\n", Host().c_str(), https_get, Resp2.write(0, 0, 0).c_str());
     const UniValue& mi2(find_value(Resp2, "Data")[0]);
+    m_depAmo   = atof(mi2["Deposit_amount"].get_str().c_str());   // amount in EMC - used in SEND
+    m_outAmo   = atof(mi2["Receive_amount"].get_str().c_str());   // Amount transferred to BTC
     m_rate     = atof(mi2["Rate"].get_str().c_str());
-    m_min     *= m_rate; // SRC->DST
+    m_min     *= m_rate; // amount: SRC->DST, i.e. EMC->BTC
     m_limit   *= m_rate;
-// incorrect doc?    m_minerFee*= m_rate;
     return "";
   } catch(std::exception &e) {
     return e.what();
   }
 } // ExchEasyRabbit::MarketInfo
+
+double ExchEasyRabbit::EstimatedEMC(double pay_amount) const {
+  return m_depAmo;
+}
 
 //-----------------------------------------------------
 // Create SEND exchange channel for 
@@ -581,24 +586,23 @@ string ExchEasyRabbit::MarketInfo(const string &currency, double amount) {
 // Fills m_depAddr..m_txKey, and updates m_rate
 // Returns error text, or empty string, if OK
 string ExchEasyRabbit::Send(const string &to, double amount) {
-  amount = AdjustExchAmount(amount, 1.0); // Add extra 1% for EasyRabbit discrepancy and exch-rate fluctuations
+//   amount = AdjustExchAmount(amount, 1.0); // Add extra 1% for EasyRabbit discrepancy and exch-rate fluctuations
   if(amount < m_min)
    return strprintf("amount=%lf is less than minimum=%lf", amount, m_min);
   if(amount > m_limit)
    return strprintf("amount=%lf is greater than limit=%lf", amount, m_limit);
 
-  amount = (amount + m_minerFee) / m_rate + 0.00005;
+//  amount = (amount + m_minerFee) / m_rate + 0.00005;
 
   // Cleanup output
   m_depAddr.erase();
   m_outAddr.erase();
   m_txKey.erase();
-  m_depAmo = m_outAmo = 0.0;
+//   m_depAmo = m_outAmo = 0.0;
 
   try {
     char https_get[600];
-    sprintf(https_get, "/api/placeorder?apikey=%s&from=EMC&to=%s&amount=%.4lf&address=%s&refundaddress=%s", EasyRabbitAPIKey, strchr(m_pair.c_str(), '/') + 1, amount, to.c_str(), m_retAddr.c_str());
-    // sprintf(https_get, "/api/placeorder?apikey=%s&from=EMC&to=%s&amount=%.4lf&address=%s", EasyRabbitAPIKey, strchr(m_pair.c_str(), '/') + 1, amount, to.c_str());
+    sprintf(https_get, "/api/placeorder?apikey=%s&from=EMC&to=%s&amount=%.4lf&address=%s&refundaddress=%s", EasyRabbitAPIKey, strchr(m_pair.c_str(), '/') + 1, m_depAmo, to.c_str(), m_retAddr.c_str());
     const UniValue Resp(httpsFetch(https_get, NULL));
     LogPrint("exch", "DBG: ExchEasyRabbit::Send(%s|%s) returns <%s>\n\n", Host().c_str(), https_get, Resp.write(0, 0, 0).c_str());
     const UniValue& r(find_value(Resp, "Data")[0]);

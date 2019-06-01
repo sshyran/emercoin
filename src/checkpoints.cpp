@@ -114,8 +114,8 @@ bool AcceptPendingSyncCheckpoint()
     if (!chainActive.Contains(mapBlockIndex[hashPendingCheckpoint]))
         return false;
 
-    // emercoin: checkpoint needs to be a block with 32 confirmation
-    if (mapBlockIndex[hashPendingCheckpoint]->nHeight > chainActive.Height() - 32)
+    // emercoin: checkpoint needs to be a block with 32 confirmation (rolled back to 2)
+    if (mapBlockIndex[hashPendingCheckpoint]->nHeight > chainActive.Height() - 2)
         return false;
 
     if (!WriteSyncCheckpoint(hashPendingCheckpoint))
