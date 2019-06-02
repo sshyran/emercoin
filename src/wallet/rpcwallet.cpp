@@ -1985,7 +1985,7 @@ UniValue walletpassphrase(const JSONRPCRequest& request)
     pwalletMain->TopUpKeyPool();
 
     int64_t nSleepTime = request.params[1].get_int64();
-    if (nSleepTime > 0 || nSleepTime < std::numeric_limits<int>::max())
+    if (nSleepTime > 0 && nSleepTime < std::numeric_limits<int>::max())
     {
         LOCK(cs_nWalletUnlockTime);
         nWalletUnlockTime = GetTime() + nSleepTime;
