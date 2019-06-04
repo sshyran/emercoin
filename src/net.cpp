@@ -1074,6 +1074,13 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
     if (IsBanned(addr) && !whitelisted)
     {
         LogPrintf("connection from %s dropped (banned)\n", addr.ToString());
+#ifndef WIN32
+        // Hard disconnect with RST; see: http://deepix.github.io/2016/10/21/tcprst.html
+        struct linger sl;
+        sl.l_onoff = 1;		/* non-zero value enables linger option in kernel */
+        sl.l_linger = 0;	/* timeout interval in seconds */
+        setsockopt(hSocket, SOL_SOCKET, SO_LINGER, &sl, sizeof(sl));
+#endif
         CloseSocket(hSocket);
         return;
     }
