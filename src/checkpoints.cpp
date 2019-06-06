@@ -334,7 +334,7 @@ bool CSyncCheckpoint::ProcessSyncCheckpoint()
         return false;
 
     bool pass = chainActive.Contains(mapBlockIndex[hashCheckpoint]) &&
-                mapBlockIndex[hashCheckpoint]->nHeight <= chainActive.Height() - 32;
+                mapBlockIndex[hashCheckpoint]->nHeight <= chainActive.Height() - 2;
     if (!pass)
     {
         // We haven't received the checkpoint chain, keep the checkpoint as pending
