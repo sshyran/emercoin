@@ -170,16 +170,13 @@ uint256 AutoSelectSyncCheckpoint()
 // Check against synchronized checkpoint
 bool CheckSync(const CBlockIndex* pindexNew)
 {
-    if (strMasterPubKey == "") return true;  // no public key == no checkpoints
-
-    // skip checks during reindex, except for genesis block
-    if (pindexNew->nHeight > 0 && chainActive.Height() == 0) return true;
+    if (strMasterPubKey.empty()) return true;     // no public key == no checkpoints
+    assert(pindexNew != NULL);
+    int nHeight = pindexNew->nHeight;
+    if (nHeight == 0) return true;                // genesis cannot be checked against previous block
+    if (chainActive.Height() == 0) return true;   // skip checks during reindex
 
     LOCK(cs_main);
-    assert(pindexNew != NULL);
-    if (pindexNew->nHeight == 0) return true;                // genesis cannot be checked against previous block
-    const uint256& hashBlock = pindexNew->GetBlockHash();
-    int nHeight = pindexNew->nHeight;
 
     // sync-checkpoint should always be accepted block
     assert(mapBlockIndex.count(hashSyncCheckpoint));
@@ -190,22 +187,21 @@ bool CheckSync(const CBlockIndex* pindexNew)
     {
         // trace back to first block in our chainActive
         const CBlockIndex* pindex = pindexNew;
-        while (pindex->nHeight > pindexSync->nHeight && !chainActive.Contains(pindex))
+        bool rc;
+        while (!(rc = chainActive.Contains(pindex)) && pindex->nHeight > pindexSync->nHeight)
             if (!(pindex = pindex->pprev))
                 return error("CheckSync: pprev null - block index structure failure");
 
         // at this point we could have:
         // 1. found block in our blockchain
         // 2. reached pindexSync->nHeight without finding it
-        if (!chainActive.Contains(pindex))
-            return false; // only descendant of sync-checkpoint can pass check
+        return rc;
     }
-    if (nHeight == pindexSync->nHeight && hashBlock != hashSyncCheckpoint)
-        return false; // same height with sync-checkpoint
-    if (nHeight < pindexSync->nHeight && !mapBlockIndex.count(hashBlock))
-        return false; // lower height than sync-checkpoint
+    if (nHeight == pindexSync->nHeight) // same height with sync-checkpoint
+        return pindexNew->GetBlockHash() == hashSyncCheckpoint;
 
-    return true;
+    // lower height than sync-checkpoint
+    return chainActive.Contains(pindexNew);
 }
 
 // ppcoin: reset synchronized checkpoint to last hardened checkpoint
