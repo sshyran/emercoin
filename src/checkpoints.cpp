@@ -171,12 +171,11 @@ uint256 AutoSelectSyncCheckpoint()
 bool CheckSync(const CBlockIndex* pindexNew)
 {
     if (strMasterPubKey.empty()) return true;     // no public key == no checkpoints
+    LOCK(cs_main);
     assert(pindexNew != NULL);
     int nHeight = pindexNew->nHeight;
     if (nHeight == 0) return true;                // genesis cannot be checked against previous block
     if (chainActive.Height() == 0) return true;   // skip checks during reindex
-
-    LOCK(cs_main);
 
     // sync-checkpoint should always be accepted block
     assert(mapBlockIndex.count(hashSyncCheckpoint));
