@@ -1263,27 +1263,38 @@ CAmount GetProofOfWorkReward(unsigned int nBits, bool fV7Enabled)
 
 bool IsInitialBlockDownload()
 {
-    const CChainParams& chainParams = Params();
+    const int nBlocksPerSec = 500;
+    static std::atomic<int64_t> sNextCheckTime{1};
+    int64_t nextChecktime = sNextCheckTime.load(std::memory_order_relaxed);
+    if(nextChecktime == 0)
+        return false; // Alredy downloaded - always false
 
-    // Once this function has returned false, it must remain false.
-    static std::atomic<bool> latchToFalse{false};
-    // Optimization: pre-test latch before taking the lock.
-    if (latchToFalse.load(std::memory_order_relaxed))
-        return false;
+    int64_t now = GetTime();
+    if(now < nextChecktime)
+        return true; // timio 3+s is not elapsed from previous full check
+
+    const CChainParams& chainParams = Params();
+    nextChecktime = now + 3; // 3s from now will be "initial download, despite real state"
 
     LOCK(cs_main);
-    if (latchToFalse.load(std::memory_order_relaxed))
-        return false;
-    if (fImporting || fReindex)
-        return true;
-    if (chainActive.Tip() == NULL)
-        return true;
-    if (chainActive.Tip()->nChainTrust < UintToArith256(chainParams.GetConsensus().nMinimumChainTrust))
-        return true;
-    if (chainActive.Tip()->GetBlockTime() < (GetTime() - nMaxTipAge))
-        return true;
-    latchToFalse.store(true, std::memory_order_relaxed);
-    return false;
+    do {
+      if (fImporting || fReindex)
+        break;
+      if (chainActive.Tip() == NULL) {
+        nextChecktime += 360000 / nBlocksPerSec;
+        break;
+      }
+      int64_t tdepth = now - nMaxTipAge - chainActive.Tip()->GetBlockTime();
+      if(tdepth > 0) {
+        nextChecktime += tdepth / 600 / nBlocksPerSec;
+        break;
+      }
+      if (chainActive.Tip()->nChainTrust < UintToArith256(chainParams.GetConsensus().nMinimumChainTrust))
+        break;
+      nextChecktime = 0; // Initial download ends
+    } while(false);
+    sNextCheckTime.store(nextChecktime, std::memory_order_relaxed);
+    return nextChecktime != 0;
 }
 
 CBlockIndex *pindexBestForkTip = NULL, *pindexBestForkBase = NULL;
@@ -3392,38 +3403,57 @@ static bool AcceptBlockHeader(const CBlockHeader& block, bool fProofOfStake, CVa
 bool ProcessNewBlockHeaders(uint32_t& nPoSTemperature, const uint256& lastAcceptedHeader, const std::vector<CBlockHeader>& headers, CValidationState& state, const CChainParams& chainparams, const CBlockIndex** ppindex)
 {
     {
+        int  nExpectedNext    = -1;
+        int  nPenalty         =  0; // Unorder penalty
+        int  nCooling         = POW_HEADER_COOLING;
+        bool fInitialDownload = IsInitialBlockDownload();
+
         LOCK(cs_main);
 
-        int nCooling = POW_HEADER_COOLING;
         if (headers[0].hashPrevBlock != lastAcceptedHeader && !lastAcceptedHeader.IsNull()) {
-            nPoSTemperature += (18 + headers.size()) / 10;
-            nCooling = 0;
+            nPoSTemperature += 3;
+            nCooling         = 0;
         }
 
+        int nExpectedHeight = chainActive.Height() + 1;
+
+        CBlockIndex *pindex; // Use a temp pindex instead of ppindex to avoid a const_cast
         for (const CBlockHeader& header : headers) {
             bool fPoS = header.nFlags & BLOCK_PROOF_OF_STAKE;
             bool fHavePoW = !fPoS && mapBlockIndex.count(header.GetHash());
-
-            CBlockIndex *pindex = NULL; // Use a temp pindex instead of ppindex to avoid a const_cast
+            pindex = NULL;
             if (!AcceptBlockHeader(header, header.nFlags & BLOCK_PROOF_OF_STAKE, state, chainparams, &pindex)) {
                 nPoSTemperature += POW_HEADER_COOLING;
                 return false;
             }
-            if (ppindex) {
+            if (ppindex) 
                 *ppindex = pindex;
-            }
 
-            if (fPoS) {
-                nPoSTemperature++;
-            } else { // PoW
-                int d = chainActive.Height() - pindex->nHeight;
-                if (fHavePoW || d > 36)
-                    nCooling = 0;
-                nPoSTemperature -= nCooling;
-                nPoSTemperature = std::max((int)nPoSTemperature, 0);
+            if(!fInitialDownload) {
+                if(pindex->nHeight < 300000) {
+                    nPoSTemperature += 3 * POW_HEADER_COOLING;
+                    return false;
+                }
+                if(nExpectedNext < 0) // headers[0] in realtime
+                    nPoSTemperature += std::max(std::min(nExpectedHeight - pindex->nHeight, 2 * POW_HEADER_COOLING), 0);
             }
-        }
-    }
+            nPenalty += pindex->nHeight != nExpectedNext; // unorder detected; always at headers[0]
+            nPoSTemperature += nPenalty;
+            int backgap = nExpectedNext - pindex->nHeight;
+            if((backgap | nExpectedNext) > 0)
+              nPoSTemperature += backgap;
+            nExpectedNext = pindex->nHeight + 1;
+            if(!fPoS) { // PoW
+                int d = nExpectedHeight - pindex->nHeight;
+                if (fHavePoW || d > 37)
+                    nCooling = 0;
+                else
+                    nPoSTemperature = std::max((int)nPoSTemperature - nCooling, 0);
+            } // PoW
+        } // for
+        if(!fInitialDownload)
+            nPoSTemperature += std::max(std::min(pindex->nHeight - nExpectedHeight, POW_HEADER_COOLING), 0);
+    } // LOCK
     NotifyHeaderTip();
     return true;
 }
