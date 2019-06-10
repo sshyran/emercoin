@@ -3417,6 +3417,10 @@ bool ProcessNewBlockHeaders(uint32_t& nPoSTemperature, const uint256& lastAccept
 
         int nExpectedHeight = chainActive.Height() + 1;
 
+        static int nLastCheckpointHeight = 0;
+        if (nLastCheckpointHeight == 0)
+            nLastCheckpointHeight = chainparams.Checkpoints().mapCheckpoints.rbegin()->first;
+
         CBlockIndex *pindex; // Use a temp pindex instead of ppindex to avoid a const_cast
         for (const CBlockHeader& header : headers) {
             bool fPoS = header.nFlags & BLOCK_PROOF_OF_STAKE;
@@ -3430,7 +3434,7 @@ bool ProcessNewBlockHeaders(uint32_t& nPoSTemperature, const uint256& lastAccept
                 *ppindex = pindex;
 
             if(!fInitialDownload) {
-                if(pindex->nHeight < 300000) {
+                if(pindex->nHeight < nLastCheckpointHeight) {
                     nPoSTemperature += 3 * POW_HEADER_COOLING;
                     return false;
                 }
