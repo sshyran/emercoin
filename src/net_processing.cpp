@@ -1232,6 +1232,9 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
     else if (strCommand == NetMsgType::VERSION)
     {
+        auto it = mapPoSTemperature.find(pfrom->addr);
+        if (it == mapPoSTemperature.end())
+            mapPoSTemperature[pfrom->addr] = MAX_CONSECUTIVE_POS_HEADERS/4;
         // Each connection can only send one version message
         if (pfrom->nVersion != 0)
         {
@@ -2012,9 +2015,10 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         }
         }
 
+        int32_t& nPoSTemperature = mapPoSTemperature[pfrom->addr];
         const CBlockIndex *pindex = NULL;
         CValidationState state;
-        if (!ProcessNewBlockHeaders(pfrom->nPoSTemperature, chainActive.Tip()->GetBlockHash(), {cmpctblock.header}, state, chainparams, &pindex)) {
+        if (!ProcessNewBlockHeaders(nPoSTemperature, chainActive.Tip()->GetBlockHash(), {cmpctblock.header}, state, chainparams, &pindex)) {
             int nDoS;
             if (state.IsInvalid(nDoS)) {
                 if (nDoS > 0) {
@@ -2026,8 +2030,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             }
         }
 
-        if (pfrom->nPoSTemperature >= (int)MAX_CONSECUTIVE_POS_HEADERS) {
-            pfrom->nPoSTemperature = (MAX_CONSECUTIVE_POS_HEADERS*3)/4;
+        if (nPoSTemperature >= MAX_CONSECUTIVE_POS_HEADERS) {
+            nPoSTemperature = (MAX_CONSECUTIVE_POS_HEADERS*3)/4;
             if (Params().NetworkIDString() != "test") {
                 g_connman->Ban(pfrom->addr, BanReasonNodeMisbehaving, GetArg("-bantime", DEFAULT_MISBEHAVING_BANTIME) * 7);
                 return error("too many consecutive pos headers");
@@ -2282,7 +2286,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         headers.resize(nCount);
         {
         LOCK(cs_main);
-        int nPoSTemperature = pfrom->nPoSTemperature;
+        int32_t& nPoSTemperature = mapPoSTemperature[pfrom->addr];
+        int nTmpPoSTemperature = nPoSTemperature;
         for (unsigned int n = 0; n < nCount; n++) {
             vRecv >> headers[n];
             ReadCompactSize(vRecv); // ignore tx count; assume it is 0.
@@ -2292,13 +2297,13 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             // note: at this point we don't know if PoW headers are valid - we just assume they are
             // so we need to update pfrom->nPoSTemperature once we actualy check them
             bool fPoS = headers[n].nFlags & BLOCK_PROOF_OF_STAKE;
-            nPoSTemperature += fPoS ? 1 : -POW_HEADER_COOLING;
+            nTmpPoSTemperature += fPoS ? 1 : -POW_HEADER_COOLING;
             // peer cannot cool himself by PoW headers from other branches
             if (n == 0 && !fPoS && headers[n].hashPrevBlock != pfrom->lastAcceptedHeader)
-                nPoSTemperature += POW_HEADER_COOLING;
-            nPoSTemperature = std::max(nPoSTemperature, 0);
-            if (nPoSTemperature >= (int)MAX_CONSECUTIVE_POS_HEADERS) {
-                pfrom->nPoSTemperature = (MAX_CONSECUTIVE_POS_HEADERS*3)/4;
+                nTmpPoSTemperature += POW_HEADER_COOLING;
+            nTmpPoSTemperature = std::max(nTmpPoSTemperature, 0);
+            if (nTmpPoSTemperature >= MAX_CONSECUTIVE_POS_HEADERS) {
+                nPoSTemperature = (MAX_CONSECUTIVE_POS_HEADERS*3)/4;
                 if (Params().NetworkIDString() != "test") {
                     g_connman->Ban(pfrom->addr, BanReasonNodeMisbehaving, GetArg("-bantime", DEFAULT_MISBEHAVING_BANTIME) * 7);
                     return error("too many consecutive pos headers");
@@ -2354,21 +2359,22 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         }
         }
 
+        int32_t& nPoSTemperature = mapPoSTemperature[pfrom->addr];
         CValidationState state;
-        if (!ProcessNewBlockHeaders(pfrom->nPoSTemperature, pfrom->lastAcceptedHeader, headers, state, chainparams, &pindexLast)) {
+        if (!ProcessNewBlockHeaders(nPoSTemperature, pfrom->lastAcceptedHeader, headers, state, chainparams, &pindexLast)) {
             int nDoS;
             if (state.IsInvalid(nDoS)) {
                 if (nDoS > 0) {
                     LOCK(cs_main);
-                    if (pfrom->nPoSTemperature >= 200) {
+                    if (nPoSTemperature >= 200) {
                         // A lot of PoS headers followed by some failed header (most likely PoW).
                         // This situation is very unusual, because normaly you don't get a failed PoW header with a ton of PoS headers.
                         // Probably out of memory attack. Punish peer for a long time.
-                        pfrom->nPoSTemperature = (MAX_CONSECUTIVE_POS_HEADERS*3)/4;
+                        nPoSTemperature = (MAX_CONSECUTIVE_POS_HEADERS*3)/4;
                         if (Params().NetworkIDString() != "test")
                             g_connman->Ban(pfrom->addr, BanReasonNodeMisbehaving, GetArg("-bantime", DEFAULT_MISBEHAVING_BANTIME) * 7);
                     } else {
-                        pfrom->nPoSTemperature *= 3;
+                        nPoSTemperature *= 3;
                         Misbehaving(pfrom->GetId(), nDoS);
                     }
                 }
@@ -2469,8 +2475,9 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             }
 
             if (!fRequested) {
-                if (pfrom->nPoSTemperature >= (uint32_t)MAX_CONSECUTIVE_POS_HEADERS) {
-                    pfrom->nPoSTemperature = (MAX_CONSECUTIVE_POS_HEADERS*3)/4;
+                int32_t& nPoSTemperature = mapPoSTemperature[pfrom->addr];
+                if (nPoSTemperature >= MAX_CONSECUTIVE_POS_HEADERS) {
+                    nPoSTemperature = (MAX_CONSECUTIVE_POS_HEADERS*3)/4;
                     if (Params().NetworkIDString() != "test") {
                         g_connman->Ban(pfrom->addr, BanReasonNodeMisbehaving, GetArg("-bantime", DEFAULT_MISBEHAVING_BANTIME) * 7);
                         return error("too many consecutive pos headers");
@@ -2478,7 +2485,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 }
 
                 if (pblock2->IsProofOfStake() && !IsInitialBlockDownload())
-                    pfrom->nPoSTemperature += 1;
+                    nPoSTemperature += 1;
 
                 if (!miPrev->second->IsValid(BLOCK_VALID_TRANSACTIONS)) {
                     MarkBlockAsReceived(hash2);
@@ -2561,7 +2568,11 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             bool fPoSDuplicate = false;
             ProcessNewBlock(chainparams, pblock, forceProcessing, &fNewBlock, &pindexLastAccepted, &fPoSDuplicate);
             if (fPoSDuplicate)
-                pfrom->nPoSTemperature += 100;
+            {
+                LOCK(cs_main);
+                int32_t& nPoSTemperature = mapPoSTemperature[pfrom->addr];
+                nPoSTemperature += 100;
+            }
             if (fNewBlock)
                 pfrom->nLastBlockTime = GetTime();
         }

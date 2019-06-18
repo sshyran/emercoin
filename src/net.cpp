@@ -76,6 +76,9 @@ std::string strSubVersion;
 
 limitedmap<uint256, int64_t> mapAlreadyAskedFor(MAX_INV_SZ);
 
+// emercoin: temperature to measure how many PoS headers have been sent by this client
+std::map<CNetAddr, int32_t> mapPoSTemperature;
+
 // Signals for message handling
 static CNodeSignals g_signals;
 CNodeSignals& GetNodeSignals() { return g_signals; }
@@ -2750,7 +2753,6 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
     fPauseSend = false;
     nProcessQueueSize = 0;
     temperature = 0;
-    nPoSTemperature = MAX_CONSECUTIVE_POS_HEADERS/4;
     lastAcceptedHeader = uint256();
 
     BOOST_FOREACH(const std::string &msg, getAllNetMessageTypes())
