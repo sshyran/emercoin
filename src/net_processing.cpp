@@ -2032,10 +2032,11 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
         if (nPoSTemperature >= MAX_CONSECUTIVE_POS_HEADERS) {
             nPoSTemperature = (MAX_CONSECUTIVE_POS_HEADERS*3)/4;
-            if (Params().NetworkIDString() != "test") {
-                g_connman->Ban(pfrom->addr, BanReasonNodeMisbehaving, GetArg("-bantime", DEFAULT_MISBEHAVING_BANTIME) * 7);
-                return error("too many consecutive pos headers");
-            }
+            int bantime = GetArg("-bantime", DEFAULT_MISBEHAVING_BANTIME);
+            if(Params().NetworkIDString() != "test")
+              bantime *= 7;
+            g_connman->Ban(pfrom->addr, BanReasonNodeMisbehaving, bantime);
+            return error("too many consecutive pos headers");
         }
 
         // When we succeed in decoding a block's txids from a cmpctblock
