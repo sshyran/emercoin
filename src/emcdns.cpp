@@ -148,29 +148,6 @@ EmcDns::EmcDns(const char *bind_ip, uint16_t port_no,
       bind_ip = NULL;
     }
 
-#if 0    
-    char bind6ip[80];
-
-    do { // ret here >= 0, since sock fd
-      if(*bind_ip == 0) break;
-      if(strchr(bind_ip, ':'))
-        ret = ~inet_pton(AF_INET6, bind_ip, &sin6.sin6_addr);
-//      else
-//        ret = ~inet_pton(AF_INET, bind_ip, &sin6.sin_addr);
-
-      // Convert bind_IP to IPV6 format
-//      if(*bind_ip && strchr(bind_ip, ':') == NULL) {
-//        sprintf(bind6ip, "::ffff:%s", bind_ip);
-//        bind_ip = bind6ip;
-//      }
-//      ret = ~inet_pton(AF_INET6, bind_ip, &sin6.sin6_addr);
-    } while(false);
-    if(ret != ~1) {
-      sin6.sin6_addr = in6addr_any;
-      bind_ip = NULL;
-    }
-#endif
-
     int no = 0;
 #ifdef WIN32
     if(setsockopt(m_sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (char *)&no, sizeof(no)) < 0)
@@ -524,8 +501,9 @@ int EmcDns::HandlePacket() {
     m_snd -= ar_len;
   }
 
-  // Add an empty EDNS RR record
-  Answer_OPT();
+  // Add an empty EDNS RR record for NOERROR answers only
+  if((m_hdr->Bits & 0xf) == 0)
+    Answer_OPT();
 
   // Truncate answer, if needed
   if(m_snd >= m_bufend) {
@@ -645,8 +623,8 @@ uint16_t EmcDns::HandleQuery() {
         pos += step;
         if(m_ht_offset[pos] == 0) {
           if(m_verbose > 0) 
-  	    LogPrintf("EmcDns::HandleQuery: TLD-suffix=[.%s] in given key=%s is not allowed; return NXDOMAIN\n", p, key);
-	  return 3; // Reached EndOfList, so NXDOMAIN
+  	    LogPrintf("EmcDns::HandleQuery: TLD-suffix=[.%s] in given key=%s is not allowed; return REFUSED\n", p, key);
+	  return 5; // Reached EndOfList, so REFUSED
         } 
       } while(m_ht_offset[pos] < 0 || strcmp((const char *)p, m_allowed_base + (m_ht_offset[pos] & ~ENUM_FLAG)) != 0);
 
@@ -850,7 +828,7 @@ void EmcDns::Answer_ALL(uint16_t qtype, char *buf) {
 	case 2 :
 	case 5 :
     //case 12: addl_refs[tok_no] = Fill_RD_DName(tokens[tok_no], 0, 0); break; // NS,CNAME,PTR
-    case 12: Fill_RD_DName(tokens[tok_no], 0, 0); break; // NS,CNAME,PTR
+        case 12: Fill_RD_DName(tokens[tok_no], 0, 0); break; // NS,CNAME,PTR
 	case 15: Fill_RD_DName(tokens[tok_no], 2, 0); break; // MX
 	case 16: Fill_RD_DName(tokens[tok_no], 0, 1); break; // TXT
 	default: break;
@@ -928,7 +906,7 @@ int EmcDns::Fill_RD_DName(char *txt, uint8_t mxsz, int8_t txtcor) {
 
   do {
     c = *m_snd++ = *txt++;
-    if(c == '.') {
+    if(c == '.' && txtcor == 0) {
       *tok_sz = m_snd - tok_sz - 2;
       tok_sz  = m_snd - 1;
     }
