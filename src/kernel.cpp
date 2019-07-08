@@ -242,14 +242,6 @@ bool ComputeNextStakeModifier(const CBlockIndex* pindexCurrent, uint64_t& nStake
     fGeneratedStakeModifier = true;
     return true;
 }
-#if 0
-struct StakeMod
-{
-    uint64_t nStakeModifier;
-    int64_t nStakeModifierTime;
-    int nStakeModifierHeight;
-};
-#endif
 
 // V0.5: Stake modifier used to hash for a stake kernel is chosen as the stake
 // modifier that is (nStakeMinAge minus a selection interval) earlier than the
@@ -273,13 +265,14 @@ static bool GetKernelStakeModifierV05(CBlockIndex* pindexPrev, unsigned int nTim
             return false;
     }
 
-    static CBlockIndex*  cache_pindex = NULL;
+//    static CBlockIndex*  cache_pindex = NULL;
     static int64_t       cache_TimeTxBarrier = 0;
     static uint64_t      cache_nStakeModifier;
     static int64_t       cache_nStakeModifierTime;
     static int           cache_nStakeModifierHeight;
 
-    if(pindex == cache_pindex && nTimeTx <= cache_TimeTxBarrier) {
+//    if(pindex == cache_pindex && nTimeTx <= cache_TimeTxBarrier) {
+    if(nTimeTx <= cache_TimeTxBarrier) {
        nStakeModifier       = cache_nStakeModifier;
        nStakeModifierTime   = cache_nStakeModifierTime;
        nStakeModifierHeight = cache_nStakeModifierHeight;
@@ -305,7 +298,7 @@ static bool GetKernelStakeModifierV05(CBlockIndex* pindexPrev, unsigned int nTim
     cache_nStakeModifier = nStakeModifier = pindex->nStakeModifier;
     cache_nStakeModifierHeight = nStakeModifierHeight;
     cache_nStakeModifierTime = nStakeModifierTime;
-    cache_pindex = pindexPrev;
+//    cache_pindex = pindexPrev;
     return true;
 }
 
@@ -314,46 +307,6 @@ static bool GetKernelStakeModifierV05(CBlockIndex* pindexPrev, unsigned int nTim
 static bool GetKernelStakeModifierV03(CBlockIndex* pindexPrev, uint256 hashBlockFrom, uint64_t& nStakeModifier, int& nStakeModifierHeight, int64_t& nStakeModifierTime, bool fPrintProofOfStake)
 {
     const Consensus::Params& params = Params().GetConsensus();
-#ifdef ENABLE_WALLET_STAKEmod // undef
-    // init internal cache for stake modifiers (this is used only to reduce CPU usage)
-    static uint256HashMap<StakeMod> StakeModCache;
-    static bool initCache = false;
-    if (initCache == false)
-    {
-        if (pwalletMain) {
-            std::vector<COutput> vCoins;
-            pwalletMain->AvailableCoins(vCoins, false);
-            StakeModCache.Set(vCoins.size() + 1000);
-        } else
-            StakeModCache.Set(100);
-        initCache = true;
-    }
-
-    // Clear cache after every new block.
-    // If cache is not cleared here it will result in blockchain unable to be downloaded.
-    static int nClrHeight = 0;
-    bool fSameBlock;
-
-    if (nClrHeight != pindexPrev->nHeight)
-    {
-        nClrHeight = pindexPrev->nHeight;
-        StakeModCache.clear();
-        fSameBlock = false;
-    }
-    else
-    {
-        uint256HashMap<StakeMod>::Data *pcache = StakeModCache.Search(hashBlockFrom);
-        if (pcache != NULL)
-        {
-            nStakeModifier = pcache->value.nStakeModifier;
-            nStakeModifierHeight = pcache->value.nStakeModifierHeight;
-            nStakeModifierTime = pcache->value.nStakeModifierTime;
-            return true;
-        }
-        fSameBlock = true;
-    }
-#endif
-
     nStakeModifier = 0;
     if (!mapBlockIndex.count(hashBlockFrom))
         return error("%s: block not indexed", __func__);
@@ -402,17 +355,6 @@ static bool GetKernelStakeModifierV03(CBlockIndex* pindexPrev, uint256 hashBlock
     }
     nStakeModifier = pindex->nStakeModifier;
 
-#ifdef ENABLE_WALLET_STAKEmod // undef
-    // Save to cache only at minting phase
-    if (fSameBlock)
-    {
-        struct StakeMod sm;
-        sm.nStakeModifier = nStakeModifier;
-        sm.nStakeModifierHeight = nStakeModifierHeight;
-        sm.nStakeModifierTime = nStakeModifierTime;
-        StakeModCache.Insert(hashBlockFrom, sm);
-    }
-#endif
     return true;
 }
 
