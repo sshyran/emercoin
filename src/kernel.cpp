@@ -217,42 +217,6 @@ bool ComputeNextStakeModifier(const CBlockIndex* pindexCurrent, uint64_t& nStake
     for(int i = 0; i < (int)vSortedByTimestamp.size() - 1; i++)
 	    SwapSort(vSortedByTimestamp, i);
 
-#if 0
-
-    vs2 = vSortedByTimestamp;
-    reverse(vs2.begin(), vs2.end());
-    for(int i = 0; i < vs2.size() - 1; i++)
-	    SwapSort(vs2, i);
-
-
-    // Shuffle before sort
-    uint32_t rnd = GetRand(1 << 30);
-    for (int i = vSortedByTimestamp.size() - 1, j = (i >> 2) | 1; i > j; --i)
-        std::swap(vSortedByTimestamp[i], vSortedByTimestamp[(rnd = rnd * 22695477 + 1) % i]);
-
-
-    sort(vSortedByTimestamp.begin(), vSortedByTimestamp.end(), [] (const pair<const CBlockIndex*, arith_uint256> &a, const pair<const CBlockIndex*, arith_uint256> &b)
-    {
-        if (a.first->GetBlockTime() != b.first->GetBlockTime())
-            return a.first->GetBlockTime() < b.first->GetBlockTime();
-        // Timestamp equals - compare block hashes
-        const uint256& ha = a.first->GetBlockHash(); // needed because of weird g++ (5.4.0 20160609) bug
-        const uint256& hb = b.first->GetBlockHash();
-        const uint32_t *pa = ha.GetDataPtr();
-        const uint32_t *pb = hb.GetDataPtr();
-        int cnt = 256 / 32;
-        do {
-            --cnt;
-            if(pa[cnt] != pb[cnt])
-                return pa[cnt] < pb[cnt];
-        } while(cnt);
-        return false; // Elements are equal
-    });
-
-
-    // LogPrintf("DBG: ArrSZ=%u, sor1=%u sor2=%u\n", (unsigned)vSortedByTimestamp.size(), sor1, sor2);
-#endif
-
     // Select 64 blocks from candidate blocks to generate stake modifier
     uint64_t nStakeModifierNew = 0;
     int64_t nSelectionIntervalStop = nSelectionIntervalStart;
@@ -278,13 +242,14 @@ bool ComputeNextStakeModifier(const CBlockIndex* pindexCurrent, uint64_t& nStake
     fGeneratedStakeModifier = true;
     return true;
 }
-
+#if 0
 struct StakeMod
 {
     uint64_t nStakeModifier;
     int64_t nStakeModifierTime;
     int nStakeModifierHeight;
 };
+#endif
 
 // V0.5: Stake modifier used to hash for a stake kernel is chosen as the stake
 // modifier that is (nStakeMinAge minus a selection interval) earlier than the
@@ -307,6 +272,19 @@ static bool GetKernelStakeModifierV05(CBlockIndex* pindexPrev, unsigned int nTim
         else
             return false;
     }
+
+    static CBlockIndex*  cache_pindex = NULL;
+    static uint64_t      cache_nStakeModifier;
+    static int64_t       cache_nStakeModifierTime;
+    static int           cache_nStakeModifierHeight;
+
+    if(pindex == cache_pindex) {
+       nStakeModifier       = cache_nStakeModifier;
+       nStakeModifierTime   = cache_nStakeModifierTime;
+       nStakeModifierHeight = cache_nStakeModifierHeight;
+       return true;
+    }
+
     // loop to find the stake modifier earlier by
     // (nStakeMinAge minus a selection interval)
     while (nStakeModifierTime + params.nStakeMinAge - nStakeModifierSelectionInterval >(int64_t) nTimeTx)
@@ -321,8 +299,11 @@ static bool GetKernelStakeModifierV05(CBlockIndex* pindexPrev, unsigned int nTim
             nStakeModifierHeight = pindex->nHeight;
             nStakeModifierTime = pindex->GetBlockTime();
         }
-    }
-    nStakeModifier = pindex->nStakeModifier;
+    } // while
+    cache_nStakeModifier = nStakeModifier = pindex->nStakeModifier;
+    cache_nStakeModifierHeight = nStakeModifierHeight;
+    cache_nStakeModifierTime = nStakeModifierTime;
+    cache_pindex = pindexPrev;
     return true;
 }
 
@@ -331,7 +312,7 @@ static bool GetKernelStakeModifierV05(CBlockIndex* pindexPrev, unsigned int nTim
 static bool GetKernelStakeModifierV03(CBlockIndex* pindexPrev, uint256 hashBlockFrom, uint64_t& nStakeModifier, int& nStakeModifierHeight, int64_t& nStakeModifierTime, bool fPrintProofOfStake)
 {
     const Consensus::Params& params = Params().GetConsensus();
-#ifdef ENABLE_WALLET
+#ifdef ENABLE_WALLET_STAKEmod // undef
     // init internal cache for stake modifiers (this is used only to reduce CPU usage)
     static uint256HashMap<StakeMod> StakeModCache;
     static bool initCache = false;
@@ -419,7 +400,7 @@ static bool GetKernelStakeModifierV03(CBlockIndex* pindexPrev, uint256 hashBlock
     }
     nStakeModifier = pindex->nStakeModifier;
 
-#ifdef ENABLE_WALLET
+#ifdef ENABLE_WALLET_STAKEmod // undef
     // Save to cache only at minting phase
     if (fSameBlock)
     {
