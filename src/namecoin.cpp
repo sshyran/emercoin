@@ -903,7 +903,7 @@ UniValue name_scan_address(const JSONRPCRequest& request)
     UniValue oRes(UniValue::VARR);
 
     set<CNameVal> names;
-    if (dbNameAddress.ReadAddress(address, names))
+    if (!dbNameAddress.ReadAddress(address, names))
         throw JSONRPCError(RPC_WALLET_ERROR, "found nothing");
 
     for (const auto& name : names)
