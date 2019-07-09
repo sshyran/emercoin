@@ -265,14 +265,12 @@ static bool GetKernelStakeModifierV05(CBlockIndex* pindexPrev, unsigned int nTim
             return false;
     }
 
-//    static CBlockIndex*  cache_pindex = NULL;
     static int64_t       cache_TimeTxBarrier = 0;
     static uint64_t      cache_nStakeModifier;
     static int64_t       cache_nStakeModifierTime;
     static int           cache_nStakeModifierHeight;
 
-//    if(pindex == cache_pindex && nTimeTx <= cache_TimeTxBarrier) {
-    if(nTimeTx <= cache_TimeTxBarrier) {
+    if(nTimeTx <= cache_TimeTxBarrier && nStakeModifierHeight >= cache_nStakeModifierHeight) {
        nStakeModifier       = cache_nStakeModifier;
        nStakeModifierTime   = cache_nStakeModifierTime;
        nStakeModifierHeight = cache_nStakeModifierHeight;
@@ -298,7 +296,6 @@ static bool GetKernelStakeModifierV05(CBlockIndex* pindexPrev, unsigned int nTim
     cache_nStakeModifier = nStakeModifier = pindex->nStakeModifier;
     cache_nStakeModifierHeight = nStakeModifierHeight;
     cache_nStakeModifierTime = nStakeModifierTime;
-//    cache_pindex = pindexPrev;
     return true;
 }
 
