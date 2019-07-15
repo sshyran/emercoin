@@ -221,6 +221,7 @@ static const CAmount MAX_MINT_PROOF_OF_WORK = 5020 * COIN;
 static const int64_t nMaxClockDrift = 2 * 60 * 60;       // two hours
 extern std::map<uint256, std::shared_ptr<CAuxPow>> mapDirtyAuxPow;
 extern int64_t nLastCoinStakeSearchInterval;
+extern bool fNameAddressIndex;
 
 /** 
  * Process an incoming block. This only returns after the best known valid

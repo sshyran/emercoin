@@ -890,6 +890,9 @@ UniValue name_scan_address(const JSONRPCRequest& request)
                 "[valuetype] : if \"hex\" or \"base64\" is specified then it will print value in corresponding format instead of a string.\n"
                 );
 
+    if (!fNameAddressIndex)
+        throw JSONRPCError(RPC_DATABASE_ERROR, "Name-address index is not available. Add nameaddress=1 to emercoin.conf to enable it.");
+
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Emercoin is downloading blocks...");
 
@@ -1657,21 +1660,23 @@ bool CNamecoinHooks::DisconnectInputs(const CTransactionRef& tx)
 
     // update (address->name) index
     // delete name from old address and add it to new address
-    CNameAddressDB dbNameAddress("r+");
-    string oldAddress = (nti.op != OP_NAME_DELETE) ? nti.strAddress : "";
-    string newAddress = "";
-    if (!nameRec.vtxPos.empty() && !nameRec.deleted())
-    {
-        CTransactionRef prevTx;
-        if (!GetTransaction(nameRec.vtxPos.back().txPos, prevTx))
-            return error("DisconnectInputs() : could not read tx from disk");
-        NameTxInfo prev_nti;
-        if (!DecodeNameTx(prevTx, prev_nti, true, false))
-            return error("DisconnectInputs() : failed to decode name tx");
-        newAddress = prev_nti.strAddress;
+    if (fNameAddressIndex) {
+        CNameAddressDB dbNameAddress("r+");
+        string oldAddress = (nti.op != OP_NAME_DELETE) ? nti.strAddress : "";
+        string newAddress = "";
+        if (!nameRec.vtxPos.empty() && !nameRec.deleted())
+        {
+            CTransactionRef prevTx;
+            if (!GetTransaction(nameRec.vtxPos.back().txPos, prevTx))
+                return error("DisconnectInputs() : could not read tx from disk");
+            NameTxInfo prev_nti;
+            if (!DecodeNameTx(prevTx, prev_nti, true, false))
+                return error("DisconnectInputs() : failed to decode name tx");
+            newAddress = prev_nti.strAddress;
+        }
+        if (!dbNameAddress.MoveName(oldAddress, newAddress, nti.name))
+            return error("ConnectBlockHook(): failed to move name in nameaddress.dat");
     }
-    if (!dbNameAddress.MoveName(oldAddress, newAddress, nti.name))
-        return error("ConnectBlockHook(): failed to move name in nameaddress.dat");
 
     return true;
 }
@@ -1711,7 +1716,10 @@ bool CNamecoinHooks::ConnectBlock(CBlockIndex* pindex, const vector<nameTempProx
 
     // All of these name ops should succed. If there is an error - nameindex.dat is probably corrupt.
     CNameDB dbName("r+");
-    CNameAddressDB dbNameAddress("r+");
+    CNameAddressDB* pAddr = nullptr;
+    if (fNameAddressIndex) {
+        pAddr = new CNameAddressDB("r+");
+    }
     set<CNameVal> sNameNew;
 
     for (const auto& i : vName)
@@ -1771,9 +1779,12 @@ bool CNamecoinHooks::ConnectBlock(CBlockIndex* pindex, const vector<nameTempProx
         // update (address->name) index
         // delete name from old address and add it to new address
         // note: addresses are set inside hooks->CheckInputs()
-        if (!dbNameAddress.MoveName(i.prev_address, i.address, i.name))
-            return error("ConnectBlockHook(): failed to move name in nameaddress.dat");
+        if (fNameAddressIndex)
+            if (!pAddr->MoveName(i.prev_address, i.address, i.name))
+                return error("ConnectBlockHook(): failed to move name in nameaddress.dat");
     }
+    if (fNameAddressIndex)
+        delete pAddr;
 
     return true;
 }
@@ -2050,14 +2061,21 @@ UniValue name_indexinfo(const JSONRPCRequest& request)
         } else
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read main name index");
     }
-    CNameAddressDB dbNameAddress("r");
-    if (fShowAddress) {
-        if (dbNameAddress.GetNameAddressIndexStats(stats)) {
-            ret.push_back(Pair("records_address", stats.nRecordsAddress));
-            ret.push_back(Pair("bytes_address", stats.nSerializedSizeAddress));
-            ret.push_back(Pair("hash_address", stats.hashSerializedAddress.GetHex()));
-        } else
-            throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read main name index");
+
+    if (fNameAddressIndex) {
+        CNameAddressDB dbNameAddress("r");
+        if (fShowAddress) {
+            if (dbNameAddress.GetNameAddressIndexStats(stats)) {
+                ret.push_back(Pair("records_address", stats.nRecordsAddress));
+                ret.push_back(Pair("bytes_address", stats.nSerializedSizeAddress));
+                ret.push_back(Pair("hash_address", stats.hashSerializedAddress.GetHex()));
+            } else
+                throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read address index");
+        }
     }
+
+    if (!fNameAddressIndex && fShowAddress)
+        ret.push_back(Pair("note", "Name-address index is not available. Add nameaddress=1 to emercoin.conf to enable it."));
+
     return ret;
 }

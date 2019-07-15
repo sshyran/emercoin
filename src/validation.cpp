@@ -97,6 +97,7 @@ const std::string strMessageMagic = "EmerCoin Signed Message:\n";
 CHooks* hooks = InitHook(); //this adds namecoin hooks which allow splicing of code inside standart emercoin functions.
 
 std::map<uint256, std::shared_ptr<CAuxPow>> mapDirtyAuxPow;
+bool fNameAddressIndex = false;
 
 // Internal stuff
 namespace {

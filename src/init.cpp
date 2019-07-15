@@ -1606,10 +1606,14 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         }
     }
 
-    // emercoin: recreate secondary (address -> name) index if it was deleted
+    // emercoin: recreate secondary (address -> name) index if it was enabled, remove otherwise
     // it should only be created if primary index already exists
+    fNameAddressIndex = GetBoolArg("-nameaddress", false);
+    if (!fNameAddressIndex && boost::filesystem::exists(pathNameAddress))
+        boost::filesystem::remove(pathNameAddress);
+
     extern bool createNameAddressFile();
-    if (!boost::filesystem::exists(GetDataDir() / "nameindex" / "nameaddress.dat") && !createNameAddressFile())
+    if (fNameAddressIndex && !boost::filesystem::exists(GetDataDir() / "nameindex" / "nameaddress.dat") && !createNameAddressFile())
     {
         LogPrintf("Fatal error: Failed to create secondary index nameaddress.dat.\n");
         return false;
