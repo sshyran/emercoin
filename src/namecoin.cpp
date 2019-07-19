@@ -882,7 +882,7 @@ UniValue name_scan(const JSONRPCRequest& request)
 
 UniValue name_scan_address(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() < 1 || request.params.size() > 4)
+    if (request.fHelp || request.params.size() < 1 || request.params.size() > 3)
         throw runtime_error(
                 "name_scan_address <address> [max-value-length=0] [valuetype]\n"
                 "Print names that belong to specific address\n"
@@ -897,8 +897,8 @@ UniValue name_scan_address(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Emercoin is downloading blocks...");
 
     string address     = request.params.size() > 0 ? request.params[0].get_str() : "";
-    int nMaxShownValue = request.params.size() > 2 ? request.params[2].get_int() : 0;
-    string outputType  = request.params.size() > 3 ? request.params[3].get_str() : "";
+    int nMaxShownValue = request.params.size() > 1 ? request.params[1].get_int() : 0;
+    string outputType  = request.params.size() > 2 ? request.params[2].get_str() : "";
 
     LOCK(cs_main);
     CNameDB dbName("r");
