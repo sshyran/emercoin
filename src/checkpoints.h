@@ -25,7 +25,6 @@ namespace Checkpoints
 {
 
 //! Returns last CBlockIndex* in mapBlockIndex that is a checkpoint
-CBlockIndex* GetLastCheckpoint(const CCheckpointData& data);
 bool ValidateBlockHeader(const CCheckpointData& data, int nHeight, const uint256& hash);
 } //namespace Checkpoints
 
@@ -40,7 +39,7 @@ namespace CheckpointsSync
     bool WriteSyncCheckpoint(const uint256& hashCheckpoint);
     bool AcceptPendingSyncCheckpoint();
     uint256 AutoSelectSyncCheckpoint();
-    bool CheckSync(const CBlockIndex* pindexNew);
+    bool CheckSync(CBlockIndex* pindexNew, std::set<CBlockIndex*>& setDirtyBlockIndex);
     bool ResetSyncCheckpoint();
     bool SetCheckpointPrivKey(std::string strPrivKey);
     bool SendSyncCheckpoint(uint256 hashCheckpoint);

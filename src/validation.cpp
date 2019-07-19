@@ -3392,6 +3392,16 @@ static bool AcceptBlockHeader(const CBlockHeader& block, bool fProofOfStake, CVa
     if (pindex == NULL)
         pindex = AddToBlockIndex(block, fProofOfStake);
 
+    static int nLastHardCheckpointHeight = 0;
+    if (nLastHardCheckpointHeight == 0)
+        nLastHardCheckpointHeight = chainparams.Checkpoints().mapCheckpoints.rbegin()->first;
+
+    if (pindex->nHeight > nLastHardCheckpointHeight && !CheckpointsSync::CheckSync(pindex, setDirtyBlockIndex)) {
+        pindex->nStatus |= BLOCK_FAILED_VALID;
+        setDirtyBlockIndex.insert(pindex);
+        state.DoS(10, error("%s: header %s at height %d was rejected by synchronized checkpoint", __func__, hash.ToString(), pindex->nHeight));
+    }
+
     if (ppindex)
         *ppindex = pindex;
 
@@ -3526,12 +3536,6 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
     }
 
     bool fInitialDownload = IsInitialBlockDownload();
-    // ppcoin: check that the block satisfies synchronized checkpoint
-    if (!fInitialDownload && !CheckpointsSync::CheckSync(pindex)) {
-        pindex->nStatus |= BLOCK_FAILED_VALID;
-        setDirtyBlockIndex.insert(pindex);
-        return error("%s: rejected by synchronized checkpoint", __func__);
-    }
 
     // Header is valid/has work, merkle tree and segwit merkle tree are good...RELAY NOW
     // (but if it does not build on our best tip, let the SendMessages loop relay it)

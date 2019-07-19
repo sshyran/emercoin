@@ -36,6 +36,8 @@ enum
     BLOCK_PROOF_OF_STAKE = (1 << 0), // is proof-of-stake block
     BLOCK_STAKE_ENTROPY  = (1 << 1), // entropy bit for stake modifier
     BLOCK_STAKE_MODIFIER = (1 << 2), // regenerated stake modifier
+
+    HEADER_CHECKPOINT_VALIDATED = (1 << 10), // this block passed sync checkpoint check
 };
 
 /** Nodes collect new transactions into a block, hash them into a hash tree,
