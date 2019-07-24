@@ -266,18 +266,19 @@ static bool GetKernelStakeModifierV05(CBlockIndex* pindexPrev, unsigned int nTim
     }
 
     static int64_t       cache_TimeTxBarrier = 0;
+    static int64_t       cache_nStakeModifierTime, cache_nStakeModifierTime_in;
     static uint64_t      cache_nStakeModifier;
-    static int64_t       cache_nStakeModifierTime;
     static int           cache_nStakeModifierHeight;
-#if 0
-    if(nTimeTx <= cache_TimeTxBarrier && nStakeModifierHeight >= cache_nStakeModifierHeight) {
+    static unsigned int  cache_nTimeTx;
+#if 1
+    if(nTimeTx <= cache_TimeTxBarrier && nStakeModifierTime >= cache_nStakeModifierTime_in && nTimeTx >= cache_nTimeTx) {
        nStakeModifier       = cache_nStakeModifier;
        nStakeModifierTime   = cache_nStakeModifierTime;
        nStakeModifierHeight = cache_nStakeModifierHeight;
        return true;
     }
+    cache_nStakeModifierTime_in = nStakeModifierTime;
 #endif
-
     // loop to find the stake modifier earlier by
     // (nStakeMinAge minus a selection interval)
     while (nStakeModifierTime + params.nStakeMinAge - nStakeModifierSelectionInterval >(int64_t) nTimeTx)
@@ -297,6 +298,7 @@ static bool GetKernelStakeModifierV05(CBlockIndex* pindexPrev, unsigned int nTim
     cache_nStakeModifier = nStakeModifier = pindex->nStakeModifier;
     cache_nStakeModifierHeight = nStakeModifierHeight;
     cache_nStakeModifierTime = nStakeModifierTime;
+    cache_nTimeTx = nTimeTx;
     return true;
 }
 
