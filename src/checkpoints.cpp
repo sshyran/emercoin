@@ -118,6 +118,10 @@ bool AcceptPendingSyncCheckpoint()
     if (!havePendingCheckpoint)
         return false;
 
+    // emercoin: checkpoint needs to be a block with 32 confirmation (rolled back to 3)
+    if (mapBlockIndex[hashPendingCheckpoint]->nHeight > chainActive.Height() - 3 && !IsInitialBlockDownload())
+        return false;
+
     if (!ValidateSyncCheckpoint(hashPendingCheckpoint)) {
         hashPendingCheckpoint = uint256();
         checkpointMessagePending.SetNull();
