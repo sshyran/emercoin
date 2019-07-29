@@ -912,19 +912,31 @@ UniValue name_scan_address(const JSONRPCRequest& request)
     for (const auto& name : names)
     {
         UniValue oName(UniValue::VOBJ);
-        oName.push_back(Pair("name", stringFromNameVal(name)));
 
         CNameRecord nameRec;
         if (!dbName.ReadName(name, nameRec))
             throw JSONRPCError(RPC_DATABASE_ERROR, "failed to read from name DB");
 
-        int nExpiresAt    = nameRec.nExpiresAt;
-        CNameVal value = nameRec.vtxPos.back().value;
+        CTransactionRef tx;
+        if (!GetTransaction(nameRec.vtxPos.back().txPos, tx))
+            throw JSONRPCError(RPC_WALLET_ERROR, "failed to read from from disk");
 
-        oName.push_back(Pair("value", limitString(encodeNameVal(value, outputType), nMaxShownValue, "\n...(value too large - use name_show to see full value)")));
-        oName.push_back(Pair("expires_in", nExpiresAt - chainActive.Height()));
-        if (nExpiresAt - chainActive.Height() <= 0)
-            oName.push_back(Pair("expired", true));
+        NameTxInfo nti;
+        if (!DecodeNameTx(tx, nti, true))
+            throw JSONRPCError(RPC_WALLET_ERROR, "failed to decode name");
+
+        oName.push_back(Pair("name", stringFromNameVal(name)));
+        oName.push_back(Pair("value", limitString(encodeNameVal(nti.value, outputType), nMaxShownValue, "\n...(value too large - use name_show to see full value)")));
+        oName.push_back(Pair("txid", tx->GetHash().GetHex()));
+        oName.push_back(Pair("address", nti.strAddress));
+        oName.push_back(Pair("expires_in", nameRec.nExpiresAt - chainActive.Height()));
+        oName.push_back(Pair("expires_at", nameRec.nExpiresAt));
+        oName.push_back(Pair("time", (boost::int64_t)tx->nTime));
+        if (nameRec.deleted())
+            oName.push_back(Pair("deleted", true));
+        else
+            if (nameRec.nExpiresAt - chainActive.Height() <= 0)
+                oName.push_back(Pair("expired", true));
 
         oRes.push_back(oName);
     }
