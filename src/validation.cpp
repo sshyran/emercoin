@@ -2902,7 +2902,6 @@ CBlockIndex* AddToBlockIndex(const CBlockHeader& block, bool bSetAsProofOfstake)
     if (pindexBestHeader == NULL || pindexBestHeader->nChainTrust < pindexNew->nChainTrust)
         pindexBestHeader = pindexNew;
 
-    setDirtyBlockIndex.insert(pindexNew);
     if (block.nVersion & BLOCK_VERSION_AUXPOW)
         mapDirtyAuxPow.insert(std::make_pair(block.GetHash(), block.auxpow));
 
@@ -3484,8 +3483,11 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
     CBlockIndex *pindexDummy = NULL;
     CBlockIndex *&pindex = ppindex ? *ppindex : pindexDummy;
 
-    if (!AcceptBlockHeader(block, block.IsProofOfStake(), state, chainparams, &pindex))
+    if (!AcceptBlockHeader(block, block.IsProofOfStake(), state, chainparams, &pindex)) {
+        pindex->nStatus |= BLOCK_FAILED_VALID;
+        setDirtyBlockIndex.insert(pindex);
         return false;
+    }
 
     // emercoin: we should only accept blocks that can be connected to a prev block with validated PoS
     if (pindex->pprev && !pindex->pprev->IsValid(BLOCK_VALID_TRANSACTIONS)) {
@@ -3566,7 +3568,7 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
 
     // ppcoin: check pending sync-checkpoint
     CheckpointsSync::AcceptPendingSyncCheckpoint();
-
+    setDirtyBlockIndex.insert(pindex);
     return true;
 }
 
