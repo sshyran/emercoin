@@ -4328,6 +4328,8 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                 if (mapBlockIndex.count(hash) == 0 || (mapBlockIndex[hash]->nStatus & BLOCK_HAVE_DATA) == 0) {
                     LOCK(cs_main);
                     CValidationState state;
+                    // emercoin: we ignore stake check because we are unsure that blocks are accepted in order of their height
+                    //           all the data will be recomputed in ConnectBlock
                     if (AcceptBlock(pblock, state, chainparams, NULL, true, dbp, NULL, false))
                         nLoaded++;
                     if (state.IsError())
@@ -4362,6 +4364,8 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                                     head.ToString());
                             LOCK(cs_main);
                             CValidationState dummy;
+                            // emercoin: we ignore stake check because we are unsure that blocks are accepted in order of their height
+                            //           all the data will be recomputed in ConnectBlock
                             if (AcceptBlock(pblockrecursive, dummy, chainparams, NULL, true, &it->second, NULL, false))
                             {
                                 nLoaded++;
