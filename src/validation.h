@@ -223,6 +223,12 @@ extern std::map<uint256, std::shared_ptr<CAuxPow>> mapDirtyAuxPow;
 extern int64_t nLastCoinStakeSearchInterval;
 extern bool fNameAddressIndex;
 
+struct recentPoSHeadersValue {
+    int64_t time;
+    CBlockIndex* pindex;
+};
+extern std::map<uint256, recentPoSHeadersValue> recentPoSHeaders;
+
 /** 
  * Process an incoming block. This only returns after the best known valid
  * block is made active. Note that it does not, however, guarantee that the
@@ -592,5 +598,7 @@ bool CheckBlockSignature(const CBlock& block, bool fV7Enabled);
 // emercoin: check that tx output is not below MIN_TX_AMOUNT
 bool CheckMinTxOut(const CTransactionRef& tx);
 bool CheckMinTxOut(const CBlock& block, bool fV7Enabled);
+
+void CleanMapBlockIndex();
 
 #endif // BITCOIN_VALIDATION_H

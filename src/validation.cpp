@@ -99,6 +99,8 @@ CHooks* hooks = InitHook(); //this adds namecoin hooks which allow splicing of c
 std::map<uint256, std::shared_ptr<CAuxPow>> mapDirtyAuxPow;
 bool fNameAddressIndex = false;
 
+std::map<uint256, recentPoSHeadersValue> recentPoSHeaders;
+
 // Internal stuff
 namespace {
 
@@ -3391,6 +3393,19 @@ static bool AcceptBlockHeader(const CBlockHeader& block, bool fProofOfStake, CVa
     if (pindex == NULL)
         pindex = AddToBlockIndex(block, fProofOfStake);
 
+    // emercoin: remember new PoS headers in order to clean them up if needed
+    if (fProofOfStake) {
+        recentPoSHeadersValue value;
+        value.time = GetTime();
+        value.pindex = pindex;
+        recentPoSHeaders[pindex->GetBlockHash()] = value;
+    } else {
+        // PoW header: clear all PoS parrents from recentPoSHeaders, so that memory is freed ASAP
+        CBlockIndex *pindexTmp = pindex->pprev;
+        while (recentPoSHeaders.erase(pindexTmp->GetBlockHash()))
+            pindexTmp = pindexTmp->pprev;
+    }
+
     static int nLastHardCheckpointHeight = 0;
     if (nLastHardCheckpointHeight == 0)
         nLastHardCheckpointHeight = chainparams.Checkpoints().mapCheckpoints.rbegin()->first;
@@ -3467,6 +3482,8 @@ bool ProcessNewBlockHeaders(int32_t& nPoSTemperature, const uint256& lastAccepte
         } // for
         if(!fInitialDownload)
             nPoSTemperature += std::max(std::min(pindex->nHeight - nExpectedHeight, POW_HEADER_COOLING), 0);
+
+        CleanMapBlockIndex();
     } // LOCK
     NotifyHeaderTip();
     return true;
@@ -3569,6 +3586,8 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
     // ppcoin: check pending sync-checkpoint
     CheckpointsSync::AcceptPendingSyncCheckpoint();
     setDirtyBlockIndex.insert(pindex);
+    if (pindex->IsProofOfStake())  //emcTODO : maybe move this up?
+        recentPoSHeaders.erase(pindex->GetBlockHash());
     return true;
 }
 
@@ -3604,6 +3623,7 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
                 *fPoSDuplicate = true;
             vStakeSeen[ndx] = pindex->hashProofOfStake;
         }
+        CleanMapBlockIndex();
     }
 
     NotifyHeaderTip();
@@ -4894,4 +4914,49 @@ bool CheckMinTxOut(const CBlock& block, bool fV7Enabled)
                 return false;
         }
     return true;
+}
+
+/** Comparison function for sorting the getchaintips heads.  */
+struct CompareBlocksByHeight2
+{
+    bool operator()(std::map<uint256, recentPoSHeadersValue>::const_iterator& a, std::map<uint256, recentPoSHeadersValue>::const_iterator& b) const
+    {
+        return ((*a).second.pindex->nHeight < (*b).second.pindex->nHeight);
+    }
+};
+
+// should be called inside lock cs_main
+void CleanMapBlockIndex() {
+    if (recentPoSHeaders.size() < 2000)
+        return;
+
+    if (IsInitialBlockDownload())
+        return;
+
+    vector< std::map<uint256, recentPoSHeadersValue>::const_iterator > vit;
+    vit.reserve(recentPoSHeaders.size());
+
+    for (auto it = recentPoSHeaders.cbegin(); it != recentPoSHeaders.cend(); it++) {
+        vit.push_back(it);
+    }
+
+    std::sort(vit.begin(), vit.end(), CompareBlocksByHeight2());
+
+    int64_t cTime = GetTime();
+    for (auto& it : vit) {
+        if ((*it).second.time + 10*60 < cTime || (*it).second.pindex->pprev->pprev == nullptr) {
+            (*it).second.pindex->pprev = nullptr;
+        }
+    }
+
+    for (auto& it : vit) {
+        if ((*it).second.pindex->pprev == nullptr) {
+            BlockMap::iterator mi = mapBlockIndex.find((*it).first);
+            assert(mi != mapBlockIndex.end());  // it should exist because no other function deletes specific elemets
+            delete (*mi).second;
+            mapBlockIndex.erase(mi);
+
+            recentPoSHeaders.erase(it);
+        }
+    }
 }
