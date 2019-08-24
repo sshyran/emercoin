@@ -3449,7 +3449,7 @@ bool ProcessNewBlockHeaders(int32_t& nPoSTemperature, const uint256& lastAccepte
         CBlockIndex *pindex; // Use a temp pindex instead of ppindex to avoid a const_cast
         for (const CBlockHeader& header : headers) {
             bool fPoS = header.nFlags & BLOCK_PROOF_OF_STAKE;
-            bool fHavePoW = !fPoS && mapBlockIndex.count(header.GetHash());
+            bool fHaveHeader = mapBlockIndex.count(header.GetHash());
             pindex = NULL;
             if (!AcceptBlockHeader(header, header.nFlags & BLOCK_PROOF_OF_STAKE, state, chainparams, &pindex)) {
                 nPoSTemperature += POW_HEADER_COOLING;
@@ -3466,6 +3466,12 @@ bool ProcessNewBlockHeaders(int32_t& nPoSTemperature, const uint256& lastAccepte
                 if(nExpectedNext < 0) // headers[0] in realtime
                     nPoSTemperature += std::max(std::min(nExpectedHeight - pindex->nHeight, 2 * POW_HEADER_COOLING), 0);
             }
+
+            // emercoin: sometimes multiple peers will send us the same headers
+            // this is not necessarily an attack, so we don't want end up banning honest peers
+            if (fHaveHeader)
+                continue;
+
             nPenalty += pindex->nHeight != nExpectedNext; // unorder detected; always at headers[0]
             nPoSTemperature += nPenalty;
             int backgap = nExpectedNext - pindex->nHeight;
@@ -3474,7 +3480,7 @@ bool ProcessNewBlockHeaders(int32_t& nPoSTemperature, const uint256& lastAccepte
             nExpectedNext = pindex->nHeight + 1;
             if(!fPoS) { // PoW
                 int d = nExpectedHeight - pindex->nHeight;
-                if (fHavePoW || d > 37)
+                if (d > 37)
                     nCooling = 0;
                 else
                     nPoSTemperature = std::max((int)nPoSTemperature - nCooling, 0);
