@@ -4923,9 +4923,10 @@ bool CheckMinTxOut(const CBlock& block, bool fV7Enabled)
 }
 
 /** Comparison function for sorting the getchaintips heads.  */
+typedef std::map<uint256, recentPoSHeadersValue>::const_iterator myIter;
 struct CompareBlocksByHeight2
 {
-    bool operator()(std::map<uint256, recentPoSHeadersValue>::const_iterator& a, std::map<uint256, recentPoSHeadersValue>::const_iterator& b) const
+    bool operator()(const myIter& a, const myIter& b) const
     {
         return ((*a).second.pindex->nHeight < (*b).second.pindex->nHeight);
     }
@@ -4939,7 +4940,7 @@ void CleanMapBlockIndex() {
     if (IsInitialBlockDownload())
         return;
 
-    vector< std::map<uint256, recentPoSHeadersValue>::const_iterator > vit;
+    vector< myIter > vit;
     vit.reserve(recentPoSHeaders.size());
 
     for (auto it = recentPoSHeaders.cbegin(); it != recentPoSHeaders.cend(); it++) {
