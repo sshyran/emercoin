@@ -148,6 +148,7 @@ UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript, int nG
     return blockHashes;
 }
 
+#if POW_MINING
 UniValue getgenerate(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 0)
@@ -166,6 +167,7 @@ UniValue getgenerate(const JSONRPCRequest& request)
     LOCK(cs_main);
     return GetBoolArg("-gen", DEFAULT_GENERATE);
 }
+#endif
 
 UniValue generate(const JSONRPCRequest& request)
 {
@@ -203,6 +205,7 @@ UniValue generate(const JSONRPCRequest& request)
     return generateBlocks(coinbaseScript, nGenerate, nMaxTries, true);
 }
 
+#if POW_MINING
 UniValue setgenerate(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
@@ -246,6 +249,7 @@ UniValue setgenerate(const JSONRPCRequest& request)
 
     return NullUniValue;
 }
+#endif
 
 UniValue generatetoaddress(const JSONRPCRequest& request)
 {
@@ -294,8 +298,10 @@ UniValue getmininginfo(const JSONRPCRequest& request)
             "  \"currentblocktx\": nnn,     (numeric) The last block transaction\n"
             "  \"difficulty\": xxx.xxxxx    (numeric) The current difficulty\n"
             "  \"errors\": \"...\"            (string) Current errors\n"
+#if POW_MINING
             "  \"generate\": true|false     (boolean) If the generation is on or off (see getgenerate or setgenerate calls)\n"
             "  \"genproclimit\": n          (numeric) The processor limit for generation. -1 if no generation. (see getgenerate or setgenerate calls)\n"
+#endif
             "  \"networkhashps\": nnn,      (numeric) The network hashes per second\n"
             "  \"pooledtx\": n              (numeric) The size of the mempool\n"
             "  \"chain\": \"xxxx\",           (string) current network name as defined in BIP70 (main, test, regtest)\n"
@@ -315,11 +321,13 @@ UniValue getmininginfo(const JSONRPCRequest& request)
     obj.push_back(Pair("currentblocktx",   (uint64_t)nLastBlockTx));
     obj.push_back(Pair("difficulty",       (double)GetDifficulty()));
     obj.push_back(Pair("errors",           GetWarnings("statusbar")));
+#if POW_MINING
     obj.push_back(Pair("genproclimit",     (int)GetArg("-genproclimit", DEFAULT_GENERATE_THREADS)));
+    obj.push_back(Pair("generate",         getgenerate(request)));
+#endif
     obj.push_back(Pair("networkhashps",    getnetworkhashps(request)));
     obj.push_back(Pair("pooledtx",         (uint64_t)mempool.size()));
     obj.push_back(Pair("chain",            Params().NetworkIDString()));
-    obj.push_back(Pair("generate",         getgenerate(request)));
     return obj;
 }
 
@@ -1040,9 +1048,10 @@ static const CRPCCommand commands[] =
 
     // emercoin command
     { "mining",             "getauxblock",            &getauxblock,            true,  {"hash","auxpow"} },
-
+#if POW_MINING
     { "generating",         "getgenerate",            &getgenerate,            true,  {} },
     { "generating",         "setgenerate",            &setgenerate,            true,  {"generate", "genproclimit"} },
+#endif
     { "generating",         "generate",               &generate,               true,  {"nblocks","maxtries"} },
     { "generating",         "generatetoaddress",      &generatetoaddress,      true,  {"nblocks","address","maxtries"} },
 

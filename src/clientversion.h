@@ -27,6 +27,9 @@
 //! Set to true for release, false for prerelease or test build
 #define CLIENT_VERSION_IS_RELEASE true
 
+//emercoin: removed mining code in release version because some website detect it as a malicious miner
+#define POW_MINING (CLIENT_VERSION_IS_RELEASE == false)
+
 /**
  * Copyright year (2009-this)
  * Todo: update this when changing our copyright comments in the source

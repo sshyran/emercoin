@@ -22,8 +22,10 @@ class CWallet;
 
 namespace Consensus { struct Params; };
 
+#if POW_MINING
 static const bool DEFAULT_GENERATE = false;
 static const int DEFAULT_GENERATE_THREADS = 1;
+#endif
 
 static const bool DEFAULT_PRINTPRIORITY = false;
 
@@ -224,7 +226,9 @@ namespace boost {
 } // namespace boost
 /** Run the stake minter thread */
 void MintStake(boost::thread_group& threadGroup, CWallet* pwallet);
+#if POW_MINING
 /** Run the miner threads */
 void GenerateEmercoins(bool fGenerate, int nThreads, const CChainParams& chainparams);
+#endif
 
 #endif // BITCOIN_MINER_H

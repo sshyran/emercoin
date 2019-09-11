@@ -199,7 +199,7 @@ void Shutdown()
     /// module was initialized.
     RenameThread("emercoin-shutoff");
     mempool.AddTransactionsUpdated(1);
-#ifdef ENABLE_WALLET
+#if defined(ENABLE_WALLET) && POW_MINING
     GenerateEmercoins(false, 0, Params());
 #endif
     StopHTTPRPC();
@@ -452,7 +452,7 @@ std::string HelpMessage(HelpMessageMode mode)
         _("If <category> is not supplied or if <category> = 1, output all debugging information.") + _("<category> can be:") + " " + debugCategories + ".");
     if (showDebug)
         strUsage += HelpMessageOpt("-nodebug", "Turn off debugging messages, same as -debug=0");
-#ifdef ENABLE_WALLET
+#if defined(ENABLE_WALLET) && POW_MINING
     strUsage += HelpMessageOpt("-gen", strprintf(_("Generate coins (default: %u)"), DEFAULT_GENERATE));
     strUsage += HelpMessageOpt("-genproclimit=<n>", strprintf(_("Set the number of threads for coin generation if enabled (-1 = all cores, default: %d)"), DEFAULT_GENERATE_THREADS));
 #endif
@@ -1731,7 +1731,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     if (pwalletMain && GetBoolArg("-stakegen", true))
         MintStake(threadGroup, pwalletMain);
     // Generate coins in the background
+#if POW_MINING
     GenerateEmercoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS), chainparams);
+#endif
 #endif
 
     // init emcdns. WARNING: this should be done after hooks initialization

@@ -910,6 +910,7 @@ void MintStake(boost::thread_group& threadGroup, CWallet* pwallet)
 #endif // ENABLE_WALLET
 
 
+#if POW_MINING
 //////////////////////////////////////////////////////////////////////////////
 //
 // Internal miner
@@ -1085,3 +1086,4 @@ void GenerateEmercoins(bool fGenerate, int nThreads, const CChainParams& chainpa
     for (int i = 0; i < nThreads; i++)
         minerThreads->create_thread(boost::bind(&EmercoinMiner, boost::cref(chainparams)));
 }
+#endif
