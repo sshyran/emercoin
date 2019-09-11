@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include <QComboBox>
+#include <QPushButton>
 #include "mintingfilterproxy.h"
 
 class WalletModel;
@@ -35,6 +36,8 @@ private:
     MintingFilterProxy *mintingProxyModel;
     QMenu *contextMenu;
 
+    QPushButton *refreshButton;
+
 private Q_SLOTS:
     void contextualMenu(const QPoint &);
     void copyAddress();
@@ -45,6 +48,7 @@ Q_SIGNALS:
 public Q_SLOTS:
     void exportClicked();
     void chooseMintingInterval(int idx);
+    void refreshWallet();
 };
 
 #endif // MINTINGVIEW_H

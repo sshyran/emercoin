@@ -70,7 +70,6 @@ public:
      */
     void refreshWallet()
     {
-        LogPrintf("refreshWallet\n");
         cachedWallet.clear();
         {
             // cs_main lock was added because GetDepthInMainChain requires it
@@ -528,4 +527,9 @@ void MintingTableModel::updateDisplayUnit()
 {
     // emit dataChanged to update Balance column with the current unit
     Q_EMIT dataChanged(index(0, Balance), index(priv->size()-1, Balance));
+}
+
+void MintingTableModel::fullRefresh()
+{
+    priv->refreshWallet();
 }
