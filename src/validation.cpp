@@ -3428,8 +3428,6 @@ static bool AcceptBlockHeader(const CBlockHeader& block, bool fProofOfStake, CVa
 bool ProcessNewBlockHeaders(int32_t& nPoSTemperature, const uint256& lastAcceptedHeader, const std::vector<CBlockHeader>& headers, CValidationState& state, const CChainParams& chainparams, const CBlockIndex** ppindex)
 {
     {
-        int  nExpectedNext    = -1;
-        int  nPenalty         =  0; // Unorder penalty
         int  nCooling         = POW_HEADER_COOLING;
         bool fInitialDownload = IsInitialBlockDownload();
 
@@ -3439,8 +3437,6 @@ bool ProcessNewBlockHeaders(int32_t& nPoSTemperature, const uint256& lastAccepte
             nPoSTemperature += 3;
             nCooling         = 0;
         }
-
-        int nExpectedHeight = chainActive.Height() + 1;
 
         static int nLastCheckpointHeight = 0;
         if (nLastCheckpointHeight == 0)
@@ -3463,8 +3459,6 @@ bool ProcessNewBlockHeaders(int32_t& nPoSTemperature, const uint256& lastAccepte
                     nPoSTemperature += 3 * POW_HEADER_COOLING;
                     return false;
                 }
-                if(nExpectedNext < 0) // headers[0] in realtime
-                    nPoSTemperature += std::max(std::min(nExpectedHeight - pindex->nHeight, 2 * POW_HEADER_COOLING), 0);
             }
 
             // emercoin: sometimes multiple peers will send us the same headers
@@ -3472,23 +3466,10 @@ bool ProcessNewBlockHeaders(int32_t& nPoSTemperature, const uint256& lastAccepte
             if (fHaveHeader)
                 continue;
 
-            nPenalty += pindex->nHeight != nExpectedNext; // unorder detected; always at headers[0]
-            nPoSTemperature += nPenalty;
-            int backgap = nExpectedNext - pindex->nHeight;
-            if((backgap | nExpectedNext) > 0)
-              nPoSTemperature += backgap;
-            nExpectedNext = pindex->nHeight + 1;
-            if(!fPoS) { // PoW
-                int d = nExpectedHeight - pindex->nHeight;
-                if (d > 37)
-                    nCooling = 0;
-                else
-                    nPoSTemperature = std::max((int)nPoSTemperature - nCooling, 0);
+            if(!fPoS) { // PoW - cooling
+              nPoSTemperature = std::max((int)nPoSTemperature - nCooling, 0);
             } // PoW
         } // for
-        if(!fInitialDownload)
-            nPoSTemperature += std::max(std::min(pindex->nHeight - nExpectedHeight, POW_HEADER_COOLING), 0);
-
         CleanMapBlockIndex();
     } // LOCK
     NotifyHeaderTip();
