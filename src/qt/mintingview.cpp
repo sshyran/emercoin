@@ -72,6 +72,7 @@ MintingView::MintingView(QWidget *parent) :
 
     hlayout->insertStretch(0);
     hlayout->addWidget(refreshButton);
+    hlayout->addStretch(1);
     hlayout->addWidget(mintingLabel);
     hlayout->addWidget(mintingCombo);
 
