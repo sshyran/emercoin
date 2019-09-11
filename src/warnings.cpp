@@ -122,6 +122,8 @@ std::string GetWarnings(const std::string& strFor)
             {
                 nPriority = alert.nPriority;
                 strStatusBar = strGUI = alert.strStatusBar;
+                if (nPriority > 1000)
+                    strRPC = strStatusBar;  // ppcoin: safe mode for high alert
             }
         }
     }
