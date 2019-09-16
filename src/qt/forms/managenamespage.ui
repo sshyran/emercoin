@@ -74,7 +74,7 @@
      <item>
       <widget class="QPushButton" name="btnSsl">
        <property name="toolTip">
-        <string>Trusted Diploma</string>
+        <string>SSL</string>
        </property>
        <property name="text">
         <string>SSL</string>
