@@ -216,6 +216,7 @@ protected:
 
     //! Find an entry.
     CAddrInfo* Find(const CNetAddr& addr, int *pnId = NULL);
+    friend class CConnman;  // emercoin: added to access Find()
 
     //! find an entry, creating it if necessary.
     //! nTime and nServices of the found node are updated, if necessary.
