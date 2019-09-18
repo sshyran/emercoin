@@ -482,9 +482,9 @@ bool CConnman::IsBanned(CSubNet subnet)
 }
 
 void CConnman::Ban(const CNetAddr& addr, const BanReason &banReason, int64_t bantimeoffset, bool sinceUnixEpoch) {
-    int nId;
-    CAddrInfo* pinfo = addrman.Find(addr, &nId);
-    pinfo->nTime = GetTime() + bantimeoffset + 30 * 60; // Mark address as Terrible during BAN period, to prevent advertise this addr
+    CAddrInfo* pinfo = addrman.Find(addr);
+    if(pinfo)
+      pinfo->nTime = GetTime() + bantimeoffset + 30 * 60; // Mark address as Terrible during BAN period, to prevent advertise this addr
 
     CSubNet subNet(addr);
     Ban(subNet, banReason, bantimeoffset, sinceUnixEpoch);
