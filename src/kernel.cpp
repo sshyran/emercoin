@@ -271,8 +271,7 @@ static bool GetKernelStakeModifierV05(CBlockIndex* pindexPrev, unsigned int nTim
     static int           cache_nStakeModifierHeight;
     static unsigned int  cache_nTimeTx;
 #if 0
-//??    if(nTimeTx <= cache_TimeTxBarrier && nStakeModifierTime >= cache_nStakeModifierTime_in && nTimeTx >= cache_nTimeTx) {
-    if(nTimeTx < cache_TimeTxBarrier && nStakeModifierTime >= cache_nStakeModifierTime_in && nTimeTx >= cache_nTimeTx) {
+    if(nTimeTx <= cache_TimeTxBarrier && nStakeModifierTime >= cache_nStakeModifierTime_in && nTimeTx >= cache_nTimeTx) {
        nStakeModifier       = cache_nStakeModifier;
        nStakeModifierTime   = cache_nStakeModifierTime;
        nStakeModifierHeight = cache_nStakeModifierHeight;
@@ -291,9 +290,9 @@ static bool GetKernelStakeModifierV05(CBlockIndex* pindexPrev, unsigned int nTim
         pindex = pindex->pprev;
         if (pindex->GeneratedStakeModifier())
         {
-            cache_TimeTxBarrier = nStakeModifierTime + params.nStakeMinAge - nStakeModifierSelectionInterval;
             nStakeModifierHeight = pindex->nHeight;
             nStakeModifierTime = pindex->GetBlockTime();
+            cache_TimeTxBarrier = nStakeModifierTime + params.nStakeMinAge - nStakeModifierSelectionInterval;
         }
     } // while
     cache_nStakeModifier = nStakeModifier = pindex->nStakeModifier;
