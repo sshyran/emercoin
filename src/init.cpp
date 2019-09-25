@@ -218,22 +218,23 @@ void Shutdown()
 
     StopTorControl();
     UnregisterNodeSignals(GetNodeSignals());
-    if (fDumpMempoolLater)
-        DumpMempool();
-
-    if (fFeeEstimatesInitialized)
-    {
-        boost::filesystem::path est_path = GetDataDir() / FEE_ESTIMATES_FILENAME;
-        CAutoFile est_fileout(fopen(est_path.string().c_str(), "wb"), SER_DISK, CLIENT_VERSION);
-        if (!est_fileout.IsNull())
-            mempool.WriteFeeEstimates(est_fileout);
-        else
-            LogPrintf("%s: Failed to write fee estimates to %s\n", __func__, est_path.string());
-        fFeeEstimatesInitialized = false;
-    }
 
     {
         LOCK(cs_main);
+        if (fFeeEstimatesInitialized)
+        {
+          boost::filesystem::path est_path = GetDataDir() / FEE_ESTIMATES_FILENAME;
+          CAutoFile est_fileout(fopen(est_path.string().c_str(), "wb"), SER_DISK, CLIENT_VERSION);
+          if (!est_fileout.IsNull())
+            mempool.WriteFeeEstimates(est_fileout);
+          else
+            LogPrintf("%s: Failed to write fee estimates to %s\n", __func__, est_path.string());
+          fFeeEstimatesInitialized = false;
+        }
+
+        if (fDumpMempoolLater)
+          DumpMempool();
+
         if (pcoinsTip != NULL) {
             FlushStateToDisk();
         }
