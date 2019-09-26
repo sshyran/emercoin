@@ -70,20 +70,18 @@ public:
      */
     void refreshWallet()
     {
+        // cs_main lock was added because GetDepthInMainChain requires it
+        LOCK2(cs_main, wallet->cs_wallet);
         cachedWallet.clear();
+        for(std::map<uint256, CWalletTx>::iterator it = wallet->mapWallet.begin(); it != wallet->mapWallet.end(); ++it)
         {
-            // cs_main lock was added because GetDepthInMainChain requires it
-            LOCK2(cs_main, wallet->cs_wallet);
-            for(std::map<uint256, CWalletTx>::iterator it = wallet->mapWallet.begin(); it != wallet->mapWallet.end(); ++it)
-            {
-                std::vector<KernelRecord> txList = KernelRecord::decomposeOutput(wallet, it->second);
-                if(KernelRecord::showTransaction(it->second))
-                    for(const KernelRecord& kr : txList) {
-                        if(!kr.spent) {
-                            cachedWallet.append(kr);
-                        }
+            std::vector<KernelRecord> txList = KernelRecord::decomposeOutput(wallet, it->second);
+            if(KernelRecord::showTransaction(it->second))
+                for(const KernelRecord& kr : txList) {
+                    if(!kr.spent) {
+                        cachedWallet.append(kr);
                     }
-            }
+                }
         }
     }
 
@@ -181,11 +179,21 @@ public:
                         {
                             for(int i = lowerIndex; i < upperIndex; i++)
                             {
+                                if(i>=cachedWallet.size())
+                                {
+                                    LogPrintf("updateWallet: cachedWallet is smaller than expected, access item %d not in size %d\n", i, cachedWallet.size());
+                                    break;
+                                }
                                 KernelRecord cachedRec = cachedWallet.at(i);
                                 if((rec.address == cachedRec.address)
                                    && (rec.nValue == cachedRec.nValue)
                                    && (rec.idx == cachedRec.idx))
                                 {
+                                    if(i>=cachedWallet.size())
+                                    {
+                                        LogPrintf("updateWallet: cachedWallet is smaller than expected, remove item %d not in size %d\n", i, cachedWallet.size());
+                                        break;
+                                    }
                                     parent->beginRemoveRows(QModelIndex(), i, i);
                                     cachedWallet.removeAt(i);
                                     parent->endRemoveRows();
