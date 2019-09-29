@@ -3567,14 +3567,15 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
         return AbortNode(state, std::string("System error: ") + e.what());
     }
 
+    setDirtyBlockIndex.insert(pindex);
+    if (pindex->IsProofOfStake())
+        recentPoSHeaders.erase(pindex->GetBlockHash());
+
     if (fCheckForPruning)
         FlushStateToDisk(state, FLUSH_STATE_NONE); // we just allocated more disk space for block files
 
     // ppcoin: check pending sync-checkpoint
     CheckpointsSync::AcceptPendingSyncCheckpoint();
-    setDirtyBlockIndex.insert(pindex);
-    if (pindex->IsProofOfStake())  //emcTODO : maybe move this up?
-        recentPoSHeaders.erase(pindex->GetBlockHash());
     return true;
 }
 

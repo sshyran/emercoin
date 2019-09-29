@@ -100,11 +100,11 @@ bool ValidateSyncCheckpoint(uint256 hashCheckpoint)
 
 bool WriteSyncCheckpoint(const uint256& hashCheckpoint)
 {
-    if (!pblocktree->WriteSyncCheckpoint(hashCheckpoint))
-    {
-        return error("WriteSyncCheckpoint(): failed to write to txdb sync checkpoint %s", hashCheckpoint.ToString());
+    if (mapBlockIndex[hashCheckpoint]->nStatus & BLOCK_HAVE_DATA) {
+        if (!pblocktree->WriteSyncCheckpoint(hashCheckpoint))
+            return error("WriteSyncCheckpoint(): failed to write to txdb sync checkpoint %s", hashCheckpoint.ToString());
+        FlushStateToDisk();
     }
-    FlushStateToDisk();
     hashSyncCheckpoint = hashCheckpoint;
     return true;
 }
@@ -222,7 +222,8 @@ bool CheckSync(CBlockIndex* pindexNew, std::set<CBlockIndex*>& setDirtyBlockInde
     }
 
     pindexNew->nFlags |= HEADER_CHECKPOINT_VALIDATED;
-    setDirtyBlockIndex.insert(pindexNew);
+    if (pindexNew->nStatus & BLOCK_HAVE_DATA)
+        setDirtyBlockIndex.insert(pindexNew);
 
     return true;
 }
