@@ -68,11 +68,11 @@ MintingView::MintingView(QWidget *parent) :
     mintingCombo->setFixedWidth(120);
 
     // emercoin: add refresh button
-    refreshButton = new QPushButton(tr("refresh"));
+//    refreshButton = new QPushButton(tr("refresh"));
 
     hlayout->insertStretch(0);
-    hlayout->addWidget(refreshButton);
-    hlayout->addStretch(1);
+//    hlayout->addWidget(refreshButton);
+//    hlayout->addStretch(1);
     hlayout->addWidget(mintingLabel);
     hlayout->addWidget(mintingCombo);
 
@@ -111,7 +111,7 @@ MintingView::MintingView(QWidget *parent) :
     connect(view, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextualMenu(QPoint)));
     connect(copyAddressAction, SIGNAL(triggered()), this, SLOT(copyAddress()));
     connect(copyTransactionIdAction, SIGNAL(triggered()), this, SLOT(copyTransactionId()));
-    connect(refreshButton, SIGNAL(clicked()), this, SLOT(refreshWallet()));
+//    connect(refreshButton, SIGNAL(clicked()), this, SLOT(refreshWallet()));
 }
 
 
