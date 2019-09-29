@@ -4922,6 +4922,13 @@ void CleanMapBlockIndex() {
     if (IsInitialBlockDownload())
         return;
 
+    static int64_t nIIBD = 0;
+    if (nIIBD == 0)
+        nIIBD = GetTime() + 20*60;
+
+    if (GetTime() < nIIBD)
+        return;
+
     vector< myIter > vit;
     vit.reserve(recentPoSHeaders.size());
 
