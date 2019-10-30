@@ -192,7 +192,6 @@ EmcDns::EmcDns(const char *bind_ip, uint16_t port_no,
 
     // Activate DAP only if specidied dapsize
     // If no memory, DAP is inactive - this is not critical problem
-    m_dap_ht = NULL;
     if(dapsize) {
       dapsize += dapsize - 1;
       do m_dapmask = dapsize; while(dapsize &= dapsize - 1); // compute mask as 2^N
@@ -226,9 +225,7 @@ EmcDns::EmcDns(const char *bind_ip, uint16_t port_no,
     m_bufend = m_buf + MAX_OUT;
     char *varbufs = m_value + VAL_SIZE + BUF_SIZE + 2;
 
-    m_gw_suffix = NULL;
     if(gw_suf_len) {
-      m_gw_suf_dots = 0;
       // Copy suffix to local storage
       m_gw_suffix = strcpy(varbufs, gw_suffix);
       // Try to search translation to internal suffix, like ".e164.org|.enum"
@@ -438,7 +435,6 @@ int EmcDns::HandlePacket() {
     LogPrintf("\tEmcDns::HandlePacket: ARCount: %d\n", m_hdr->ARCount);
   }
   // Assert following 3 counters and bits are zero
-//*  uint16_t zCount = m_hdr->ANCount | m_hdr->NSCount | m_hdr->ARCount | (m_hdr->Bits & (m_hdr->QR_MASK | m_hdr->TC_MASK));
   uint16_t zCount = m_hdr->ANCount | m_hdr->NSCount | (m_hdr->Bits & (m_hdr->QR_MASK | m_hdr->TC_MASK));
 
   // Clear answer counters - maybe contains junk from client
@@ -1333,14 +1329,5 @@ bool EmcDns::CheckEnumSig(const char *q_str, char *sig_str) {
 
     // Is q_str missing in the SRL
     return value.find(q_str) == string::npos;
-
-#if 0
-    char *valstr = strcpy(valbuf, value.c_str());
-    while(char *tok = strsep(&valstr, "|, \r\n\t"))
-      if(strcmp(tok, q_str) == 0)
-	reurn false;
-
-    return true;
-#endif
 } // EmcDns::CheckEnumSig
 
