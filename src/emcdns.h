@@ -108,7 +108,7 @@ class EmcDns {
     DNSHeader *m_hdr; // 1st bzero element
     DNSAP    *m_dap_ht;	// Hashtable for DAP; index is hash(IP)
     char     *m_value;
-    const char *m_gw_suffix;
+    char     *m_gw_suffix;
     uint8_t  *m_buf, *m_bufend, *m_snd, *m_rcv, *m_rcvend;
     SOCKET    m_sockfd;
     int       m_rcvlen;
@@ -118,8 +118,10 @@ class EmcDns {
     uint32_t  m_ttl;
     uint16_t  m_label_ref;
     uint16_t  m_gw_suf_len;
+    uint16_t  m_gw_suffix_replace_len;
     char     *m_allowed_base;
     char     *m_local_base;
+    char     *m_gw_suffix_replace;
     int16_t   m_ht_offset[0x100]; // Hashtable for allowed TLD-suffixes(>0) and local names(<0)
     uint8_t   m_gw_suf_dots;
     uint8_t   m_allowed_qty;

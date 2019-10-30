@@ -188,13 +188,7 @@ EmcDns::EmcDns(const char *bind_ip, uint16_t port_no,
 
     // Allocate memory
     int allowed_len = allowed_suff == NULL? 0 : strlen(allowed_suff);
-    m_gw_suf_len    = gw_suffix    == NULL? 0 : strlen(gw_suffix);
-    // Compute dots in the gw-suffix
-    m_gw_suf_dots = 0;
-    if(m_gw_suf_len)
-      for(const char *p = gw_suffix; *p; p++)
-        if(*p == '.') 
-	  m_gw_suf_dots++;
+    int gw_suf_len  = m_gw_suf_len = gw_suffix == NULL? 0 : strlen(gw_suffix);
 
     // Activate DAP only if specidied dapsize
     // If no memory, DAP is inactive - this is not critical problem
@@ -209,7 +203,7 @@ EmcDns::EmcDns(const char *bind_ip, uint16_t port_no,
     }
 
     m_value  = (char *)malloc(VAL_SIZE + BUF_SIZE + 2 + 
-	    m_gw_suf_len + allowed_len + local_len + 4);
+	    gw_suf_len + allowed_len + local_len + 4);
  
     if(m_value == NULL) 
       throw runtime_error("EmcDns::EmcDns: Cannot allocate buffer");
@@ -232,12 +226,33 @@ EmcDns::EmcDns(const char *bind_ip, uint16_t port_no,
     m_bufend = m_buf + MAX_OUT;
     char *varbufs = m_value + VAL_SIZE + BUF_SIZE + 2;
 
-    m_gw_suffix = m_gw_suf_len?
-      strcpy(varbufs, gw_suffix) : NULL;
-    
+    m_gw_suffix = NULL;
+    if(gw_suf_len) {
+      m_gw_suf_dots = 0;
+      // Copy suffix to local storage
+      m_gw_suffix = strcpy(varbufs, gw_suffix);
+      // Try to search translation to internal suffix, like ".e164.org|.enum"
+      m_gw_suffix_replace = strchr(m_gw_suffix, '|');
+      if(m_gw_suffix_replace) {
+        m_gw_suf_len = m_gw_suffix_replace - m_gw_suffix; // adjust to a real suffix
+        *m_gw_suffix_replace++ = 0; // set ptr to ".enum"
+        m_gw_suffix_replace_len = strlen(m_gw_suffix_replace);
+        m_gw_suf_dots = -1;
+      } else
+        m_gw_suffix_replace = m_gw_suffix + gw_suf_len; // pointer to \0
+      // Compute dots in the gw-suffix
+      for(const char *p = m_gw_suffix; *p; p++)
+        if(*p == '.') 
+          m_gw_suf_dots++;
+      if(m_verbose > 1)
+	 LogPrintf("EmcDns::EmcDns: Setup translate GW-suffix: [%s:%d]->[%s] Ncut=%d\n", 
+                 m_gw_suffix, m_gw_suf_len, m_gw_suffix_replace, m_gw_suf_dots); 
+    }
+
+
     // Create array of allowed TLD-suffixes
     if(allowed_len) {
-      m_allowed_base = strcpy(varbufs + m_gw_suf_len + 1, allowed_suff);
+      m_allowed_base = strcpy(varbufs + gw_suf_len + 1, allowed_suff);
       uint8_t pos = 0, step = 0; // pos, step for double hashing
       for(char *p = m_allowed_base + allowed_len; p > m_allowed_base; ) {
 	char c = *--p;
@@ -275,7 +290,7 @@ EmcDns::EmcDns(const char *bind_ip, uint16_t port_no,
     } // if(allowed_len)
 
     if(local_len) {
-      char *p = m_local_base = (char*)memcpy(varbufs + m_gw_suf_len + 1 + allowed_len + 1, local_tmp, local_len) - 1;
+      char *p = m_local_base = (char*)memcpy(varbufs + gw_suf_len + 1 + allowed_len + 1, local_tmp, local_len) - 1;
       // and populate hashtable with offsets
       while(++p < m_local_base + local_len) {
 	char *p_eq = strchr(p, '=');
@@ -531,7 +546,7 @@ uint16_t EmcDns::HandleQuery() {
   // Fill domain_ndx - indexes for domain entries
   uint8_t dom_len;
   while((dom_len = *m_rcv++) != 0) {
-    // wrong domain length | key too long, over BUF_SIZE | too mant domains, max is MAX_DOM
+    // wrong domain length | key too long, over BUF_SIZE | too many domains, max is MAX_DOM
     if((dom_len & 0xc0) || key_end >= key + BUF_SIZE || domain_ndx_p >= domain_ndx + MAX_DOM)
       return 1; // Invalid request
     *domain_ndx_p++ = key_end;
@@ -566,12 +581,11 @@ uint16_t EmcDns::HandleQuery() {
   // emcdnssuffix=.xyz.com
   // Followind block cuts this suffix, if exists.
   // If received domain name "xyz.com" only, keyp is empty string
-
-  if(m_gw_suf_len) { // suffix defined [public DNS], need to cut
+  if(m_gw_suf_len) { // suffix defined [public DNS], need to cut/replace
     uint8_t *p_suffix = key_end - m_gw_suf_len;
     if(p_suffix >= key && strcmp((const char *)p_suffix, m_gw_suffix) == 0) {
-      *p_suffix = 0; // Cut suffix m_gw_sufix
-      key_end = p_suffix;
+      strcpy((char*)p_suffix, m_gw_suffix_replace); 
+      key_end = p_suffix + m_gw_suffix_replace_len;
       domain_ndx_p -= m_gw_suf_dots; 
     } else 
     // check special - if suffix == GW-site, e.g., request: emergate.net
@@ -591,7 +605,7 @@ uint16_t EmcDns::HandleQuery() {
   uint8_t *p = key_end;
 
   if(m_verbose > 4) 
-    LogPrintf("EmcDns::HandleQuery: After TLD-suffix cut: [%s]\n", key);
+    LogPrintf("EmcDns::HandleQuery: After GW-suffix cut: [%s]\n", key);
 
   while(p > key) {
     uint8_t c = *--p;
@@ -601,7 +615,7 @@ uint16_t EmcDns::HandleQuery() {
     step = ((step << 5) - step) ^ *p; // (step * 31) ^ c
   }
 
-  step |= 1; // Set even step for 2-hashing
+  step |= 1; // Set odd step for 2-hashing
 
   if(p == key && m_local_base != NULL) {
     // no TLD suffix, try to search local 1st
