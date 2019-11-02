@@ -596,47 +596,57 @@ uint16_t EmcDns::HandleQuery() {
   // If name without dot, like "www", this is candidate for local search
   // Compute 2-hash params for TLD-suffix or local name
 
-  uint8_t pos = 0, step = 0; // pos, step for double hashing
+  uint8_t pos0 = 0, step0 = 0; // pos, step for double hashing LocalSearch
+  uint8_t pos     , step  = 0; // pos, step for double hashing TLD
 
-  uint8_t *p = key_end;
+  uint8_t *p0 = key_end, *p_tld;
 
   if(m_verbose > 4) 
     LogPrintf("EmcDns::HandleQuery: After GW-suffix cut: [%s]\n", key);
 
-  while(p > key) {
-    uint8_t c = *--p;
-    if(c == '.')
-      break; // this is TLD-suffix
-    pos  = ((pos >> 7) | (pos << 1)) + *p;
-    step = ((step << 5) - step) ^ *p; // (step * 31) ^ c
+  while(p0 > key) {
+    uint8_t c = *--p0;
+    if(c == '.' && step == 0) {
+      // this is TLD-suffix - fix TLD params for it
+      pos = pos0; step = step0 | 1;
+      p_tld = p0;
+    }
+    pos0  = ((pos0 >> 7) | (pos0 << 1)) + *p0;
+    step0 = ((step0 << 5) - step0) ^ *p0; // (step * 31) ^ c
   }
 
-  step |= 1; // Set odd step for 2-hashing
+  step0 |= 1; // Set odd step for 2-hashing
 
-  if(p == key && m_local_base != NULL) {
-    // no TLD suffix, try to search local 1st
-    if(LocalSearch(p, pos, step) > 0)
-      p = NULL; // local search is OK, do not perform nameindex search
+  if(step == 0) { // pure dotless name, like "coin"
+      pos = pos0;
+      step = step0;
+      p_tld = p0;
+  }
+
+    // Try to search local 1st - it has priority ove nameindex
+  if(m_local_base != NULL) {
+    if(LocalSearch(key, pos0, step0) > 0)
+      p_tld = NULL; // local search is OK, do not perform nameindex search
   }
 
   // If local search is unsuccessful, try to search in the nameindex DB.
-  if(p) {
+  if(p_tld) {
     // Check domain by tld filters, if activated. Otherwise, pass to nameindex as is.
     if(m_allowed_qty) { // Activated TLD-filter
-      if(*p != '.') {
+      if(*p_tld != '.') {
         if(m_verbose > 0) 
-          LogPrintf("EmcDns::HandleQuery: TLD-suffix=[.%s] is not specified in given key=%s; return NXDOMAIN\n", p, key);
+          LogPrintf("EmcDns::HandleQuery: TLD-suffix=[.%s] is not specified in given key=%s; return NXDOMAIN\n", p_tld, key);
 	return 3; // TLD-suffix is not specified, so NXDOMAIN
       } 
-      p++; // Set PTR after dot, to the suffix
+      p_tld++; // Set PTR after dot, to the suffix
       do {
         pos += step;
         if(m_ht_offset[pos] == 0) {
           if(m_verbose > 0) 
-  	    LogPrintf("EmcDns::HandleQuery: TLD-suffix=[.%s] in given key=%s is not allowed; return REFUSED\n", p, key);
+  	    LogPrintf("EmcDns::HandleQuery: TLD-suffix=[.%s] in given key=%s is not allowed; return REFUSED\n", p_tld, key);
 	  return 5; // Reached EndOfList, so REFUSED
         } 
-      } while(m_ht_offset[pos] < 0 || strcmp((const char *)p, m_allowed_base + (m_ht_offset[pos] & ~ENUM_FLAG)) != 0);
+      } while(m_ht_offset[pos] < 0 || strcmp((const char *)p_tld, m_allowed_base + (m_ht_offset[pos] & ~ENUM_FLAG)) != 0);
 
       // ENUM SPFUN works only if TLD-filter is active
       if(m_ht_offset[pos] & ENUM_FLAG)
