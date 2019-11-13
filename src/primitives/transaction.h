@@ -442,6 +442,11 @@ public:
     {
         return ::GetMinFee(::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION));
     }
+
+    bool IsColored() const
+    {
+        return nTime <= 500000000;
+    }
 };
 
 /** A mutable version of CTransaction. */

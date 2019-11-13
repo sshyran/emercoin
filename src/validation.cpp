@@ -3116,14 +3116,13 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
 
     // Check transactions
     for (const auto& tx : block.vtx)
-    {
         if (!CheckTransaction(*tx, state, true))
             return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
                                  strprintf("Transaction check failed (tx hash %s) %s", tx->GetHash().ToString(), state.GetDebugMessage()));
-        // ppcoin: check transaction timestamp
-        if (block.GetBlockTime() < (int64_t)tx->nTime)
-            return state.DoS(50, false, REJECT_INVALID, "bad-tx-time", false, strprintf("%s : block timestamp earlier than transaction timestamp", __func__));
-    }
+
+    // ppcoin: check transaction timestamp for PoS and PoW
+    if (block.GetBlockTime() < (int64_t)block.vtx[0]->nTime)
+        return state.DoS(50, false, REJECT_INVALID, "bad-tx-time", false, strprintf("%s : block timestamp earlier than transaction timestamp", __func__));
 
     unsigned int nSigOps = 0;
     for (const auto& tx : block.vtx)
@@ -3150,6 +3149,13 @@ bool IsV7Enabled(const CBlockIndex* pindexPrev, const Consensus::Params& params)
 {
     return pindexPrev ? pindexPrev->nHeight+1 >= params.V7Height : false;
 }
+
+/** Check whether colored coins and multiple names in a single tx are enabled. */
+bool IsV8Enabled(const CBlockIndex* pindexPrev, const Consensus::Params& params)
+{
+    return false;
+}
+
 
 // Compute at which vout of the block's coinbase transaction the witness
 // commitment occurs, or -1 if not found.
@@ -3347,6 +3353,14 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 
     if (!CheckMinTxOut(block, fV7Enabled))
         return state.DoS(100, false, REJECT_INVALID, "txout-too-low", false, strprintf("%s : txout.nValue below minimum", __func__));
+
+    // ppcoin: check timestamp for normal transactions
+    for (size_t i = 1; i < block.vtx.size(); i++)
+        if (IsV8Enabled(pindexPrev, consensusParams) ?
+                // emercoin: we allow time bellow 5000000001 for colored coins
+                block.GetBlockTime() < (int64_t)block.vtx[i]->nTime && !block.vtx[i]->IsColored() :
+                block.GetBlockTime() < (int64_t)block.vtx[i]->nTime)
+            return state.DoS(50, false, REJECT_INVALID, "bad-tx-time", false, strprintf("%s : block timestamp earlier than transaction timestamp", __func__));
 
     return true;
 }
