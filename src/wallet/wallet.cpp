@@ -2576,6 +2576,7 @@ bool CWallet::CreateTransactionInner(const vector<CRecipient>& vecSend, const CW
     wtxNew.fTimeReceivedIsTxTime = true;
     wtxNew.BindWallet(this);
     CMutableTransaction txNew;
+    txNew.nTime = wtxNew.tx->nTime;
     txNew.nVersion = wtxNew.tx->nVersion; // emercoin: important for name transactions
 
     // Discourage fee sniping.

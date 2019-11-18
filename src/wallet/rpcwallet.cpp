@@ -403,6 +403,62 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
     return wtx.GetHash().GetHex();
 }
 
+// emercoin: for color coins testing
+UniValue ccsendtoaddress(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() < 2 || request.params.size() > 3)
+        throw runtime_error(
+            "ccsendtoaddress \"address\" amount color\n"
+            "\nSend an amount to a given address.\n"
+            + HelpRequiringPassphrase() +
+            "\nArguments:\n"
+            "1. \"address\"            (string, required) The emercoin address to send to.\n"
+            "2. \"amount\"             (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. eg 0.1\n"
+            "3. color\n"
+            "                             The recipient will receive less emercoins than you enter in the amount field.\n"
+            "\nResult:\n"
+            "\"txid\"                  (string) The transaction id.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("sendtoaddress", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1")
+            + HelpExampleCli("sendtoaddress", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1 \"donation\" \"seans outpost\"")
+            + HelpExampleCli("sendtoaddress", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1 \"\" \"\" true")
+            + HelpExampleRpc("sendtoaddress", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\", 0.1, \"donation\", \"seans outpost\"")
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    CBitcoinAddress address(request.params[0].get_str());
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Emercoin address");
+
+    // Amount
+    CAmount nAmount = AmountFromValue(request.params[1]);
+    if (nAmount <= 0)
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+
+    if (nAmount < MIN_TXOUT_AMOUNT)
+        throw JSONRPCError(RPC_INSUFFICIENT_SEND_AMOUNT, "Send amount too small");
+
+    // nTime
+    int64_t color = request.params[2].get_int64();
+    if (color < 0 || color > std::numeric_limits<uint32_t>::max())
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, color out of range");
+    CMutableTransaction tx;
+    tx.nTime = color;
+    CWalletTx wtx(pwalletMain, MakeTransactionRef(std::move(tx)));
+
+    bool fSubtractFeeFromAmount = false;
+
+    EnsureWalletIsUnlocked();
+
+    SendMoney(address.Get(), nAmount, fSubtractFeeFromAmount, wtx);
+
+    return wtx.GetHash().GetHex();
+}
+
 UniValue listaddressgroupings(const JSONRPCRequest& request)
 {
     if (!EnsureWalletIsAvailable(request.fHelp))
@@ -3144,6 +3200,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "sendtoname",               &sendtoname,               false,  {"name","amount","comment","comment-to"} },
     { "wallet",             "name_list",                &name_list,                true,   {"name","valuetype"} },
     { "hidden",             "name_debug",               &name_debug,               true,   {} },
+    { "hidden",             "ccsendtoaddress",          &ccsendtoaddress,          false,  {"address","amount","color"} },
 };
 
 void RegisterWalletRPCCommands(CRPCTable &t)

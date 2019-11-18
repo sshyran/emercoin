@@ -162,6 +162,8 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "randpay_createtx", 2, "risk" },
     { "randpay_createtx", 3, "timio" },
     { "randpay_submittx", 1, "risk" },
+    { "ccsendtoaddress", 1, "amount" },
+    { "ccsendtoaddress", 2, "color" },
 };
 
 class CRPCConvertTable
