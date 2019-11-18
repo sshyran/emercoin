@@ -961,14 +961,15 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
         // Check against previous transactions
         // This is done last to help prevent CPU exhaustion denial-of-service attacks.
+        bool fV8Enabled = IsV8Enabled(chainActive.Tip(), Params().GetConsensus());
         PrecomputedTransactionData txdata(tx);
-        if (!CheckInputs(tx, state, view, true, scriptVerifyFlags, true, txdata, witnessEnabled, nullptr, fRandPayCheck)) {
+        if (!CheckInputs(tx, state, view, true, scriptVerifyFlags, true, txdata, fV8Enabled, nullptr, fRandPayCheck)) {
             // SCRIPT_VERIFY_CLEANSTACK requires SCRIPT_VERIFY_WITNESS, so we
             // need to turn both off, and compare against just turning off CLEANSTACK
             // to see if the failure is specifically due to witness validation.
             CValidationState stateDummy; // Want reported failures to be from first CheckInputs
-            if (!tx.HasWitness() && CheckInputs(tx, stateDummy, view, true, scriptVerifyFlags & ~(SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_CLEANSTACK), true, txdata, witnessEnabled, nullptr, fRandPayCheck) &&
-                !CheckInputs(tx, stateDummy, view, true, scriptVerifyFlags & ~SCRIPT_VERIFY_CLEANSTACK, true, txdata, witnessEnabled, nullptr, fRandPayCheck)) {
+            if (!tx.HasWitness() && CheckInputs(tx, stateDummy, view, true, scriptVerifyFlags & ~(SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_CLEANSTACK), true, txdata, fV8Enabled, nullptr, fRandPayCheck) &&
+                !CheckInputs(tx, stateDummy, view, true, scriptVerifyFlags & ~SCRIPT_VERIFY_CLEANSTACK, true, txdata, fV8Enabled, nullptr, fRandPayCheck)) {
                 // Only the witness is missing, so the transaction itself may be fine.
                 state.SetCorruptionPossible();
             }
@@ -984,7 +985,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         // There is a similar check in CreateNewBlock() to prevent creating
         // invalid blocks, however allowing such transactions into the mempool
         // can be exploited as a DoS attack.
-        if (!CheckInputs(tx, state, view, true, MANDATORY_SCRIPT_VERIFY_FLAGS, true, txdata, witnessEnabled, nullptr, fRandPayCheck))
+        if (!CheckInputs(tx, state, view, true, MANDATORY_SCRIPT_VERIFY_FLAGS, true, txdata, fV8Enabled, nullptr, fRandPayCheck))
         {
             return error("%s: BUG! PLEASE REPORT THIS! ConnectInputs failed against MANDATORY but not STANDARD flags %s, %s",
                 __func__, hash.ToString(), FormatStateMessage(state));
@@ -1482,8 +1483,9 @@ int GetSpendHeight(const CCoinsViewCache& inputs)
 }
 
 namespace Consensus {
-bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, bool fV7Enabled)
+bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, bool fV8Enabled)
 {
+    bool fCoinstake = tx.IsCoinStake();
         // This doesn't trigger the DoS code on purpose; if it did, it would make it easier
         // for an attacker to attempt to split the network.
         if (!inputs.HaveInputs(tx))
@@ -1506,8 +1508,12 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
                         strprintf("tried to spend coinbase/coinstake at depth %d", nSpendHeight - coins->nHeight));
             }
 
-            // ppcoin: check transaction timestamp
-            if (coins->nTime > tx.nTime)
+            if (fV8Enabled) {
+                if (fCoinstake && coins->nTime > tx.nTime)
+                    return state.DoS(100, false, REJECT_INVALID, "bad-cs-spent-too-early", false, strprintf("%s : coinstake timestamp earlier than input transaction", __func__));
+                else if (!tx.IsColored() && coins->nTime > tx.nTime)
+                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-spent-too-early", false, strprintf("%s : transaction timestamp earlier than input transaction", __func__));
+            } else if (coins->nTime > tx.nTime)
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-spent-too-early", false, strprintf("%s : transaction timestamp earlier than input transaction", __func__));
 
             // Check for negative or overflow input values
@@ -1517,7 +1523,7 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
 
         }
 
-    if (tx.IsCoinStake())
+    if (fCoinstake)
     {
         // ppcoin: coin stake tx earns reward instead of paying fee
         CAmount nLimit = 0;
@@ -1548,11 +1554,11 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
 }
 }// namespace Consensus
 
-bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsViewCache &inputs, bool fScriptChecks, unsigned int flags, bool cacheStore, PrecomputedTransactionData& txdata, bool fV7Enabled, std::vector<CScriptCheck> *pvChecks, bool fRandPayLast)
+bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsViewCache &inputs, bool fScriptChecks, unsigned int flags, bool cacheStore, PrecomputedTransactionData& txdata, bool fV8Enabled, std::vector<CScriptCheck> *pvChecks, bool fRandPayLast)
 {
     if (!tx.IsCoinBase())
     {
-        if (!Consensus::CheckTxInputs(tx, state, inputs, GetSpendHeight(inputs), fV7Enabled))
+        if (!Consensus::CheckTxInputs(tx, state, inputs, GetSpendHeight(inputs), fV8Enabled))
             return false;
 
         if (pvChecks)
@@ -1947,6 +1953,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     // Check it again in case a previous version let a bad block in
     bool fV7Enabled = IsV7Enabled(pindex->pprev, chainparams.GetConsensus());
+    bool fV8Enabled = IsV8Enabled(pindex->pprev, chainparams.GetConsensus());
     if (!CheckBlock(block, state, chainparams.GetConsensus(), !fJustCheck, !fJustCheck))
         return error("%s: Consensus::CheckBlock: %s", __func__, FormatStateMessage(state));
 
@@ -2131,7 +2138,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
             std::vector<CScriptCheck> vChecks;
             bool fCacheResults = fJustCheck; /* Don't cache results if we're actually connecting blocks (still consult the cache, though) */
-            if (!CheckInputs(tx, state, view, fScriptChecks, flags, fCacheResults, txdata[i], fV7Enabled, nScriptCheckThreads ? &vChecks : NULL))
+            if (!CheckInputs(tx, state, view, fScriptChecks, flags, fCacheResults, txdata[i], fV8Enabled, nScriptCheckThreads ? &vChecks : NULL))
                 return error("ConnectBlock(): CheckInputs on %s failed with %s",
                     tx.GetHash().ToString(), FormatStateMessage(state));
             control.Add(vChecks);
@@ -3355,11 +3362,12 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
         return state.DoS(100, false, REJECT_INVALID, "txout-too-low", false, strprintf("%s : txout.nValue below minimum", __func__));
 
     // ppcoin: check timestamp for normal transactions
+    bool fV8Enabled = IsV8Enabled(pindexPrev, consensusParams);
     for (size_t i = 1; i < block.vtx.size(); i++)
-        if (IsV8Enabled(pindexPrev, consensusParams) ?
+        if (fV8Enabled ?
                 // emercoin: we allow time bellow 5000000001 for colored coins
-                block.GetBlockTime() < (int64_t)block.vtx[i]->nTime && !block.vtx[i]->IsColored() :
-                block.GetBlockTime() < (int64_t)block.vtx[i]->nTime)
+                !block.vtx[i]->IsColored() && block.GetBlockTime() < (int64_t)block.vtx[i]->nTime :
+                                              block.GetBlockTime() < (int64_t)block.vtx[i]->nTime)
             return state.DoS(50, false, REJECT_INVALID, "bad-tx-time", false, strprintf("%s : block timestamp earlier than transaction timestamp", __func__));
 
     return true;
