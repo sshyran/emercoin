@@ -1223,7 +1223,7 @@ double GetDifficulty(unsigned int nBits)
     return dDiff;
 }
 
-CAmount GetProofOfWorkReward(unsigned int nBits, bool fV7Enabled)
+CAmount GetProofOfWorkReward(unsigned int nBits)
 {
     const Consensus::Params& params = Params().GetConsensus();
 
@@ -1249,7 +1249,7 @@ CAmount GetProofOfWorkReward(unsigned int nBits, bool fV7Enabled)
         bnMidPart = bLowDiff ? bnMidValue * bnMidValue * bnMidValue * bnMidValue * bnMidValue * bnMidValue :
                                bnMidValue * bnMidValue * bnMidValue * bnMidValue;
         if (fDebug && GetBoolArg("-printcreation", false))
-            LogPrintf("GetProofOfWorkReward() : lower=%lld upper=%lld mid=%lld\n", bnLowerBound.getuint64(), bnUpperBound.getuint64(), bnMidValue.getuint64());
+            LogPrintf("%s: lower=%lld upper=%lld mid=%lld\n", __func__, bnLowerBound.getuint64(), bnUpperBound.getuint64(), bnMidValue.getuint64());
 
         if (bnMidPart * bnTargetLimit > bnRewardPart * bnTarget)
             bnUpperBound = bnMidValue;
@@ -1258,9 +1258,9 @@ CAmount GetProofOfWorkReward(unsigned int nBits, bool fV7Enabled)
     }
 
     CAmount nSubsidy = bnUpperBound.getuint64();
-    nSubsidy = fV7Enabled ? (nSubsidy / TX_DP_AMOUNT) * TX_DP_AMOUNT : (nSubsidy / CENT) * CENT;
+    nSubsidy = (nSubsidy / TX_DP_AMOUNT) * TX_DP_AMOUNT;
     if (fDebug && GetBoolArg("-printcreation", false))
-        LogPrintf("GetProofOfWorkReward() : create=%s nBits=0x%08x nSubsidy=%lld\n", FormatMoney(nSubsidy), nBits, nSubsidy);
+        LogPrintf("%s: create=%s nBits=0x%08x nSubsidy=%lld\n", __func__, FormatMoney(nSubsidy), nBits, nSubsidy);
 
     return min(nSubsidy, MAX_MINT_PROOF_OF_WORK);
 }
@@ -3273,7 +3273,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
     bool fV7Enabled = IsV7Enabled(pindexPrev, consensusParams);
 
     // Check coinbase reward
-    CAmount powLimit = block.IsProofOfWork() ? GetProofOfWorkReward(block.nBits, fV7Enabled) - block.vtx[0]->GetMinFee() + MIN_TX_FEE : 0;
+    CAmount powLimit = block.IsProofOfWork() ? GetProofOfWorkReward(block.nBits) - block.vtx[0]->GetMinFee() + MIN_TX_FEE : 0;
     if (block.vtx[0]->GetValueOut() > powLimit)
         return state.DoS(100, false, REJECT_INVALID, "bad-cb-amount", false, "coinbase pays too much");
 
