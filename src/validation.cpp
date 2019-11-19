@@ -3620,10 +3620,14 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
     if (!ActivateBestChain(state, chainparams, pblock))
         return error("%s: ActivateBestChain failed", __func__);
 
-    // ppcoin: if responsible for sync-checkpoint send it
-    if (!CSyncCheckpoint::strMasterPrivKey.empty())
-        CheckpointsSync::SendSyncCheckpoint(CheckpointsSync::AutoSelectSyncCheckpoint());
-
+    // ppcoin: if responsible for sync-checkpoint, and time from prev block > 1 min - send checkpoint
+    if (!CSyncCheckpoint::strMasterPrivKey.empty()) {
+        static int64_t nPrevBlockProcTime = 0; // When I processed previous valid block
+        int64_t nNow = GetTime();
+        if(nNow - nPrevBlockProcTime > 60) // 1 min elapsed from prev block - can send checkpoint
+            CheckpointsSync::SendSyncCheckpoint(CheckpointsSync::AutoSelectSyncCheckpoint());
+        nPrevBlockProcTime = nNow;
+    }
     return true;
 }
 
