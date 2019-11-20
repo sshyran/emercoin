@@ -171,7 +171,7 @@ EmcDns::EmcDns(const char *bind_ip, uint16_t port_no,
     if(local_fname != NULL && (flocal = fopen(local_fname, "r")) != NULL) {
       char *rd = local_tmp;
       while(rd < local_tmp + (1 << 15) - 200 && fgets(rd, 200, flocal)) {
-	if(*rd < '0' || *rd == ';')
+	if(*rd < '.' || *rd == ';')
 	  continue;
 	char *p = strchr(rd, '=');
 	if(p == NULL)
@@ -599,38 +599,40 @@ uint16_t EmcDns::HandleQuery() {
   uint8_t pos0 = 0, step0 = 0; // pos, step for double hashing LocalSearch
   uint8_t pos     , step  = 0; // pos, step for double hashing TLD
 
-  uint8_t *p0 = key_end, *p_tld;
+  uint8_t *p0 = key_end, *p_tld = key;
 
   if(m_verbose > 4) 
     LogPrintf("EmcDns::HandleQuery: After GW-suffix cut: [%s]\n", key);
 
   while(p0 > key) {
     uint8_t c = *--p0;
-    if(c == '.' && step == 0) {
-      // this is TLD-suffix - fix TLD params for it
-      pos = pos0; step = step0 | 1;
-      p_tld = p0;
+    if(c == '.') {
+      if(step == 0) {
+        // this is TLD-suffix - fix TLD params for it
+        pos = pos0; step = step0 | 1;
+        p_tld = p0;
+      }
+    } // if(c == '.')
+    pos0  = ((pos0 >> 7) | (pos0 << 1)) + c;
+    step0 = ((step0 << 5) - step0) ^ c; // (step * 31) ^ c
+    if(c == '.' && LocalSearch(p0, pos0, step0 | 1) > 0) { // search there with SDs, like SD.emer.emc
+      p_tld = NULL; // local search is OK, do not perform nameindex search
+      break;
     }
-    pos0  = ((pos0 >> 7) | (pos0 << 1)) + *p0;
-    step0 = ((step0 << 5) - step0) ^ *p0; // (step * 31) ^ c
-  }
+  } // while(p0 > key)
 
   step0 |= 1; // Set odd step for 2-hashing
 
-  if(step == 0) { // pure dotless name, like "coin"
-      pos = pos0;
-      step = step0;
-      p_tld = p0;
-  }
-
-    // Try to search local 1st - it has priority ove nameindex
-  if(m_local_base != NULL) {
-    if(LocalSearch(key, pos0, step0) > 0)
-      p_tld = NULL; // local search is OK, do not perform nameindex search
-  }
+  // Try to search local (like emer.emc) 1st - it has priority ove nameindex
+  if(p_tld != NULL && LocalSearch(key, pos0, step0) > 0)
+    p_tld = NULL; // local search is OK, do not perform nameindex search
 
   // If local search is unsuccessful, try to search in the nameindex DB.
   if(p_tld) {
+    if(step == 0) { // pure dotless name, like "coin"
+      pos = pos0;
+      step = step0;
+    }
     // Check domain by tld filters, if activated. Otherwise, pass to nameindex as is.
     if(m_allowed_qty) { // Activated TLD-filter
       if(*p_tld != '.') {
@@ -969,16 +971,18 @@ int EmcDns::Search(uint8_t *key) {
 /*---------------------------------------------------*/
 
 int EmcDns::LocalSearch(const uint8_t *key, uint8_t pos, uint8_t step) {
+  if(m_local_base == NULL)
+    return 0; // empty local, no sense to search
   if(m_verbose > 4) 
     LogPrintf("EmcDns::LocalSearch(%s, %u, %u) called\n", key, pos, step);
-    do {
-      pos += step;
-      if(m_ht_offset[pos] == 0) {
-        if(m_verbose > 4) 
-  	  LogPrintf("EmcDns::LocalSearch: Local key=[%s] not found; go to nameindex search\n", key);
-         return 0; // Reached EndOfList 
-      } 
-    } while(m_ht_offset[pos] > 0 || strcmp((const char *)key, m_local_base - m_ht_offset[pos]) != 0);
+  do {
+    pos += step;
+    if(m_ht_offset[pos] == 0) {
+      if(m_verbose > 4) 
+        LogPrintf("EmcDns::LocalSearch: Local key=[%s] not found\n", key);
+      return 0; // Reached EndOfList 
+    } 
+  } while(m_ht_offset[pos] > 0 || strcmp((const char *)key, m_local_base - m_ht_offset[pos]) != 0);
 
   strcpy(m_value, strchr(m_local_base - m_ht_offset[pos], 0) + 1);
 
