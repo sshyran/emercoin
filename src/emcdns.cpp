@@ -47,10 +47,10 @@
 /*
  * m_verbose legend:
  * 0 = disabled
- * 1 = error, DAP blocking
+ * 1 = error
  * 2 = start/stop, set domains, etc
  * 3 = single statistic message for packet received
- * 4 = handle packets
+ * 4 = handle packets, DAP blocking
  * 5 = details for handle packets
  * 6 = more details, debug info
  */
@@ -1033,7 +1033,7 @@ bool EmcDns::CheckDAP(void *key, int len, uint32_t packet_size) {
   } // for
 
   bool rc = mintemp < m_dap_treshold;
-  if(m_verbose > 5 || (!rc && m_verbose > 0)) {
+  if(m_verbose > 5 || (!rc && m_verbose > 3)) {
     char buf[80];
     LogPrintf("EmcDns::CheckDAP: IP=[%s] packet_size=%u, mintemp=%u dap_treshold=%u rc=%d\n", 
 		    len < 0? (const char *)key : inet_ntop(len == 4? AF_INET : AF_INET6, key, buf, len),
