@@ -1485,7 +1485,6 @@ int GetSpendHeight(const CCoinsViewCache& inputs)
 namespace Consensus {
 bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, bool fV8Enabled)
 {
-    bool fCoinstake = tx.IsCoinStake();
         // This doesn't trigger the DoS code on purpose; if it did, it would make it easier
         // for an attacker to attempt to split the network.
         if (!inputs.HaveInputs(tx))
@@ -1493,6 +1492,8 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
 
         CAmount nValueIn = 0;
         CAmount nFees = 0;
+        bool fCoinstake = tx.IsCoinStake();
+        bool fCoinbase = tx.IsCoinBase();
         for (unsigned int i = 0; i < tx.vin.size(); i++)
         {
             const COutPoint &prevout = tx.vin[i].prevout;
@@ -1508,13 +1509,13 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
                         strprintf("tried to spend coinbase/coinstake at depth %d", nSpendHeight - coins->nHeight));
             }
 
-            if (fV8Enabled) {
-                if (fCoinstake && coins->nTime > tx.nTime)
-                    return state.DoS(100, false, REJECT_INVALID, "bad-cs-spent-too-early", false, strprintf("%s : coinstake timestamp earlier than input transaction", __func__));
-                else if (!tx.IsColored() && coins->nTime > tx.nTime)
+            if (fV8Enabled && tx.IsColored()) {  // coinbase/coinstake color check
+                if (fCoinstake || fCoinbase)
+                    return state.DoS(100, false, REJECT_INVALID, "colored-cs", false, strprintf("%s : colored coinstake is not allowed", __func__));
+            } else {                             // default check
+                if (coins->nTime > tx.nTime)
                     return state.DoS(100, false, REJECT_INVALID, "bad-txns-spent-too-early", false, strprintf("%s : transaction timestamp earlier than input transaction", __func__));
-            } else if (coins->nTime > tx.nTime)
-                return state.DoS(100, false, REJECT_INVALID, "bad-txns-spent-too-early", false, strprintf("%s : transaction timestamp earlier than input transaction", __func__));
+            }
 
             // Check for negative or overflow input values
             nValueIn += coins->vout[prevout.n].nValue;
@@ -1522,6 +1523,27 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputvalues-outofrange");
 
         }
+
+    // emercoin: multi-color check
+    {
+        bool differentColoredInputs = false;
+        int32_t firstColor = -1;
+        for (auto txin : tx.vin) {
+            const CCoins *coins = inputs.AccessCoins(txin.prevout.hash);
+            if (IsColored(coins->nTime) && txin.prevout.hash != randpaytx) {  // randpay input is ignored
+                if (firstColor == -1)
+                    firstColor = coins->nTime;
+                else if (firstColor != coins->nTime) {
+                    differentColoredInputs = true;
+                    break;
+                }
+            }
+        }
+
+        // tx with multi-color inputs cannot have color
+        if (differentColoredInputs && tx.IsColored())
+            return state.DoS(50, false, REJECT_INVALID, "bad-tx-multi-color", false, strprintf("%s : tx with multi-color inputs was colored", __func__));
+    }
 
     if (fCoinstake)
     {
@@ -3122,14 +3144,15 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
         return state.DoS(50, false, REJECT_INVALID, "bad-cs-time", false, "coinstake timestamp violation");
 
     // Check transactions
-    for (const auto& tx : block.vtx)
+    for (const auto& tx : block.vtx) {
         if (!CheckTransaction(*tx, state, true))
             return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
                                  strprintf("Transaction check failed (tx hash %s) %s", tx->GetHash().ToString(), state.GetDebugMessage()));
 
-    // ppcoin: check transaction timestamp for PoS and PoW
-    if (block.GetBlockTime() < (int64_t)block.vtx[0]->nTime)
-        return state.DoS(50, false, REJECT_INVALID, "bad-tx-time", false, strprintf("%s : block timestamp earlier than transaction timestamp", __func__));
+        // ppcoin: check transaction timestamp
+        if (block.GetBlockTime() < (int64_t)tx->nTime)
+            return state.DoS(50, false, REJECT_INVALID, "bad-tx-time", false, strprintf("%s : block timestamp earlier than transaction timestamp", __func__));
+    }
 
     unsigned int nSigOps = 0;
     for (const auto& tx : block.vtx)
@@ -3360,15 +3383,6 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 
     if (!CheckMinTxOut(block, fV7Enabled))
         return state.DoS(100, false, REJECT_INVALID, "txout-too-low", false, strprintf("%s : txout.nValue below minimum", __func__));
-
-    // ppcoin: check timestamp for normal transactions
-    bool fV8Enabled = IsV8Enabled(pindexPrev, consensusParams);
-    for (size_t i = 1; i < block.vtx.size(); i++)
-        if (fV8Enabled ?
-                // emercoin: we allow time bellow 5000000001 for colored coins
-                !block.vtx[i]->IsColored() && block.GetBlockTime() < (int64_t)block.vtx[i]->nTime :
-                                              block.GetBlockTime() < (int64_t)block.vtx[i]->nTime)
-            return state.DoS(50, false, REJECT_INVALID, "bad-tx-time", false, strprintf("%s : block timestamp earlier than transaction timestamp", __func__));
 
     return true;
 }

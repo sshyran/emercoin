@@ -153,3 +153,8 @@ const uint256 CTransaction::GetBtcHash() const
 {
     return SerializeHash(*this, SER_GETHASH | SER_BTC_TX, SERIALIZE_TRANSACTION_NO_WITNESS);
 }
+
+bool IsColored(uint32_t nTime)
+{
+    return nTime <= 500000000;
+}

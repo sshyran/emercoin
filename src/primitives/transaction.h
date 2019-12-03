@@ -449,6 +449,8 @@ public:
     }
 };
 
+bool IsColored(uint32_t nTime);
+
 /** A mutable version of CTransaction. */
 struct CMutableTransaction
 {
