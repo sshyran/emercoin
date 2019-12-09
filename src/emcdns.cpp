@@ -672,13 +672,13 @@ uint16_t EmcDns::HandleQuery() {
     // Search in the nameindex db. Possible to search filtered indexes, or even pure names, like "dns:www"
 
     bool step_next;
-    do {
+    do { // Search from up domain to down; start from 2-lvl, like www.[flibusta.lib]
       cur_ndx_p = prev_ndx_p;
       if(Search(*cur_ndx_p) <= 0) // Result saved into m_value
 	return 3; // empty answer, not found, return NXDOMAIN
       if(cur_ndx_p == domain_ndx)
-	break; // This is 1st domain (last in the chain), go to answer
-      // Try to search allowance in SD=list for step down
+	break; // This is 1st domain (last in the chain, no more subdomains), go to answer
+      // Try to search allowance in SD=list for next step down subdomain, like [www]
       prev_ndx_p = cur_ndx_p - 1;
       int domain_len = *cur_ndx_p - *prev_ndx_p - 1;
       char val2[VAL_SIZE];
@@ -686,12 +686,12 @@ uint16_t EmcDns::HandleQuery() {
       step_next = false;
       int sdqty = Tokenize("SD", ",", tokens, strcpy(val2, m_value));
       while(--sdqty >= 0 && !step_next)
-        step_next = strncmp((const char *)*prev_ndx_p, tokens[sdqty], domain_len) == 0;
+        step_next = strncmp((const char *)*prev_ndx_p, tokens[sdqty], domain_len) == 0 || tokens[sdqty][0] == '*';
 
       // if no way down - maybe, we can create REF-answer from NS-records
       if(step_next == false && TryMakeref(m_label_ref + (*cur_ndx_p - key)))
 	return 0;
-      // if cannot create REF - just ANSWER for parent domain (ignore prefix)
+      // if cannot create REF - just ANSWER for parent domain (ignore prefix/subdomain)
     } while(step_next);
     
   } // if(p) - ends of DB search 
