@@ -130,4 +130,16 @@ public:
     bool WriteCheckpointPubKey(const std::string& strPubKey);
 };
 
+/** Access to the colored coins index (colorcoins/) */
+class CColorCoinsDB
+{
+protected:
+    CDBWrapper db;
+public:
+    CColorCoinsDB(size_t nCacheSize, bool fMemory = false, bool fWipe = false) : db(GetDataDir() / "colorcoins", nCacheSize, fMemory, fWipe) {}
+    bool AddColor(uint32_t color, const uint256 &txid);
+    bool RemoveColor(uint32_t color);
+    bool HaveColor(uint32_t color) const;
+};
+
 #endif // BITCOIN_TXDB_H
