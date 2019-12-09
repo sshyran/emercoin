@@ -276,12 +276,20 @@ bool CBlockTreeDB::WriteCheckpointPubKey(const std::string& strPubKey)
 // emercoin: colored coins index
 static const char DB_COLOR = 'c';
 
-bool CColorCoinsDB::AddColor(uint32_t color, const uint256 &txid) {
-    return db.Write(std::make_pair(DB_COLOR, color), txid);
+bool CColorCoinsDB::AddColoredTxs(uint32_t color, const std::vector<uint256>& vtx) {
+    std::set<uint256> colorTxs;
+    db.Read(std::make_pair(DB_COLOR, color), colorTxs);
+    for (const auto& v : vtx)
+        colorTxs.insert(v);
+    return db.Write(std::make_pair(DB_COLOR, color), colorTxs);
 }
 
-bool CColorCoinsDB::RemoveColor(uint32_t color) {
-    return db.Erase(std::make_pair(DB_COLOR, color));
+bool CColorCoinsDB::RemoveColoredTxs(uint32_t color, const std::vector<uint256>& vtx) {
+    std::set<uint256> colorTxs;
+    db.Read(std::make_pair(DB_COLOR, color), colorTxs);
+    for (const auto& v : vtx)
+        colorTxs.erase(v);
+    return db.Write(std::make_pair(DB_COLOR, color), colorTxs);
 }
 
 bool CColorCoinsDB::HaveColor(uint32_t color) const {

@@ -137,8 +137,8 @@ protected:
     CDBWrapper db;
 public:
     CColorCoinsDB(size_t nCacheSize, bool fMemory = false, bool fWipe = false) : db(GetDataDir() / "colorcoins", nCacheSize, fMemory, fWipe) {}
-    bool AddColor(uint32_t color, const uint256 &txid);
-    bool RemoveColor(uint32_t color);
+    bool AddColoredTxs(uint32_t color, const std::vector<uint256>& vtx);
+    bool RemoveColoredTxs(uint32_t color, const std::vector<uint256>& vtx);
     bool HaveColor(uint32_t color) const;
 };
 
