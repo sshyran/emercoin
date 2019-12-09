@@ -2239,6 +2239,14 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     if (block.nVersion & BLOCK_VERSION_AUXPOW)
         mapDirtyAuxPow.insert(std::make_pair(block.GetHash(), block.auxpow));
 
+    // emercoin: add colored coins to color coins index
+    std::map<uint32_t, std::vector<uint256>> mapColors;
+    for (const auto& tx : block.vtx)
+        if (tx->IsColored())
+            mapColors[tx->nTime].push_back(tx->GetHash());
+    for (const auto& p : mapColors)
+        pcolorcoins->AddColoredTxs(p.first, p.second);
+
     int64_t nTime6 = GetTimeMicros(); nTimeCallbacks += nTime6 - nTime5;
     LogPrint("bench", "    - Callbacks: %.2fms [%.2fs]\n", 0.001 * (nTime6 - nTime5), nTimeCallbacks * 0.000001);
 
