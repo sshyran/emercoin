@@ -2963,6 +2963,10 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 
     for (const auto& pcoin : setCoins)
     {
+        // emercoin: skip colored input
+        if (pcoin.first->tx->IsColored())
+            continue;
+
         uint256 tx_hash = pcoin.first->GetHash();
 
         pbo = CacheBlockOffset.Search(tx_hash);
@@ -3064,8 +3068,12 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
     }
     if (nCredit == 0 || nCredit > nBalance - nReserveBalance)
         return false;
-    BOOST_FOREACH(PAIRTYPE(const CWalletTx*, unsigned int) pcoin, setCoins)
+    for (const auto& pcoin : setCoins)
     {
+        // emercoin: skip colored input
+        if (pcoin.first->tx->IsColored())
+            continue;
+
         // Attempt to add more inputs
         // Only add coins of the same key/address as kernel
         if (txNew.vout.size() == 2 && ((pcoin.first->tx->vout[pcoin.second].scriptPubKey == scriptPubKeyKernel || pcoin.first->tx->vout[pcoin.second].scriptPubKey == txNew.vout[1].scriptPubKey))
