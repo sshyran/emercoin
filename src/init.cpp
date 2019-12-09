@@ -246,6 +246,8 @@ void Shutdown()
         pcoinsdbview = NULL;
         delete pblocktree;
         pblocktree = NULL;
+        delete pcolorcoins;
+        pcolorcoins = nullptr;
     }
 #ifdef ENABLE_WALLET
     if (pwalletMain)
@@ -1459,6 +1461,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex || fReindexChainState);
                 pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
                 pcoinsTip = new CCoinsViewCache(pcoinscatcher);
+                pcolorcoins = new CColorCoinsDB(8 << 20);  // 8 MB
 
                 if (fReindex) {
                     pblocktree->WriteReindexing(true);

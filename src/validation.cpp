@@ -222,6 +222,7 @@ CBlockIndex* FindForkInGlobalIndex(const CChain& chain, const CBlockLocator& loc
 CCoinsViewDB *pcoinsdbview = NULL;
 CCoinsViewCache *pcoinsTip = NULL;
 CBlockTreeDB *pblocktree = NULL;
+CColorCoinsDB *pcolorcoins = nullptr;
 
 enum FlushStateMode {
     FLUSH_STATE_NONE,

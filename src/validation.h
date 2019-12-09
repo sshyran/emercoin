@@ -43,8 +43,9 @@ class CScriptCheck;
 class CTxMemPool;
 class CValidationInterface;
 class CValidationState;
-struct ChainTxData;
+class CColorCoinsDB;
 
+struct ChainTxData;
 struct PrecomputedTransactionData;
 struct LockPoints;
 
@@ -564,6 +565,9 @@ extern CCoinsViewCache *pcoinsTip;
 
 /** Global variable that points to the active block tree (protected by cs_main) */
 extern CBlockTreeDB *pblocktree;
+
+/** Global variable that points to the color coins index (protected by cs_main) */
+extern CColorCoinsDB *pcolorcoins;
 
 /**
  * Return the spend height, which is one more than the inputs.GetBestBlock().
