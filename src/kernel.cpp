@@ -530,7 +530,7 @@ bool CheckProofOfStake(CValidationState& state, CBlockIndex* pindexPrev, const C
                 break;
         }
     if (fSpendsColored)
-        return state.DoS(100, false, REJECT_INVALID, "invalid-pos-color-input", false, strprintf("%s: VerifyScript failed on coinstake %s", __func__, tx->GetHash().ToString()));
+        return state.DoS(100, false, REJECT_INVALID, "invalid-pos-color-input", false, strprintf("%s: PoS spent colored input %s", __func__, tx->GetHash().ToString()));
 
     if (!CheckStakeKernelHash(nBits, pindexPrev, header, postx.nTxOffset + CBlockHeader::NORMAL_SERIALIZE_SIZE, txPrev, txin.prevout, tx->nTime, hashProofOfStake, fDebug))
         // may occur during initial download or if behind on block chain sync
