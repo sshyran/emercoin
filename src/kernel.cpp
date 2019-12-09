@@ -468,6 +468,25 @@ bool CheckStakeKernelHash(unsigned int nBits, CBlockIndex* pindexPrev, const CBl
     return true;
 }
 
+bool ReadTxAndHeader(const uint256& hash, CTransactionRef& txOut, CBlockHeader& headerOut, CDiskTxPos& postxOut) {
+    // Get transaction index for the previous transaction
+    if (!pblocktree->ReadTxIndex(hash, postxOut))
+        return error("%s: tx index not found", __func__);  // tx index not found
+
+    // Read tx and header of its block
+    CAutoFile file(OpenBlockFile(postxOut, true), SER_DISK, CLIENT_VERSION);
+    try {
+        file >> headerOut;
+        fseek(file.Get(), postxOut.nTxOffset, SEEK_CUR);
+        file >> txOut;
+    } catch (std::exception& e) {
+        return error("%s: deserialize or I/O error", __func__);
+    }
+    if (txOut->GetHash() != hash)
+        return error("%s: txid mismatch", __func__);
+    return true;
+}
+
 // Check kernel hash target and coinstake signature
 bool CheckProofOfStake(CValidationState& state, CBlockIndex* pindexPrev, const CTransactionRef& tx, unsigned int nBits, uint256& hashProofOfStake)
 {
@@ -494,26 +513,24 @@ bool CheckProofOfStake(CValidationState& state, CBlockIndex* pindexPrev, const C
     if (!CScriptCheck(coins, *tx, 0, SCRIPT_VERIFY_P2SH, true, &txdata)())
         return state.DoS(100, false, REJECT_INVALID, "invalid-pos-script", false, strprintf("%s: VerifyScript failed on coinstake %s", __func__, tx->GetHash().ToString()));
 
-    // Get transaction index for the previous transaction
-    CDiskTxPos postx;
-    if (!pblocktree->ReadTxIndex(txin.prevout.hash, postx))
-        return error("%s: tx index not found", __func__);  // tx index not found
+    CTransactionRef txPrev; CBlockHeader header; CDiskTxPos postx;
+    if (!ReadTxAndHeader(txin.prevout.hash, txPrev, header, postx))
+        return false;
 
-    // Read txPrev and header of its block
-    CBlockHeader header;
-    CTransactionRef txPrev;
-    {
-        CAutoFile file(OpenBlockFile(postx, true), SER_DISK, CLIENT_VERSION);
-        try {
-            file >> header;
-            fseek(file.Get(), postx.nTxOffset, SEEK_CUR);
-            file >> txPrev;
-        } catch (std::exception& e) {
-            return error("%s: deserialize or I/O error", __func__);
+    // emercoin: spending of colored tx is not allowed by PoS
+    bool fSpendsColored = txPrev->IsColored();
+    if (!fSpendsColored && tx->vin.size() > 1)
+        for (size_t i = 1; i < tx->vin.size(); i++) {
+            const CTxIn& txin2 = tx->vin[0];
+            CTransactionRef txPrev2; CBlockHeader header2; CDiskTxPos postx2;
+            if (!ReadTxAndHeader(txin2.prevout.hash, txPrev2, header2, postx2))
+                return false;
+            fSpendsColored = txPrev2->IsColored();
+            if (fSpendsColored)
+                break;
         }
-        if (txPrev->GetHash() != txin.prevout.hash)
-            return error("%s: txid mismatch", __func__);
-    }
+    if (fSpendsColored)
+        return state.DoS(100, false, REJECT_INVALID, "invalid-pos-color-input", false, strprintf("%s: VerifyScript failed on coinstake %s", __func__, tx->GetHash().ToString()));
 
     if (!CheckStakeKernelHash(nBits, pindexPrev, header, postx.nTxOffset + CBlockHeader::NORMAL_SERIALIZE_SIZE, txPrev, txin.prevout, tx->nTime, hashProofOfStake, fDebug))
         // may occur during initial download or if behind on block chain sync
