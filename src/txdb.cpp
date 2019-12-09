@@ -277,6 +277,8 @@ bool CBlockTreeDB::WriteCheckpointPubKey(const std::string& strPubKey)
 static const char DB_COLOR = 'c';
 
 bool CColorCoinsDB::AddColoredTxs(uint32_t color, const std::vector<uint256>& vtx) {
+    if (vtx.size() == 0)
+        return true;
     std::set<uint256> colorTxs;
     db.Read(std::make_pair(DB_COLOR, color), colorTxs);
     for (const auto& v : vtx)
@@ -289,7 +291,10 @@ bool CColorCoinsDB::RemoveColoredTxs(uint32_t color, const std::vector<uint256>&
     db.Read(std::make_pair(DB_COLOR, color), colorTxs);
     for (const auto& v : vtx)
         colorTxs.erase(v);
-    return db.Write(std::make_pair(DB_COLOR, color), colorTxs);
+    if (colorTxs.size() > 0)
+        return db.Write(std::make_pair(DB_COLOR, color), colorTxs);
+    else
+        return db.Erase(std::make_pair(DB_COLOR, color));
 }
 
 bool CColorCoinsDB::HaveColor(uint32_t color) const {
