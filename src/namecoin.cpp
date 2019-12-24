@@ -1189,7 +1189,7 @@ NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, 
         {
             if (op == OP_NAME_UPDATE || op == OP_NAME_DELETE)
             {
-                ret.err_msg = stringFromOp(op) + " on an unexpired name";
+                ret.err_msg = stringFromOp(op) + " on an expired name";
                 return ret;
             }
         }
