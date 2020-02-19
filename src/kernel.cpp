@@ -270,7 +270,7 @@ static bool GetKernelStakeModifierV05(CBlockIndex* pindexPrev, unsigned int nTim
     static uint64_t      cache_nStakeModifier;
     static int           cache_nStakeModifierHeight;
     static unsigned int  cache_nTimeTx;
-#if 0
+#if 1 // CACHE
     if(nTimeTx <= cache_TimeTxBarrier && nStakeModifierTime >= cache_nStakeModifierTime_in && nTimeTx >= cache_nTimeTx) {
        nStakeModifier       = cache_nStakeModifier;
        nStakeModifierTime   = cache_nStakeModifierTime;

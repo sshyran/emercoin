@@ -112,8 +112,9 @@ class EmcDns {
     uint8_t  *m_buf, *m_bufend, *m_snd, *m_rcv, *m_rcvend;
     SOCKET    m_sockfd;
     int       m_rcvlen;
-    uint32_t m_timestamp;
-    uint32_t  m_daprand;	// DAP random value for universal hashing
+    uint32_t  m_timestamp;
+    uint32_t  m_mintemp; // Saved minimal DAP-remperature
+    uint32_t  m_daprand; // DAP random value for universal hashing
     uint32_t  m_dapmask, m_dap_treshold;
     uint32_t  m_ttl;
     uint16_t  m_label_ref;

@@ -556,8 +556,8 @@ uint16_t EmcDns::HandleQuery() {
   *--key_end = 0; // Remove last dot, set EOLN
 
   if(!CheckDAP(key, key - key_end, 0)) {
-    if(m_verbose > 0)
-      LogPrintf("\tEmcDns::HandleQuery: Aborted domain %s by DAP\n", key);
+    if(m_verbose > 3)
+      LogPrintf("\tEmcDns::HandleQuery: Aborted domain %s by DAP mintemp=%u\n", key, m_mintemp);
     return 0xDead; // Botnet detected, abort query processing
   }
 
@@ -568,7 +568,7 @@ uint16_t EmcDns::HandleQuery() {
   uint16_t qclass = *m_rcv++; qclass = (qclass << 8) + *m_rcv++;
 
   if(m_verbose > 2) 
-    LogPrintf("EmcDns::HandleQuery: Key=%s QType=0x%x QClass=0x%x\n", key, qtype, qclass);
+    LogPrintf("EmcDns::HandleQuery: Key=%s QType=0x%x QClass=0x%x mintemp=%u\n", key, qtype, qclass, m_mintemp);
 
   if(qclass != 1)
     return 4; // Not implemented - support INET only
@@ -1032,12 +1032,14 @@ bool EmcDns::CheckDAP(void *key, int len, uint32_t packet_size) {
       mintemp = new_temp;
   } // for
 
+  m_mintemp = mintemp; // Save for logging
   bool rc = mintemp < m_dap_treshold;
   if(m_verbose > 5 || (!rc && m_verbose > 3)) {
-    char buf[80];
-    LogPrintf("EmcDns::CheckDAP: IP=[%s] packet_size=%u, mintemp=%u dap_treshold=%u rc=%d\n", 
+    char buf[80], outbuf[120];
+    snprintf(outbuf, sizeof(outbuf), "EmcDns::CheckDAP: IP=[%s] packet_size=%u, mintemp=%u dap_treshold=%u rc=%d\n", 
 		    len < 0? (const char *)key : inet_ntop(len == 4? AF_INET : AF_INET6, key, buf, len),
                     packet_size, mintemp, m_dap_treshold, rc);
+    LogPrintf(outbuf);
   }
   return rc;
 } // EmcDns::CheckDAP 
