@@ -35,6 +35,9 @@
 
 #endif //HAVE_CONFIG_H
 
+//emercoin: removed mining code in release version because some website detect it as a malicious miner
+#define POW_MINING (CLIENT_VERSION_IS_RELEASE == false)
+
 /**
  * Converts the parameter X to a string after macro replacement on X has been performed.
  * Don't merge these into one macro!
