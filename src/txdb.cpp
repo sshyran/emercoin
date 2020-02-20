@@ -276,27 +276,26 @@ bool CBlockTreeDB::WriteCheckpointPubKey(const std::string& strPubKey)
 // emercoin: colored coins index
 static const char DB_COLOR = 'c';
 
-bool CColorCoinsDB::AddColoredTxs(uint32_t color, const std::vector<uint256>& vtx) {
-    if (vtx.size() == 0)
-        return true;
-    std::set<uint256> colorTxs;
-    db.Read(std::make_pair(DB_COLOR, color), colorTxs);
-    for (const auto& v : vtx)
-        colorTxs.insert(v);
-    return db.Write(std::make_pair(DB_COLOR, color), colorTxs);
+bool CColorCoinsDB::UpdateCount(std::map<uint32_t, int32_t> mapDeltaCount) {
+    for (const auto& delta : mapDeltaCount) {
+        std::pair<int, CDiskTxPos> colorRecord;
+        if (!db.Read(std::make_pair(DB_COLOR, delta.first), colorRecord))
+            return false;
+        colorRecord.first += delta.second;
+        if (!db.Write(std::make_pair(DB_COLOR, delta.first), colorRecord))
+            return false;
+    }
+    return true;
 }
 
-bool CColorCoinsDB::RemoveColoredTxs(uint32_t color, const std::vector<uint256>& vtx) {
-    std::set<uint256> colorTxs;
-    db.Read(std::make_pair(DB_COLOR, color), colorTxs);
-    for (const auto& v : vtx)
-        colorTxs.erase(v);
-    if (colorTxs.size() > 0)
-        return db.Write(std::make_pair(DB_COLOR, color), colorTxs);
-    else
-        return db.Erase(std::make_pair(DB_COLOR, color));
-}
-
-bool CColorCoinsDB::HaveColor(uint32_t color) const {
-    return db.Exists(std::make_pair(DB_COLOR, color));
+bool CColorCoinsDB::ReadColor(uint32_t nColor, int32_t& nCount, uint256& txid) {
+    std::pair<int, CDiskTxPos> colorRecord;
+    if (!db.Read(std::make_pair(DB_COLOR, nColor), colorRecord))
+        return false;
+    nCount = colorRecord.first;
+    CTransactionRef tx;
+    if (!GetTransaction(colorRecord.second, tx))
+        return false;
+    txid = tx->GetHash();
+    return true;
 }

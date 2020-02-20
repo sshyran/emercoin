@@ -1484,7 +1484,7 @@ int GetSpendHeight(const CCoinsViewCache& inputs)
 }
 
 namespace Consensus {
-bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, bool fV8Enabled)
+bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, bool fV8Enabled, bool fColorWrite)
 {
         // This doesn't trigger the DoS code on purpose; if it did, it would make it easier
         // for an attacker to attempt to split the network.
@@ -1525,25 +1525,66 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
 
         }
 
-    // emercoin: multi-color check
-    {
-        bool differentColoredInputs = false;
-        int32_t firstColor = -1;
+    // emercoin: check if color operation is allowed
+    while (fV8Enabled) {
+        uint32_t minC = ~0;
+        uint32_t maxC = 0;
+        std::map<uint32_t, int32_t> mapColorInput;
         for (auto txin : tx.vin) {
-            const CCoins *coins = inputs.AccessCoins(txin.prevout.hash);
-            if (IsColored(coins->nTime) && txin.prevout.hash != randpaytx) {  // randpay input is ignored
-                if (firstColor == -1)
-                    firstColor = coins->nTime;
-                else if (firstColor != coins->nTime) {
-                    differentColoredInputs = true;
-                    break;
-                }
+            const CCoins *coins = inputs.AccessCoins(txin.prevout.hash);  // can be optimized by using data from the same call above
+            int64_t t = coins->nTime;
+            if (t < minC) minC = t;
+            if (t > maxC) maxC = t;
+            if (IsColored(coins->nTime)) {
+                mapColorInput[coins->nTime] -= 1;
             }
         }
 
-        // tx with multi-color inputs cannot have color
-        if (differentColoredInputs && tx.IsColored())
-            return state.DoS(50, false, REJECT_INVALID, "bad-tx-multi-color", false, strprintf("%s : tx with multi-color inputs was colored", __func__));
+        uint32_t genesisTime = ::Params().GenesisBlock().GetBlockTime();
+        if (tx.nTime >= genesisTime) {
+            // regular or color_clear
+            if (minC >= genesisTime) {
+                // regular, just check as usual:  OUT(N) >= max(Cin)
+                break;
+            }
+            if (!tx.IsColored()) {
+                // This is valid color_clear
+                // in the color db, utxo counter: -used, for all colors inputs (C < genesis)
+                if (fColorWrite)
+                    pcolorcoins->UpdateCount(mapColorInput);
+                break;
+            }
+            // Color in, out in the PAST - ERROR
+            return false;
+        }
+
+        // following is color output
+        if (minC == maxC) {
+            // this is color_pay
+            if (tx.nTime != minC)
+                return false; // to prevent repaint
+            //in the color db, utxo counter for this color: -used, +added
+            if (fColorWrite) {
+                mapColorInput[tx.nTime] += tx.vout.size();
+                pcolorcoins->UpdateCount(mapColorInput);
+            }
+            break;
+        }
+
+        // This is Cin = ANY, can be new/add/invalid
+        int32_t nColorCount;
+        uint256 lastGenerativeTxid;
+        pcolorcoins->ReadColor(tx.nTime, nColorCount, lastGenerativeTxid);
+        if (nColorCount > 0 && (lastGenerativeTxid != tx.vin[0].prevout.hash || tx.vin[0].prevout.n != 0))
+            return error("CheckTxInputs() : nColorCount > 0 %s", tx.GetHash().ToString());
+
+        // There is color_new, or valid color_add
+        if (fColorWrite) {
+            mapColorInput[tx.nTime] += tx.vout.size();
+            pcolorcoins->UpdateCount(mapColorInput);
+        }
+
+        break;
     }
 
     if (fCoinstake)
@@ -1577,11 +1618,11 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
 }
 }// namespace Consensus
 
-bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsViewCache &inputs, bool fScriptChecks, unsigned int flags, bool cacheStore, PrecomputedTransactionData& txdata, bool fV8Enabled, std::vector<CScriptCheck> *pvChecks, bool fRandPayLast)
+bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsViewCache &inputs, bool fScriptChecks, unsigned int flags, bool cacheStore, PrecomputedTransactionData& txdata, bool fV8Enabled, std::vector<CScriptCheck> *pvChecks, bool fRandPayLast, bool fColorWrite)
 {
     if (!tx.IsCoinBase())
     {
-        if (!Consensus::CheckTxInputs(tx, state, inputs, GetSpendHeight(inputs), fV8Enabled))
+        if (!Consensus::CheckTxInputs(tx, state, inputs, GetSpendHeight(inputs), fV8Enabled, fColorWrite))
             return false;
 
         if (pvChecks)
@@ -2160,8 +2201,9 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             }
 
             std::vector<CScriptCheck> vChecks;
+
             bool fCacheResults = fJustCheck; /* Don't cache results if we're actually connecting blocks (still consult the cache, though) */
-            if (!CheckInputs(tx, state, view, fScriptChecks, flags, fCacheResults, txdata[i], fV8Enabled, nScriptCheckThreads ? &vChecks : NULL))
+            if (!CheckInputs(tx, state, view, fScriptChecks, flags, fCacheResults, txdata[i], fV8Enabled, nScriptCheckThreads ? &vChecks : NULL, false, true))
                 return error("ConnectBlock(): CheckInputs on %s failed with %s",
                     tx.GetHash().ToString(), FormatStateMessage(state));
             control.Add(vChecks);
@@ -2238,14 +2280,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     if (block.nVersion & BLOCK_VERSION_AUXPOW)
         mapDirtyAuxPow.insert(std::make_pair(block.GetHash(), block.auxpow));
-
-    // emercoin: add colored coins to color coins index
-    std::map<uint32_t, std::vector<uint256>> mapColors;
-    for (const auto& tx : block.vtx)
-        if (tx->IsColored())
-            mapColors[tx->nTime].push_back(tx->GetHash());
-    for (const auto& p : mapColors)
-        pcolorcoins->AddColoredTxs(p.first, p.second);
 
     int64_t nTime6 = GetTimeMicros(); nTimeCallbacks += nTime6 - nTime5;
     LogPrint("bench", "    - Callbacks: %.2fms [%.2fs]\n", 0.001 * (nTime6 - nTime5), nTimeCallbacks * 0.000001);
@@ -3192,7 +3226,7 @@ bool IsV7Enabled(const CBlockIndex* pindexPrev, const Consensus::Params& params)
 /** Check whether colored coins and multiple names in a single tx are enabled. */
 bool IsV8Enabled(const CBlockIndex* pindexPrev, const Consensus::Params& params)
 {
-    return false;
+    return true;
 }
 
 
@@ -3303,6 +3337,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
     // Start enforcing BIP113 (Median Time Past)
     int nLockTimeFlags = 0;
     bool fV7Enabled = IsV7Enabled(pindexPrev, consensusParams);
+    bool fV8Enabled = IsV8Enabled(pindexPrev, consensusParams);
 
     // Check coinbase reward
     CAmount powLimit = block.IsProofOfWork() ? GetProofOfWorkReward(block.nBits) - block.vtx[0]->GetMinFee() + MIN_TX_FEE : 0;
@@ -3392,6 +3427,15 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 
     if (!CheckMinTxOut(block, fV7Enabled))
         return state.DoS(100, false, REJECT_INVALID, "txout-too-low", false, strprintf("%s : txout.nValue below minimum", __func__));
+
+    // emercoin: colorErase - make sure that time of uncolored transaction is recent
+    if (fV8Enabled)
+        for (const auto& tx : block.vtx) {
+            if (!tx->IsColored() && SpendsColored(tx)) {
+                if (tx->nTime + 60*60*8 < block.nTime)
+                    return state.DoS(100, false, REJECT_INVALID, "uncolor-time-too-early", false, strprintf("%s : uncolor tx time is too early", __func__));
+            }
+        }
 
     return true;
 }
@@ -5004,4 +5048,19 @@ void CleanMapBlockIndex() {
             recentPoSHeaders.erase(it);
         }
     }
+}
+
+bool SpendsColored(const CTransactionRef &tx)
+{
+    bool fSpendsColored = false;
+    for (const auto& txin : tx->vin) {
+        CTransactionRef txPrev;
+        uint256 hashBlock = uint256();
+        if (!GetTransaction(txin.prevout.hash, txPrev, Params().GetConsensus(), hashBlock))
+            return false;
+        fSpendsColored = txPrev->IsColored();
+        if (fSpendsColored)
+            break;
+    }
+    return fSpendsColored;
 }
