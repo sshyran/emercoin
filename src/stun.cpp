@@ -57,9 +57,9 @@ struct StunSrv {
 
 /*---------------------------------------------------------------------*/
 // STUN server list from 2019-06-27
-static const int StunSrvListQty = 619; // Must be PRIME!!!!!
+static const int StunSrvListQty = 617; // Must be PRIME!!!!!
 
-static struct StunSrv StunSrvList[619] = {
+static struct StunSrv StunSrvList[617] = {
   {"iphone-stun.strato-iphone.de",	3478},
   {"stun.1-voip.com",	3478},
   {"stun.12connect.com",	3478},
@@ -276,8 +276,6 @@ static struct StunSrv StunSrvList[619] = {
   {"stun.ines-seidel.de",	3478},
   {"stun.infra.net",	3478},
   {"stun.innotel.com.au",	3478},
-  {"stun.innovaphone.com",	3478},
-  {"stun.innovaphone.de",	3478},
   {"stun.instantteleseminar.com",	3478},
   {"stun.internetcalls.com",	3478},
   {"stun.interplanet.it",	3478},
