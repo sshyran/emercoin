@@ -145,6 +145,8 @@ QString ManageSslPage::randName() {
 	QByteArray uid = QUuid::createUuid().toByteArray();
 	uid = QCryptographicHash::hash(uid, QCryptographicHash::Sha256);
 	uid.truncate(8);
+        if(uid[0] < 0x10) // To preserve 0-prefix
+          uid[0] |= 0xf0;
 	return uid.toHex();
 }
 void ManageSslPage::onCreate() {
