@@ -928,19 +928,27 @@ int EmcDns::Fill_RD_DName(char *txt, uint8_t mxsz, int8_t txtcor) {
 
   do {
     c = *m_snd++ = *txt++;
-    if(c == '.' && txtcor == 0) {
-      *tok_sz = m_snd - tok_sz - 2;
-      tok_sz  = m_snd - 1;
-    }
     if(c == ':' && mxsz) { // split for MX only
       c = m_snd[-1] = 0;
       mx_pri = atoi(txt);
     }
+    if((c == '.' && txtcor == 0) || c == 0) {
+      int tok_len = m_snd - tok_sz - 2;
+      if(tok_len < 64 || txtcor != 0) { // check for rfc1035 2.3.1 (label length)
+        *tok_sz = tok_len;
+      } else {
+        // Object domain label, set ERR msg and SERFFAL
+        const int msg_len = sizeof("Size-of--DomainLabel-->-63"); // including \0
+        strcpy((char *)tok_sz + 1, "Size-of--DomainLabel-->-63");
+        m_snd = tok_sz + msg_len + 1; // Set after trailing \0
+        *tok_sz = msg_len - 1; // Actual length, without trailing \0
+        m_hdr->Bits |= 2; // SERVFAIL - Server failed to complete the DNS request
+      }
+      tok_sz = m_snd - 1;
+    }
   } while(c && m_snd < bufend);
 
-  *tok_sz = m_snd - tok_sz - 2;
-
-  // Remove trailing \0 at end of text
+  // Remove trailing \0 at end of text for TXT field
   m_snd -= txtcor;
 
   uint16_t len = m_snd - snd0 - 2;
