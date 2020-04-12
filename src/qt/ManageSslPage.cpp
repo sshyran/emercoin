@@ -143,8 +143,9 @@ QString ManageSslPage::randName() {
 	//also in plain C 64bit integers are much easier to manipulate than strings, so int64 are used;
 	//we can't use std::random_device because it's deterministic on MinGW https://sourceforge.net/p/mingw-w64/bugs/338/
 	QByteArray uid = QUuid::createUuid().toByteArray();
+        int x = 0;
         do {
-            uid[0]++; // to mitigate low-probable case, when h(x) == x
+            uid[0] += ++x; // to mitigate low-probable case, when h(x) == x
             uid = QCryptographicHash::hash(uid, QCryptographicHash::Sha256);
         } while(uid[0] < 0x10); // To preserve 0-prefix
         uid.truncate(8);
