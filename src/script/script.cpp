@@ -1,14 +1,11 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2016 The Bitcoin Core developers
+// Copyright (c) 2009-2018 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "script.h"
+#include <script/script.h>
 
-#include "tinyformat.h"
-#include "utilstrencodings.h"
-
-using namespace std;
+#include <util/strencodings.h>
 
 const char* GetOpName(opcodetype opcode)
 {
@@ -143,11 +140,6 @@ const char* GetOpName(opcodetype opcode)
 
     case OP_INVALIDOPCODE          : return "OP_INVALIDOPCODE";
 
-    // Note:
-    //  The template matching params OP_SMALLINTEGER/etc are defined in opcodetype enum
-    //  as kind of implementation hack, they are *NOT* real opcodes.  If found in real
-    //  Script, just let the default: case deal with them.
-
     default:
         return "OP_UNKNOWN";
     }
@@ -177,27 +169,27 @@ unsigned int CScript::GetSigOpCount(bool fAccurate) const
     return n;
 }
 
-unsigned int CScript::GetSigOpCount(const CScript& scriptSig, int nVersion) const
+unsigned int CScript::GetSigOpCount(const CScript& scriptSig) const
 {
-    if (!IsPayToScriptHash(nVersion))
+    if (!IsPayToScriptHash())
         return GetSigOpCount(true);
 
     // This is a pay-to-script-hash scriptPubKey;
     // get the last item that the scriptSig
     // pushes onto the stack:
     const_iterator pc = scriptSig.begin();
-    vector<unsigned char> data;
+    std::vector<unsigned char> vData;
     while (pc < scriptSig.end())
     {
         opcodetype opcode;
-        if (!scriptSig.GetOp(pc, opcode, data))
+        if (!scriptSig.GetOp(pc, opcode, vData))
             return 0;
         if (opcode > OP_16)
             return 0;
     }
 
     /// ... and return its opcount:
-    CScript subscript(data.begin(), data.end());
+    CScript subscript(vData.begin(), vData.end());
     return subscript.GetSigOpCount(true);
 }
 
@@ -210,13 +202,12 @@ static bool IsPayToScriptHashInner(const CScript& scriptPubKey)
             scriptPubKey[22] == OP_EQUAL);
 }
 
-bool CScript::IsPayToScriptHash(int nVersion) const
+bool CScript::IsPayToScriptHash() const
 {
     bool ret = IsPayToScriptHashInner(*this);
 
     // emercoin: remove name (if any) and try again
-    if (!ret && nVersion == NAMECOIN_TX_VERSION)
-    {
+    if (!ret) {
         CScript scriptRemainder;
         if (!RemoveNameScriptPrefix(*this, scriptRemainder))
             return false;
@@ -233,13 +224,12 @@ static bool IsPayToWitnessScriptHashInner(const CScript& scriptPubKey)
             scriptPubKey[1] == 0x20);
 }
 
-bool CScript::IsPayToWitnessScriptHash(int nVersion) const
+bool CScript::IsPayToWitnessScriptHash() const
 {
     bool ret = IsPayToWitnessScriptHashInner(*this);
 
     // emercoin: remove name (if any) and try again
-    if (!ret && nVersion == NAMECOIN_TX_VERSION)
-    {
+    if (!ret) {
         CScript scriptRemainder;
         if (!RemoveNameScriptPrefix(*this, scriptRemainder))
             return false;
@@ -315,10 +305,74 @@ std::string CScriptWitness::ToString() const
     return ret + ")";
 }
 
+bool CScript::HasValidOps() const
+{
+    CScript::const_iterator it = begin();
+    while (it < end()) {
+        opcodetype opcode;
+        std::vector<unsigned char> item;
+        if (!GetOp(it, opcode, item) || opcode > MAX_OPCODE || item.size() > MAX_SCRIPT_ELEMENT_SIZE) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool GetScriptOp(CScriptBase::const_iterator& pc, CScriptBase::const_iterator end, opcodetype& opcodeRet, std::vector<unsigned char>* pvchRet)
+{
+    opcodeRet = OP_INVALIDOPCODE;
+    if (pvchRet)
+        pvchRet->clear();
+    if (pc >= end)
+        return false;
+
+    // Read instruction
+    if (end - pc < 1)
+        return false;
+    unsigned int opcode = *pc++;
+
+    // Immediate operand
+    if (opcode <= OP_PUSHDATA4)
+    {
+        unsigned int nSize = 0;
+        if (opcode < OP_PUSHDATA1)
+        {
+            nSize = opcode;
+        }
+        else if (opcode == OP_PUSHDATA1)
+        {
+            if (end - pc < 1)
+                return false;
+            nSize = *pc++;
+        }
+        else if (opcode == OP_PUSHDATA2)
+        {
+            if (end - pc < 2)
+                return false;
+            nSize = ReadLE16(&pc[0]);
+            pc += 2;
+        }
+        else if (opcode == OP_PUSHDATA4)
+        {
+            if (end - pc < 4)
+                return false;
+            nSize = ReadLE32(&pc[0]);
+            pc += 4;
+        }
+        if (end - pc < 0 || (unsigned int)(end - pc) < nSize)
+            return false;
+        if (pvchRet)
+            pvchRet->assign(pc, pc + nSize);
+        pc += nSize;
+    }
+
+    opcodeRet = static_cast<opcodetype>(opcode);
+    return true;
+}
+
 // namecoin stuff
 
-bool checkNameValues(NameTxInfo& ret)
-{
+bool checkNameValues(NameTxInfo& ret) {
     ret.err_msg = "";
     if (ret.name.size() > MAX_NAME_LENGTH)
         ret.err_msg.append("name is too long.\n");
@@ -342,8 +396,7 @@ bool checkNameValues(NameTxInfo& ret)
 
 // read name script and extract name, value and rentalDays
 // returns true/false is script is correct/incorrect
-bool DecodeNameScript(const CScript& script, NameTxInfo& ret, CScript::const_iterator& pc)
-{
+bool DecodeNameScript(const CScript& script, NameTxInfo& ret, CScript::const_iterator& pc) {
     // script structure:
     // (name_new | name_update) << OP_DROP << name << days << OP_2DROP << val1 << val2 << .. << valn << OP_DROP2 << OP_DROP2 << ..<< (OP_DROP2 | OP_DROP) << paytoscripthash
     // or
@@ -448,14 +501,12 @@ bool DecodeNameScript(const CScript& script, NameTxInfo& ret, CScript::const_ite
     return true;
 }
 
-bool DecodeNameScript(const CScript& script, NameTxInfo& ret)
-{
+bool DecodeNameScript(const CScript& script, NameTxInfo& ret) {
     CScript::const_iterator pc = script.begin();
     return DecodeNameScript(script, ret, pc);
 }
 
-bool RemoveNameScriptPrefix(const CScript& scriptIn, CScript& scriptOut)
-{
+bool RemoveNameScriptPrefix(const CScript& scriptIn, CScript& scriptOut) {
     NameTxInfo nti;
     CScript::const_iterator pc = scriptIn.begin();
 
@@ -465,3 +516,4 @@ bool RemoveNameScriptPrefix(const CScript& scriptIn, CScript& scriptOut)
     scriptOut = CScript(pc, scriptIn.end());
     return true;
 }
+

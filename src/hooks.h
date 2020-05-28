@@ -6,7 +6,7 @@
 #define BITCOIN_HOOKS_H
 
 class CBlockIndex;
-class CDiskTxPos;
+struct CDiskTxPos;
 class CScript;
 class CTransaction;
 class CTxOut;

@@ -1,20 +1,18 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2016 The Bitcoin Core developers
+// Copyright (c) 2009-2018 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <warnings.h>
 
-#include "alert.h"
-#include "clientversion.h"
-#include "util.h"
-#include "warnings.h"
-#include "rpc/server.h"
-#include "checkpoints.h"
+#include <sync.h>
+#include <util/system.h>
+#include <util/translation.h>
 
-CCriticalSection cs_warnings;
-std::string strMiscWarning;
-bool fLargeWorkForkFound = false;
-bool fLargeWorkInvalidChainFound = false;
+static RecursiveMutex cs_warnings;
+static std::string strMiscWarning GUARDED_BY(cs_warnings);
+static bool fLargeWorkForkFound GUARDED_BY(cs_warnings) = false;
+static bool fLargeWorkInvalidChainFound GUARDED_BY(cs_warnings) = false;
 std::string strMintWarning;
 
 void SetMiscWarning(const std::string& strWarning)
@@ -41,17 +39,10 @@ void SetfLargeWorkInvalidChainFound(bool flag)
     fLargeWorkInvalidChainFound = flag;
 }
 
-bool GetfLargeWorkInvalidChainFound()
-{
-    LOCK(cs_warnings);
-    return fLargeWorkInvalidChainFound;
-}
-
 std::string GetWarnings(const std::string& strFor)
 {
     int nPriority = 0;
     std::string strStatusBar;
-    std::string strRPC;
     std::string strGUI;
     const std::string uiAlertSeperator = "<hr />";
 
@@ -60,11 +51,8 @@ std::string GetWarnings(const std::string& strFor)
 
     if (!CLIENT_VERSION_IS_RELEASE) {
         strStatusBar = "This is a pre-release test build - use at your own risk - do not use for mining or merchant applications";
-        strGUI = _("This is a pre-release test build - use at your own risk - do not use for mining or merchant applications");
+        strGUI = _("This is a pre-release test build - use at your own risk - do not use for mining or merchant applications").translated;
     }
-
-    if (GetBoolArg("-testsafemode", DEFAULT_TESTSAFEMODE))
-        strStatusBar = strRPC = strGUI = "testsafemode enabled";
 
     // ppcoin: wallet lock warning for minting
     if (strMintWarning != "")
@@ -94,14 +82,14 @@ std::string GetWarnings(const std::string& strFor)
     if (fLargeWorkForkFound)
     {
         nPriority = 2000;
-        strStatusBar = strRPC = "Warning: The network does not appear to fully agree! Some miners appear to be experiencing issues.";
-        strGUI += (strGUI.empty() ? "" : uiAlertSeperator) + _("Warning: The network does not appear to fully agree! Some miners appear to be experiencing issues.");
+        strStatusBar = "Warning: The network does not appear to fully agree! Some miners appear to be experiencing issues.";
+        strGUI += (strGUI.empty() ? "" : uiAlertSeperator) + _("Warning: The network does not appear to fully agree! Some miners appear to be experiencing issues.").translated;
     }
     else if (fLargeWorkInvalidChainFound)
     {
         nPriority = 2000;
-        strStatusBar = strRPC = "Warning: We do not appear to fully agree with our peers! You may need to upgrade, or other nodes may need to upgrade.";
-        strGUI += (strGUI.empty() ? "" : uiAlertSeperator) + _("Warning: We do not appear to fully agree with our peers! You may need to upgrade, or other nodes may need to upgrade.");
+        strStatusBar = "Warning: We do not appear to fully agree with our peers! You may need to upgrade, or other nodes may need to upgrade.";
+        strGUI += (strGUI.empty() ? "" : uiAlertSeperator) + _("Warning: We do not appear to fully agree with our peers! You may need to upgrade, or other nodes may need to upgrade.").translated;
     }
 
     // ppcoin: if detected invalid checkpoint enter safe mode
@@ -132,8 +120,6 @@ std::string GetWarnings(const std::string& strFor)
         return strGUI;
     else if (strFor == "statusbar")
         return strStatusBar;
-    else if (strFor == "rpc")
-        return strRPC;
     assert(!"GetWarnings(): invalid parameter");
     return "error";
 }

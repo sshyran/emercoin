@@ -105,7 +105,7 @@ static bool SelectBlockFromCandidates(
         return false;
     }
 
-  //  if (fDebug && GetBoolArg("-printstakemodifier", false))
+  //  if (GetBoolArg("-printstakemodifier", false))
   //      LogPrintf("%s: selection hash=%s\n", __func__, hashBest.ToString());
 }
 
@@ -230,7 +230,7 @@ bool ComputeNextStakeModifier(const CBlockIndex* pindexCurrent, uint64_t& nStake
         // write the entropy bit of the selected block
         nStakeModifierNew |= (((uint64_t)pindex->GetStakeEntropyBit()) << nRound);
         // add the selected block from candidates to selected list
-        if (fDebug && GetBoolArg("-printstakemodifier", false))
+        if (GetBoolArg("-printstakemodifier", false))
             LogPrintf("%s: selected round %d stop=%s height=%d bit=%d\n", __func__,
                 nRound, DateTimeStrFormat(nSelectionIntervalStop), pindex->nHeight, pindex->GetStakeEntropyBit());
     }
@@ -272,7 +272,7 @@ static bool GetKernelStakeModifierV05(CBlockIndex* pindexPrev, unsigned int nTim
     static unsigned int  cache_nTimeTx;
     static int           modcache = -1; // 0=disable; 1=InitialDownload; 2=always
     if(modcache < 0)
-        modcache = GetArg("-modcache", 2);
+        modcache = gArgs.GetArg("-modcache", 2);
     if(modcache > 1 || (modcache > 0 && IsInitialBlockDownload())) {
         if(nTimeTx <= cache_TimeTxBarrier && nStakeModifierTime >= cache_nStakeModifierTime_in && nTimeTx >= cache_nTimeTx) {
             nStakeModifier       = cache_nStakeModifier;
@@ -318,7 +318,7 @@ static bool GetKernelStakeModifierV03(CBlockIndex* pindexPrev, uint256 hashBlock
     nStakeModifierTime = pindexFrom->GetBlockTime();
     int64_t nStakeModifierSelectionInterval = GetStakeModifierSelectionInterval();
 
-    // emercoin: we need to iterate index forward but we cannot use chainActive.Next()
+    // emercoin: we need to iterate index forward but we cannot use ::ChainActive().Next()
     // because there is no guarantee that we are checking blocks in active chain.
     // So, we construct a temporary chain that we will iterate over.
     // pindexFrom - this block contains coins that are used to generate PoS
@@ -328,7 +328,7 @@ static bool GetKernelStakeModifierV03(CBlockIndex* pindexPrev, uint256 hashBlock
     int32_t nDepth = pindexPrev->nHeight - (pindexFrom->nHeight-1); // -1 is used to also include pindexFrom
     tmpChain.reserve(nDepth);
     CBlockIndex* it = pindexPrev;
-    for (int i=1; i<=nDepth && !chainActive.Contains(it); i++) {
+    for (int i=1; i<=nDepth && !::ChainActive().Contains(it); i++) {
         tmpChain.push_back(it);
         it = it->pprev;
     }
@@ -341,7 +341,7 @@ static bool GetKernelStakeModifierV03(CBlockIndex* pindexPrev, uint256 hashBlock
     while (nStakeModifierTime < pindexFrom->GetBlockTime() + nStakeModifierSelectionInterval)
     {
         const CBlockIndex* old_pindex = pindex;
-        pindex = (!tmpChain.empty() && pindex->nHeight >= tmpChain[0]->nHeight - 1)? tmpChain[n++] : chainActive.Next(pindex); 
+        pindex = (!tmpChain.empty() && pindex->nHeight >= tmpChain[0]->nHeight - 1)? tmpChain[n++] : ::ChainActive().Next(pindex); 
         if (n > tmpChain.size() || pindex == NULL) // check if tmpChain[n+1] exists
         {   // reached best block; may happen if node is behind on block chain
             if (fPrintProofOfStake || (old_pindex->GetBlockTime() + params.nStakeMinAge - nStakeModifierSelectionInterval > GetAdjustedTime()))
@@ -454,7 +454,7 @@ bool CheckStakeKernelHash(unsigned int nBits, CBlockIndex* pindexPrev, const CBl
     // Now check if proof-of-stake hash meets target protocol
     if (UintToArith256(hashProofOfStake) > bnCoinDayWeight * bnTargetPerCoinDay)
         return false;
-    if (fDebug && !fPrintProofOfStake)
+    if (logCategories != BCLog::NONE && !fPrintProofOfStake)
     {
         if (IsProtocolV03(nTimeTx))
             LogPrintf("%s: using modifier 0x%016x at height=%d timestamp=%s for block from height=%d timestamp=%s\n", __func__,
@@ -481,7 +481,7 @@ bool CheckProofOfStake(CValidationState& state, CBlockIndex* pindexPrev, const C
     const CTxIn& txin = tx->vin[0];
 
     // Transaction index is required to get to block header
-    if (!fTxIndex)
+    if (!g_txindex)
         return error("%s: transaction index not available", __func__);
 
     // First try finding the previous transaction in database
@@ -499,7 +499,7 @@ bool CheckProofOfStake(CValidationState& state, CBlockIndex* pindexPrev, const C
 
     // Get transaction index for the previous transaction
     CDiskTxPos postx;
-    if (!pblocktree->ReadTxIndex(txin.prevout.hash, postx))
+    if (!g_txindex->FindTx(txin.prevout.hash, postx))
         return error("%s: tx index not found", __func__);  // tx index not found
 
     // Read txPrev and header of its block
@@ -518,7 +518,7 @@ bool CheckProofOfStake(CValidationState& state, CBlockIndex* pindexPrev, const C
             return error("%s: txid mismatch", __func__);
     }
 
-    if (!CheckStakeKernelHash(nBits, pindexPrev, header, postx.nTxOffset + CBlockHeader::NORMAL_SERIALIZE_SIZE, txPrev, txin.prevout, tx->nTime, hashProofOfStake, fDebug))
+    if (!CheckStakeKernelHash(nBits, pindexPrev, header, postx.nTxOffset + CBlockHeader::NORMAL_SERIALIZE_SIZE, txPrev, txin.prevout, tx->nTime, hashProofOfStake, logCategories != BCLog::NONE))
         // may occur during initial download or if behind on block chain sync
         return state.DoS(1, false, REJECT_INVALID, "invalid-stake-hash", false, strprintf("%s: INFO: check kernel failed on coinstake %s, hashProof=%s", __func__, tx->GetHash().ToString(), hashProofOfStake.ToString()));
 

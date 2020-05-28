@@ -4,10 +4,10 @@
 #ifndef BITCOIN_AUXPOW_H
 #define BITCOIN_AUXPOW_H
 
-#include "primitives/block.h"
-#include "primitives/transaction.h"
-#include "streams.h"
-#include "hash.h"
+#include <primitives/block.h>
+#include <primitives/transaction.h>
+#include <streams.h>
+#include <hash.h>
 
 //unsigned char pchMergedMiningHeader[] = { 0xfa, 0xbe, 'm', 'm' };
 
@@ -88,7 +88,7 @@ public:
     }
 };
 
-template<typename Stream> void SerReadWrite(Stream& s, std::shared_ptr<CAuxPow>& pobj, CSerActionSerialize ser_action)
+template<typename Stream> void SerReadWrite(Stream& s, const std::shared_ptr<CAuxPow>& pobj, CSerActionSerialize ser_action)
 {
     ::Serialize(s, *pobj);
 }
@@ -99,14 +99,20 @@ template<typename Stream> void SerReadWrite(Stream& s, std::shared_ptr<CAuxPow>&
     ::Unserialize(s, *pobj);
 }
 
-template void SerReadWrite<CAutoFile>(CAutoFile& s, std::shared_ptr<CAuxPow>& pobj, CSerActionSerialize ser_action);
-template void SerReadWrite<CVectorWriter>(CVectorWriter& s, std::shared_ptr<CAuxPow>& pobj, CSerActionSerialize ser_action);
-template void SerReadWrite<CHashWriter>(CHashWriter& s, std::shared_ptr<CAuxPow>& pobj, CSerActionSerialize ser_action);
-template void SerReadWrite<CDataStream>(CDataStream& s, std::shared_ptr<CAuxPow>& pobj, CSerActionSerialize ser_action);
-template void SerReadWrite<CSizeComputer>(CSizeComputer& s, std::shared_ptr<CAuxPow>& pobj, CSerActionSerialize ser_action);
+//template void SerReadWrite<CAutoFile>(CAutoFile& s, const std::shared_ptr<const CAuxPow>& pobj, CSerActionSerialize ser_action);
+//template void SerReadWrite<CVectorWriter>(CVectorWriter& s, const std::shared_ptr<const CAuxPow>& pobj, CSerActionSerialize ser_action);
+//template void SerReadWrite<CHashWriter>(CHashWriter& s, const std::shared_ptr<const CAuxPow>& pobj, CSerActionSerialize ser_action);
+//template void SerReadWrite<CDataStream>(CDataStream& s, const std::shared_ptr<const CAuxPow>& pobj, CSerActionSerialize ser_action);
+//template void SerReadWrite<CSizeComputer>(CSizeComputer& s, const std::shared_ptr<const CAuxPow>& pobj, CSerActionSerialize ser_action);
 
 template void SerReadWrite<CAutoFile>(CAutoFile& s, std::shared_ptr<CAuxPow>& pobj, CSerActionUnserialize ser_action);
 template void SerReadWrite<CBufferedFile>(CBufferedFile& s, std::shared_ptr<CAuxPow>& pobj, CSerActionUnserialize ser_action);
 template void SerReadWrite<CDataStream>(CDataStream& s, std::shared_ptr<CAuxPow>& pobj, CSerActionUnserialize ser_action);
+
+//template<typename Stream, typename T> void Serialize(Stream& os, const std::shared_ptr<const T>& p);
+//template<typename Stream, typename T> void Unserialize(Stream& os, std::shared_ptr<const T>& p);
+
+
+//SerReadWriteMany
 
 #endif

@@ -92,7 +92,7 @@ public:
             if (!item.second.fIsMine && !fOtherNames)
                 continue;
             // name have expired and users asked to hide expired names
-            if (item.second.nExpiresAt - chainActive.Height() <= 0 && !fExpired)
+            if (item.second.nExpiresAt - ::ChainActive().Height() <= 0 && !fExpired)
                 continue;
 
             NameTableEntry nte(stringFromNameVal(item.second.name), stringFromNameVal(item.second.value), item.second.strAddress, item.second.nExpiresAt, item.second.fIsMine);
@@ -274,7 +274,7 @@ QVariant NameTableModel::data(const QModelIndex &index, int role) const
             }
             else
             {
-                float days = (rec->nExpiresAt - chainActive.Height()) / 175.0;  // 175 - number of blocks per day on average
+                float days = (rec->nExpiresAt - ::ChainActive().Height()) / 175.0;  // 175 - number of blocks per day on average
                 return days < 0 ? QString("%1 hours").arg(days * 24, 0, 'f', 1) : QString("%1 days").arg(days, 0, 'f', 1);
             }
         }
@@ -287,7 +287,7 @@ QVariant NameTableModel::data(const QModelIndex &index, int role) const
         return font;
     }
     case Qt::BackgroundRole:
-        if (index.column() == ExpiresIn && rec->nExpiresAt - chainActive.Height() <= 0)
+        if (index.column() == ExpiresIn && rec->nExpiresAt - ::ChainActive().Height() <= 0)
             return QVariant(QColor(Qt::yellow));
         else if (index.column() != ExpiresIn && !rec->fIsMine)
             return QVariant(QColor(255,70,70));

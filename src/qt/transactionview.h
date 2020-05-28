@@ -1,11 +1,13 @@
-// Copyright (c) 2011-2016 The Bitcoin Core developers
+// Copyright (c) 2011-2018 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #ifndef BITCOIN_QT_TRANSACTIONVIEW_H
 #define BITCOIN_QT_TRANSACTIONVIEW_H
 
-#include "guiutil.h"
+#include <qt/guiutil.h>
+
+#include <uint256.h>
 
 #include <QWidget>
 #include <QKeyEvent>
@@ -21,7 +23,6 @@ class QFrame;
 class QLineEdit;
 class QMenu;
 class QModelIndex;
-class QSignalMapper;
 class QTableView;
 QT_END_NAMESPACE
 
@@ -33,7 +34,7 @@ class TransactionView : public QWidget
     Q_OBJECT
 
 public:
-    explicit TransactionView(const PlatformStyle *platformStyle, QWidget *parent = 0);
+    explicit TransactionView(const PlatformStyle *platformStyle, QWidget *parent = nullptr);
 
     void setModel(WalletModel *model);
 
@@ -59,24 +60,24 @@ public:
     };
 
 private:
-    WalletModel *model = 0;
-    TransactionFilterProxy *transactionProxyModel = 0;
+    WalletModel *model;
+    TransactionFilterProxy *transactionProxyModel;
     struct TableView;
-    TableView *transactionView = 0;
+    QTableView *transactionView;
 
-    QComboBox *dateWidget = 0;
-    QComboBox *typeWidget = 0;
-    QComboBox *watchOnlyWidget = 0;
-    QLineEdit *addressWidget = 0;
-    QLineEdit *amountWidget = 0;
+    QComboBox *dateWidget;
+    QComboBox *typeWidget;
+    QComboBox *watchOnlyWidget;
+    QLineEdit *search_widget;
+    QLineEdit *amountWidget;
 
-    QMenu *contextMenu = 0;
-    QSignalMapper *mapperThirdPartyTxUrls = 0;
+    QMenu *contextMenu;
 
-    QFrame *dateRangeWidget = 0;
-    QDateTimeEdit *dateFrom = 0;
-    QDateTimeEdit *dateTo = 0;
-    QAction *abandonAction = 0;
+    QFrame *dateRangeWidget;
+    QDateTimeEdit *dateFrom;
+    QDateTimeEdit *dateTo;
+    QAction *abandonAction;
+    QAction *bumpFeeAction;
 
     QWidget *createDateRangeWidget();
 
@@ -100,6 +101,7 @@ private Q_SLOTS:
     void openThirdPartyTxUrl(QString url);
     void updateWatchOnlyColumn(bool fHaveWatchOnly);
     void abandonTx();
+    void bumpFee();
 
 Q_SIGNALS:
     void doubleClicked(const QModelIndex&);
@@ -108,15 +110,17 @@ Q_SIGNALS:
     void message(const QString &title, const QString &message, unsigned int style);
     void amountSelected(const QString &title);
 
+    void bumpedFee(const uint256& txid);
+
 public Q_SLOTS:
     void chooseDate(int idx);
     void chooseType(int idx);
     void chooseWatchonly(int idx);
-    void changedPrefix(const QString &prefix);
-    void changedAmount(const QString &amount);
+    void changedAmount();
+    void changedSearch();
     void exportClicked();
     void focusTransaction(const QModelIndex&);
-
+    void focusTransaction(const uint256& txid);
 };
 
 #endif // BITCOIN_QT_TRANSACTIONVIEW_H

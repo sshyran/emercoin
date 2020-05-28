@@ -1,11 +1,14 @@
-Bitcoin Core version 0.14.2 is now available from:
+0.19.1 Release Notes
+===============================
 
-  <https://bitcoin.org/bin/bitcoin-core-0.14.2/>
+Bitcoin Core version 0.19.1 is now available from:
 
-This is a new minor version release, including various bugfixes and
-performance improvements, as well as updated translations.
+  <https://bitcoincore.org/bin/bitcoin-core-0.19.1/>
 
-Please report bugs using the issue tracker at github:
+This minor release includes various bug fixes and performance
+improvements, as well as updated translations.
+
+Please report bugs using the issue tracker at GitHub:
 
   <https://github.com/bitcoin/bitcoin/issues>
 
@@ -13,90 +16,100 @@ To receive security and update notifications, please subscribe to:
 
   <https://bitcoincore.org/en/list/announcements/join/>
 
+How to Upgrade
+==============
+
+If you are running an older version, shut it down. Wait until it has completely
+shut down (which might take a few minutes for older versions), then run the
+installer (on Windows) or just copy over `/Applications/Bitcoin-Qt` (on Mac)
+or `bitcoind`/`bitcoin-qt` (on Linux).
+
+Upgrading directly from a version of Bitcoin Core that has reached its EOL is
+possible, but it might take some time if the datadir needs to be migrated. Old
+wallet versions of Bitcoin Core are generally supported.
+
 Compatibility
 ==============
 
-Bitcoin Core is extensively tested on multiple operating systems using
-the Linux kernel, macOS 10.8+, and Windows Vista and later.
-
-Microsoft ended support for Windows XP on [April 8th, 2014](https://www.microsoft.com/en-us/WindowsForBusiness/end-of-xp-support),
-No attempt is made to prevent installing or running the software on Windows XP, you
-can still do so at your own risk but be aware that there are known instabilities and issues.
-Please do not report issues about Windows XP to the issue tracker.
+Bitcoin Core is supported and extensively tested on operating systems using
+the Linux kernel, macOS 10.10+, and Windows 7 and newer. It is not recommended
+to use Bitcoin Core on unsupported systems.
 
 Bitcoin Core should also work on most other Unix-like systems but is not
-frequently tested on them.
+as frequently tested on them.
 
-Notable changes
-===============
+From Bitcoin Core 0.17.0 onwards, macOS versions earlier than 10.10 are no
+longer supported, as Bitcoin Core is now built using Qt 5.9.x which requires
+macOS 10.10+. Additionally, Bitcoin Core does not yet change appearance when
+macOS "dark mode" is activated.
 
-miniupnp CVE-2017-8798
-----------------------------
+In addition to previously supported CPU platforms, this release's pre-compiled
+distribution provides binaries for the RISC-V platform.
 
-Bundled miniupnpc was updated to 2.0.20170509. This fixes an integer signedness error
-(present in MiniUPnPc v1.4.20101221 through v2.0) that allows remote attackers
-(within the LAN) to cause a denial of service or possibly have unspecified
-other impact.
-
-This only affects users that have explicitly enabled UPnP through the GUI
-setting or through the `-upnp` option, as since the last UPnP vulnerability
-(in Bitcoin Core 0.10.3) it has been disabled by default.
-
-If you use this option, it is recommended to upgrade to this version as soon as
-possible.
-
-Known Bugs
-==========
-
-Since 0.14.0 the approximate transaction fee shown in Bitcoin-Qt when using coin
-control and smart fee estimation does not reflect any change in target from the
-smart fee slider. It will only present an approximate fee calculated using the
-default target. The fee calculated using the correct target is still applied to
-the transaction and shown in the final send confirmation dialog.
-
-0.14.2 Change log
+0.19.1 change log
 =================
 
-Detailed release notes follow. This overview includes changes that affect
-behavior, not code moves, refactors and string updates. For convenience in locating
-the code changes and accompanying discussion, both the pull request and
-git merge commit are mentioned.
+### Wallet
+- #17643 Fix origfee return for bumpfee with feerate arg (instagibbs)
+- #16963 Fix `unique_ptr` usage in boost::signals2 (promag)
+- #17258 Fix issue with conflicted mempool tx in listsinceblock (adamjonas, mchrostowski)
+- #17924 Bug: IsUsedDestination shouldn't use key id as script id for ScriptHash (instagibbs)
+- #17621 IsUsedDestination should count any known single-key address (instagibbs)
+- #17843 Reset reused transactions cache (fjahr)
 
 ### RPC and other APIs
-- #10410 `321419b` Fix importwallet edge case rescan bug (ryanofsky)
-
-### P2P protocol and network code
-- #10424 `37a8fc5` Populate services in GetLocalAddress (morcos)
-- #10441 `9e3ad50` Only enforce expected services for half of outgoing connections (theuni)
-
-### Build system
-- #10414 `ffb0c4b` miniupnpc 2.0.20170509 (fanquake)
-- #10228 `ae479bc` Regenerate bitcoin-config.h as necessary (theuni)
-
-### Miscellaneous
-- #10245 `44a17f2` Minor fix in build documentation for FreeBSD 11 (shigeya)
-- #10215 `0aee4a1` Check interruptNet during dnsseed lookups (TheBlueMatt)
+- #17687 cli: Fix fatal leveldb error when specifying -blockfilterindex=basic twice (brakmic)
+- #17728 require second argument only for scantxoutset start action (achow101)
+- #17445 zmq: Fix due to invalid argument and multiple notifiers (promag)
+- #17524 psbt: handle unspendable psbts (achow101)
+- #17156 psbt: check that various indexes and amounts are within bounds (achow101)
 
 ### GUI
-- #10231 `1e936d7` Reduce a significant cs_main lock freeze (jonasschnelli)
+- #17427 Fix missing qRegisterMetaType for `size_t` (hebasto)
+- #17695 disable File-\>CreateWallet during startup (fanquake)
+- #17634 Fix comparison function signature (hebasto)
+- #18062 Fix unintialized WalletView::progressDialog (promag)
 
-### Wallet
-- #10294 `1847642` Unset change position when there is no change (instagibbs)
+### Tests and QA
+- #17416 Appveyor improvement - text file for vcpkg package list (sipsorcery)
+- #17488 fix "bitcoind already running" warnings on macOS (fanquake)
+- #17980 add missing #include to fix compiler errors (kallewoof)
+
+### Platform support
+- #17736 Update msvc build for Visual Studio 2019 v16.4 (sipsorcery)
+- #17364 Updates to appveyor config for VS2019 and Qt5.9.8 + msvc project fixes (sipsorcery)
+- #17887 bug-fix macos: give free bytes to `F_PREALLOCATE` (kallewoof)
+
+### Miscellaneous
+- #17897 init: Stop indexes on shutdown after ChainStateFlushed callback (jimpo)
+- #17450 util: Add missing headers to util/fees.cpp (hebasto)
+- #17654 Unbreak build with Boost 1.72.0 (jbeich)
+- #17857 scripts: Fix symbol-check & security-check argument passing (fanquake)
+- #17762 Log to net category for exceptions in ProcessMessages (laanwj)
+- #18100 Update univalue subtree (MarcoFalke)
 
 Credits
 =======
 
 Thanks to everyone who directly contributed to this release:
 
-- Alex Morcos
-- Cory Fields
+- Aaron Clauson
+- Adam Jonas
+- Andrew Chow
+- Fabian Jahr
 - fanquake
 - Gregory Sanders
-- Jonas Schnelli
-- Matt Corallo
+- Harris
+- Hennadii Stepanov
+- Jan Beich
+- Jim Posen
+- João Barbosa
+- Karl-Johan Alm
+- Luke Dashjr
+- MarcoFalke
+- Michael Chrostowski
 - Russell Yanofsky
-- Shigeya Suzuki
 - Wladimir J. van der Laan
 
-As well as everyone that helped translating on [Transifex](https://www.transifex.com/projects/p/bitcoin/).
-
+As well as to everyone that helped with translations on
+[Transifex](https://www.transifex.com/bitcoin/bitcoin/).

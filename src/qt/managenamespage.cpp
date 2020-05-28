@@ -329,9 +329,9 @@ void ManageNamesPage::on_submitNameButton_clicked()
 	const CNameVal name(strName.begin(), strName.end());
     {
 		if (txType == STR_NAME_NEW)
-            txFee = GetNameOpFee(chainActive.Tip(), days, OP_NAME_NEW, name, value);
+            txFee = GetNameOpFee(::ChainActive().Tip(), days, OP_NAME_NEW, name, value);
 		else if (txType == STR_NAME_UPDATE)
-            txFee = GetNameOpFee(chainActive.Tip(), days, OP_NAME_UPDATE, name, value);
+            txFee = GetNameOpFee(::ChainActive().Tip(), days, OP_NAME_UPDATE, name, value);
     }
 
     if (QMessageBox::Yes != QMessageBox::question(this, tr("Confirm name registration"),

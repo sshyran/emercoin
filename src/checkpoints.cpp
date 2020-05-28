@@ -66,7 +66,7 @@ bool ValidateSyncCheckpoint(uint256 hashCheckpoint)
     if (pindexCheckpointRecv->nHeight <= pindexSyncCheckpoint->nHeight)
     {
         // emercoin: debug only, because there is a potential to do a DoS attack with this check by spamming old checkpoints
-        if (fDebug) {
+        if (logCategories != BCLog::NONE) {
             // Received an older checkpoint, trace back from current checkpoint
             // to the same height of the received checkpoint to verify
             // that current checkpoint should be a descendant block
@@ -119,7 +119,7 @@ bool AcceptPendingSyncCheckpoint()
         return false;
 
     // emercoin: checkpoint needs to be a block with 32 confirmation (rolled back to 3)
-    if (mapBlockIndex[hashPendingCheckpoint]->nHeight > chainActive.Height() - 3 && !IsInitialBlockDownload())
+    if (mapBlockIndex[hashPendingCheckpoint]->nHeight > ::ChainActive().Height() - 3 && !IsInitialBlockDownload())
         return false;
 
     if (!ValidateSyncCheckpoint(hashPendingCheckpoint)) {
@@ -130,7 +130,7 @@ bool AcceptPendingSyncCheckpoint()
 
     //emcTODO - redo this somehow
 //    CBlockIndex* pindexCheckpoint = mapBlockIndex[hashPendingCheckpoint];
-//    if (pindexCheckpoint->nStatus & BLOCK_HAVE_DATA && !chainActive.Contains(mapBlockIndex[hashPendingCheckpoint])) {
+//    if (pindexCheckpoint->nStatus & BLOCK_HAVE_DATA && !::ChainActive().Contains(mapBlockIndex[hashPendingCheckpoint])) {
 //        CValidationState state;
 //        if (!SetBestChain(state, pindexCheckpoint))
 //        {
@@ -161,12 +161,12 @@ uint256 AutoSelectSyncCheckpoint()
     static uint32_t s_slots, s_node_no;
     if (s_depth < 0)
     {
-        s_depth   = GetArg("-checkpointdepth", 174 * 5); // default is 5 days backward deep
-        s_slots   = GetArg("-checkpointslots", 1); // quantity of check slots, def=1
-        s_node_no = GetArg("-checkpointnode", 0); // Number of current slot,  def=0
+        s_depth   = gArgs.GetArg("-checkpointdepth", 174 * 5); // default is 5 days backward deep
+        s_slots   = gArgs.GetArg("-checkpointslots", 1); // quantity of check slots, def=1
+        s_node_no = gArgs.GetArg("-checkpointnode", 0); // Number of current slot,  def=0
     }
 
-    const CBlockIndex *pindex = chainActive.Tip();
+    const CBlockIndex *pindex = ::ChainActive().Tip();
 
     // Get hash of current block stamp in specific depth
     for (int32_t i = 0; i < s_depth; i++)
@@ -365,7 +365,7 @@ bool CSyncCheckpoint::ProcessSyncCheckpoint()
 
     //emcTODO - redo this somehow
 //    CBlockIndex* pindexCheckpoint = mapBlockIndex[hashCheckpoint];
-//    if (pindexCheckpoint->nStatus & BLOCK_HAVE_DATA && !chainActive.Contains(pindexCheckpoint))
+//    if (pindexCheckpoint->nStatus & BLOCK_HAVE_DATA && !::ChainActive().Contains(pindexCheckpoint))
 //    {
 //        // checkpoint chain received but not yet main chain
 //        CValidationState state;

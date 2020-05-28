@@ -4,8 +4,8 @@
  * file COPYING or http://www.gnu.org/licenses/gpl.html.*
  **********************************************************************/
 
-#ifndef _SECP256K1_NUM_REPR_
-#define _SECP256K1_NUM_REPR_
+#ifndef SECP256K1_NUM_REPR_H
+#define SECP256K1_NUM_REPR_H
 
 #include <gmp.h>
 
@@ -17,4 +17,4 @@ typedef struct {
     int limbs;
 } secp256k1_num;
 
-#endif
+#endif /* SECP256K1_NUM_REPR_H */

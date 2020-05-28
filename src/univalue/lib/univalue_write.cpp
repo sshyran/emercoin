@@ -9,14 +9,13 @@
 #include "univalue_escapes.h"
 #include "json_spirit_legacy.h"
 
-using namespace std;
 
-static string json_escape(const string& inS, bool legacy=false)
+static std::string json_escape(const std::string& inS, bool legacy=false)
 {
     if (legacy)
         return add_esc_chars(inS);
 
-    string outS;
+    std::string outS;
     outS.reserve(inS.size() * 2);
 
     for (unsigned int i = 0; i < inS.size(); i++) {
@@ -32,11 +31,11 @@ static string json_escape(const string& inS, bool legacy=false)
     return outS;
 }
 
-string UniValue::write(unsigned int prettyIndent,
-                       unsigned int indentLevel,
-                       bool legacy) const
+std::string UniValue::write(unsigned int prettyIndent,
+                            unsigned int indentLevel,
+                            bool legacy) const
 {
-    string s;
+    std::string s;
     s.reserve(1024);
 
     unsigned int modIndent = indentLevel;
@@ -67,12 +66,12 @@ string UniValue::write(unsigned int prettyIndent,
     return s;
 }
 
-static void indentStr(unsigned int prettyIndent, unsigned int indentLevel, string& s)
+static void indentStr(unsigned int prettyIndent, unsigned int indentLevel, std::string& s)
 {
     s.append(prettyIndent * indentLevel, ' ');
 }
 
-void UniValue::writeArray(unsigned int prettyIndent, unsigned int indentLevel, string& s, bool legacy) const
+void UniValue::writeArray(unsigned int prettyIndent, unsigned int indentLevel, std::string& s, bool legacy) const
 {
     s += "[";
     if (prettyIndent)
@@ -84,8 +83,6 @@ void UniValue::writeArray(unsigned int prettyIndent, unsigned int indentLevel, s
         s += values[i].write(prettyIndent, indentLevel + 1, legacy);
         if (i != (values.size() - 1)) {
             s += ",";
-            if (prettyIndent)
-                s += " ";
         }
         if (prettyIndent)
             s += "\n";
@@ -96,7 +93,7 @@ void UniValue::writeArray(unsigned int prettyIndent, unsigned int indentLevel, s
     s += "]";
 }
 
-void UniValue::writeObject(unsigned int prettyIndent, unsigned int indentLevel, string& s, bool legacy) const
+void UniValue::writeObject(unsigned int prettyIndent, unsigned int indentLevel, std::string& s, bool legacy) const
 {
     s += "{";
     if (prettyIndent)

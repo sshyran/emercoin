@@ -113,7 +113,7 @@ bool NameActive(CNameDB& dbName, const CNameVal& name, int currentBlockHeight = 
         return false;
 
     if (currentBlockHeight < 0)
-        currentBlockHeight = chainActive.Height();
+        currentBlockHeight = ::ChainActive().Height();
 
     if (nameRec.deleted()) // last name op was name_delete
         return false;
@@ -257,7 +257,7 @@ bool CNamecoinHooks::IsNameFeeEnough(const CTransactionRef& tx, const CAmount& t
     if (!DecodeNameTx(tx, nti))
         return false;
 
-    return ::IsNameFeeEnough(nti, chainActive.Tip(), txFee);
+    return ::IsNameFeeEnough(nti, ::ChainActive().Tip(), txFee);
 }
 
 //returns first name operation. I.e. name_new from chain like name_new->name_update->name_update->...->name_update
@@ -395,8 +395,8 @@ UniValue name_list(const JSONRPCRequest& request)
         if (item.second.fIsMine == false)
             oName.push_back(Pair("transferred", true));
         oName.push_back(Pair("address", item.second.strAddress));
-        oName.push_back(Pair("expires_in", item.second.nExpiresAt - chainActive.Height()));
-        if (item.second.nExpiresAt - chainActive.Height() <= 0)
+        oName.push_back(Pair("expires_in", item.second.nExpiresAt - ::ChainActive().Height()));
+        if (item.second.nExpiresAt - ::ChainActive().Height() <= 0)
             oName.push_back(Pair("expired", true));
 
         oRes.push_back(oName);
@@ -547,13 +547,13 @@ UniValue name_show(const JSONRPCRequest& request)
         oName.push_back(Pair("value", encodeNameVal(nti.value, outputType)));
         oName.push_back(Pair("txid", tx->GetHash().GetHex()));
         oName.push_back(Pair("address", nti.strAddress));
-        oName.push_back(Pair("expires_in", nameRec.nExpiresAt - chainActive.Height()));
+        oName.push_back(Pair("expires_in", nameRec.nExpiresAt - ::ChainActive().Height()));
         oName.push_back(Pair("expires_at", nameRec.nExpiresAt));
         oName.push_back(Pair("time", (boost::int64_t)tx->nTime));
         if (nameRec.deleted())
             oName.push_back(Pair("deleted", true));
         else
-            if (nameRec.nExpiresAt - chainActive.Height() <= 0)
+            if (nameRec.nExpiresAt - ::ChainActive().Height() <= 0)
                 oName.push_back(Pair("expired", true));
     }
 
@@ -783,7 +783,7 @@ UniValue name_filter(const JSONRPCRequest& request)
 
         // max age
         int nHeight = nameRec.vtxPos[nameRec.nLastActiveChainIndex].nHeight;
-        if(nMaxAge != 0 && chainActive.Height() - nHeight >= nMaxAge)
+        if(nMaxAge != 0 && ::ChainActive().Height() - nHeight >= nMaxAge)
             continue;
 
         // from limits
@@ -796,7 +796,7 @@ UniValue name_filter(const JSONRPCRequest& request)
             oName.push_back(Pair("name", name));
             oName.push_back(Pair("value", limitString(encodeNameVal(txName.value, outputType), 300, "\n...(value too large - use name_show to see full value)")));
             oName.push_back(Pair("registered_at", nHeight)); // pos = 2 in comparison function (above name_filter)
-            int nExpiresIn = nameRec.nExpiresAt - chainActive.Height();
+            int nExpiresIn = nameRec.nExpiresAt - ::ChainActive().Height();
             oName.push_back(Pair("expires_in", nExpiresIn));
             if (nExpiresIn <= 0)
                 oName.push_back(Pair("expired", true));
@@ -821,7 +821,7 @@ UniValue name_filter(const JSONRPCRequest& request)
     else
     {
         UniValue oStat(UniValue::VOBJ);
-        oStat.push_back(Pair("blocks",    chainActive.Height()));
+        oStat.push_back(Pair("blocks",    ::ChainActive().Height()));
         oStat.push_back(Pair("count",     (int)oRes2.size()));
         //oStat.push_back(Pair("sha256sum", SHA256(oRes), true));
         return oStat;
@@ -870,8 +870,8 @@ UniValue name_scan(const JSONRPCRequest& request)
         CNameVal value = txName.value;
 
         oName.push_back(Pair("value", limitString(encodeNameVal(value, outputType), nMaxShownValue, "\n...(value too large - use name_show to see full value)")));
-        oName.push_back(Pair("expires_in", nExpiresAt - chainActive.Height()));
-        if (nExpiresAt - chainActive.Height() <= 0)
+        oName.push_back(Pair("expires_in", nExpiresAt - ::ChainActive().Height()));
+        if (nExpiresAt - ::ChainActive().Height() <= 0)
             oName.push_back(Pair("expired", true));
 
         oRes.push_back(oName);
@@ -929,13 +929,13 @@ UniValue name_scan_address(const JSONRPCRequest& request)
         oName.push_back(Pair("value", limitString(encodeNameVal(nti.value, outputType), nMaxShownValue, "\n...(value too large - use name_show to see full value)")));
         oName.push_back(Pair("txid", tx->GetHash().GetHex()));
         oName.push_back(Pair("address", nti.strAddress));
-        oName.push_back(Pair("expires_in", nameRec.nExpiresAt - chainActive.Height()));
+        oName.push_back(Pair("expires_in", nameRec.nExpiresAt - ::ChainActive().Height()));
         oName.push_back(Pair("expires_at", nameRec.nExpiresAt));
         oName.push_back(Pair("time", (boost::int64_t)tx->nTime));
         if (nameRec.deleted())
             oName.push_back(Pair("deleted", true));
         else
-            if (nameRec.nExpiresAt - chainActive.Height() <= 0)
+            if (nameRec.nExpiresAt - ::ChainActive().Height() <= 0)
                 oName.push_back(Pair("expired", true));
 
         oRes.push_back(oName);
@@ -1271,7 +1271,7 @@ NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, 
         }
 
     // set fee and send!
-        CAmount nameFee = GetNameOpFee(chainActive.Tip(), nRentalDays, op, name, value);
+        CAmount nameFee = GetNameOpFee(::ChainActive().Tip(), nRentalDays, op, name, value);
         SendName(nameScript, MIN_TXOUT_AMOUNT, wtx, wtxIn, nameFee);
     }
 
@@ -1288,17 +1288,16 @@ NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, 
 
 bool createNameIndexes()
 {
-    if (!fTxIndex)
+    if (!g_txindex)
         return error("createNameIndexes() : transaction index not available");
 
     LogPrintf("Scanning blockchain for names to create fast index...\n");
     LOCK(cs_main);
     CNameDB dbName("cr+");
     CNameAddressDB dbNameAddress("cr+");
-    int maxHeight = chainActive.Height();
+    int maxHeight = ::ChainActive().Height();
     int reportDone = 0;
-    for (int nHeight=0; nHeight<=maxHeight; nHeight++)
-    {
+    for (int nHeight=0; nHeight<=maxHeight; nHeight++) {
         int percentageDone = (100*nHeight / maxHeight);
         if (reportDone < percentageDone/10) {
             // report every 10% step
@@ -1315,19 +1314,16 @@ bool createNameIndexes()
         // collect name tx from block
         vector<nameTempProxy> vName;
         CDiskTxPos pos(pindex->GetBlockPos(), GetSizeOfCompactSize(block.vtx.size())); // start position
-        for (unsigned int i=0; i<block.vtx.size(); i++)
-        {
+        for (unsigned int i=0; i<block.vtx.size(); i++) {
             const CTransactionRef& tx = block.vtx[i];
-            if (tx->IsCoinStake() || tx->IsCoinBase())
-            {
+            if (tx->IsCoinStake() || tx->IsCoinBase()) {
                 pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);  // set next tx position
                 continue;
             }
 
             // calculate tx fee
             CAmount input = 0;
-            for (const auto& txin : tx->vin)
-            {
+            for (const auto& txin : tx->vin) {
                 CTransactionRef txPrev;
                 uint256 hashBlock = uint256();
                 if (!GetTransaction(txin.prevout.hash, txPrev, Params().GetConsensus(), hashBlock))
@@ -1356,13 +1352,10 @@ bool createNameAddressFile()
 
     CNameDB dbName("r");
     vector<pair<CNameVal, pair<CNameIndex,int> > > nameScan;
-    {
-        if (!dbName.ScanNames(CNameVal(), 0, nameScan))
-            return error("createNameAddressFile() : scan failed");
-    }
+    if (!dbName.ScanNames(CNameVal(), 0, nameScan))
+        return error("createNameAddressFile() : scan failed");
 
-    for (const auto& pair : nameScan)
-    {
+    for (const auto& pair : nameScan) {
         const CNameVal&   name  = pair.first;
         const CDiskTxPos& txpos = pair.second.first.txPos;
 
@@ -1388,13 +1381,11 @@ bool DecodeNameTx(const CTransactionRef& tx, NameTxInfo& nti, bool fExtractAddre
         return false;
 
     bool found = false;
-    for (unsigned int i = 0; i < tx->vout.size(); i++)
-    {
+    for (unsigned int i = 0; i < tx->vout.size(); i++) {
         const CTxOut& out = tx->vout[i];
         NameTxInfo ntiTmp;
         CScript::const_iterator pc = out.scriptPubKey.begin();
-        if (DecodeNameScript(out.scriptPubKey, ntiTmp, pc))
-        {
+        if (DecodeNameScript(out.scriptPubKey, ntiTmp, pc)) {
             // If more than one name op, fail
             if (found)
                 return false;
@@ -1402,8 +1393,7 @@ bool DecodeNameTx(const CTransactionRef& tx, NameTxInfo& nti, bool fExtractAddre
             nti = ntiTmp;
             nti.nOut = i;
 
-            if (fExtractAddress)
-            {
+            if (fExtractAddress) {
                 //read address
                 CTxDestination address;
                 CScript scriptPubKey(pc, out.scriptPubKey.end());
@@ -1415,7 +1405,6 @@ bool DecodeNameTx(const CTransactionRef& tx, NameTxInfo& nti, bool fExtractAddre
                 if (fCheckIsMineAddress && pwalletMain)
                     nti.fIsMine = IsMine(*pwalletMain, address) == ISMINE_SPENDABLE;
             }
-
             found = true;
         }
     }
@@ -1445,8 +1434,7 @@ bool CNamecoinHooks::CheckPendingNames(const CTransactionRef& tx)
     if (!DecodeNameTx(tx, nti))
         return error("%s: could not decode name script in tx %s\n", __func__, tx->GetHash().ToString());
 
-    if (mapNamePending.count(nti.name))
-    {
+    if (mapNamePending.count(nti.name)) {
         LogPrintf("%s: there is already a pending operation on this name %s\n", __func__, stringFromNameVal(nti.name));
         return false;
     }
@@ -1626,7 +1614,7 @@ bool CNamecoinHooks::DisconnectInputs(const CTransactionRef& tx)
         return dbName.EraseName(nti.name); // delete empty record
 
     CDiskTxPos postx;
-    if (!pblocktree->ReadTxIndex(tx->GetHash(), postx))
+    if (!g_txindex || !g_txindex->FindTx(tx->GetHash(), postx))
         return error("DisconnectInputs() : tx index not found");  // tx index not found
 
     // check if tx pos matches any known pos in name history (it should only match last tx)
@@ -1765,7 +1753,7 @@ bool CNamecoinHooks::ConnectBlock(CBlockIndex* pindex, const vector<nameTempProx
         // limit to 1000 tx per name or a full single chain - whichever is larger
         static size_t maxSize = 0;
         if (maxSize == 0)
-            maxSize = GetArg("-nameindexchainsize", NAMEINDEX_CHAIN_SIZE);
+            maxSize = gArgs.GetArg("-nameindexchainsize", NAMEINDEX_CHAIN_SIZE);
 
         if (nameRec.vtxPos.size() > maxSize &&
             nameRec.vtxPos.size() - nameRec.nLastActiveChainIndex + 1 <= maxSize)
@@ -2060,8 +2048,8 @@ UniValue name_indexinfo(const JSONRPCRequest& request)
     LOCK(cs_main);
 
     UniValue ret(UniValue::VOBJ);
-    ret.push_back(Pair("height", chainActive.Tip()->nHeight));
-    ret.push_back(Pair("bestblock", chainActive.Tip()->GetBlockHash().ToString()));
+    ret.push_back(Pair("height", ::ChainActive().Tip()->nHeight));
+    ret.push_back(Pair("bestblock", ::ChainActive().Tip()->GetBlockHash().ToString()));
 
     NameIndexStats stats;
     CNameDB dbName("r");

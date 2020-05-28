@@ -444,7 +444,7 @@ QString MintingTableModel::lookupAddress(const std::string &address, bool toolti
 
 double MintingTableModel::getDayToMint(KernelRecord *wtx) const
 {
-    const CBlockIndex *p = GetLastBlockIndex(chainActive.Tip(), true);
+    const CBlockIndex *p = GetLastBlockIndex(::ChainActive().Tip(), true);
     double difficulty = GetDifficulty(p);
 
     double prob = wtx->getProbToMintWithinNMinutes(difficulty, mintingInterval);

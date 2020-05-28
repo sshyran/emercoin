@@ -14,22 +14,19 @@ class NetworkStyle
 {
 public:
     /** Get style associated with provided BIP70 network id, or 0 if not known */
-    static const NetworkStyle *instantiate(const QString &networkId);
+    static const NetworkStyle* instantiate(const std::string& networkId);
 
     const QString &getAppName() const { return appName; }
     const QIcon &getAppIcon() const { return appIcon; }
     const QIcon &getTrayAndWindowIcon() const { return trayAndWindowIcon; }
-    const QPixmap &getStartScreenIcon() const { return startScreenIcon; }
     const QString &getTitleAddText() const { return titleAddText; }
 
 private:
     NetworkStyle(const QString &appName, const int iconColorHueShift, const int iconColorSaturationReduction, const char *titleAddText);
-    void convert(QPixmap& pixmap, const int iconColorHueShift, const int iconColorSaturationReduction);
 
     QString appName;
     QIcon appIcon;
     QIcon trayAndWindowIcon;
-    QPixmap startScreenIcon;
     QString titleAddText;
 };
 
