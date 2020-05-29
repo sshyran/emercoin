@@ -78,17 +78,15 @@ string encodeNameVal(const CNameVal& input, const string& format)
 // Calculate at which block will expire.
 bool CalculateExpiresAt(CNameRecord& nameRec)
 {
-    if (nameRec.deleted())
-    {
+    if (nameRec.deleted()) {
         nameRec.nExpiresAt = 0;
         return true;
     }
 
     int64_t sum = 0;
-    for(unsigned int i = nameRec.nLastActiveChainIndex; i < nameRec.vtxPos.size(); i++)
-    {
+    for(unsigned int i = nameRec.nLastActiveChainIndex; i < nameRec.vtxPos.size(); i++) {
         CTransactionRef tx;
-        if (!GetTransaction(nameRec.vtxPos[i].txPos, tx))
+        if (!g_txindex || !g_txindex->FindTx(nameRec.vtxPos[i].txPos, tx))
             return error("CalculateExpiresAt() : could not read tx from disk");
 
         NameTxInfo nti;
@@ -387,7 +385,7 @@ UniValue name_list(const JSONRPCRequest& request)
     GetNameList(nameUniq, mapNames, mapPending);
 
     UniValue oRes(UniValue::VARR);
-    BOOST_FOREACH(const PAIRTYPE(CNameVal, NameTxInfo)& item, mapNames)
+    for (const auto& item : mapNames)
     {
         UniValue oName(UniValue::VOBJ);
         oName.push_back(Pair("name", stringFromNameVal(item.second.name)));

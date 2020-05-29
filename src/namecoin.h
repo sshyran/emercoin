@@ -6,6 +6,7 @@
 #include <wallet/db.h>
 #include <script/interpreter.h>
 #include <fs.h>
+#include <index/txindex.h>
 
 class CBitcoinAddress;
 class CKeyStore;
