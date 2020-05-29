@@ -54,7 +54,10 @@ namespace BCLog {
         COINDB      = (1 << 18),
         QT          = (1 << 19),
         LEVELDB     = (1 << 20),
+
+        STAKE       = (1 << 29),
         ALERT       = (1 << 30),
+
         ALL         = ~(uint32_t)0,
     };
 
@@ -133,6 +136,9 @@ std::string ListLogCategories();
 
 /** Returns a vector of the active log categories. */
 std::vector<CLogCategoryActive> ListActiveLogCategories();
+
+/** Returns a vector of the active log categories. */
+bool LogIsDebug();
 
 /** Return true if str parses as a log category and set the flag */
 bool GetLogCategory(BCLog::LogFlags& flag, const std::string& str);

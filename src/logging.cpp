@@ -153,6 +153,7 @@ const CLogCategoryDesc LogCategories[] =
     {BCLog::ALERT, "alert"},
     {BCLog::ALL, "1"},
     {BCLog::ALL, "all"},
+    {BCLog::STAKE, "stake"},
 };
 
 bool GetLogCategory(BCLog::LogFlags& flag, const std::string& str)

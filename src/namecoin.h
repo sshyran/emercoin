@@ -107,7 +107,7 @@ class CNameAddressDB : public CDBWrapper
 {
 public:
     CNameAddressDB(size_t n_cache_size, bool f_memory = false, bool f_wipe = false, bool f_obfuscate = false) :
-        CDBWrapper(GetDataDir() / "indexes" / "nameaddressV2", n_cache_size, f_memory, f_wipe, f_obfuscate)
+        CDBWrapper(GetDataDir() / "indexes" / "nameaddressV3", n_cache_size, f_memory, f_wipe, f_obfuscate)
     {}
 
     bool WriteAddress(const std::string& address, const std::set<CNameVal>& names) {
