@@ -1,11 +1,11 @@
 #ifndef NAMECOIN_H
 #define NAMECOIN_H
 
-#include "hooks.h"
-#include "rpc/protocol.h"
-#include "wallet/db.h"
-#include "txdb.h"
-#include "script/interpreter.h"
+#include <hooks.h>
+#include <rpc/protocol.h>
+#include <wallet/db.h>
+#include <script/interpreter.h>
+#include <fs.h>
 
 class CBitcoinAddress;
 class CKeyStore;
@@ -64,25 +64,26 @@ public:
     }
 };
 
-class CNameDB : public BerkeleyBatch
+
+class CNameDB : public CDBWrapper
 {
 public:
-//    CNameDB(const char* pszMode="r+") : BerkeleyBatch("nameindex/nameindexV2.dat", pszMode) {}
 
-    bool WriteName(const CNameVal& name, const CNameRecord& rec)
-    {
+    CNameDB(size_t n_cache_size, bool f_memory = false, bool f_wipe = false, bool f_obfuscate = false) :
+        CDBWrapper(GetDataDir() / "indexes" / "nameindexV3", n_cache_size, f_memory, f_wipe, f_obfuscate)
+    {}
+
+    bool WriteName(const CNameVal& name, const CNameRecord& rec) {
         return Write(make_pair(std::string("namei"), name), rec);
     }
 
     bool ReadName(const CNameVal& name, CNameRecord& rec);
 
-    bool ExistsName(const CNameVal& name)
-    {
+    bool ExistsName(const CNameVal& name) {
         return Exists(make_pair(std::string("namei"), name));
     }
 
-    bool EraseName(const CNameVal& name)
-    {
+    bool EraseName(const CNameVal& name) {
         return Erase(make_pair(std::string("namei"), name));
     }
 
@@ -101,42 +102,39 @@ public:
 // secondary index for (address -> name) pairs
 // names listed here maybe expired
 // names that have OP_NAME_DELETE as their last operation are not listed here
-class CNameAddressDB : public BerkeleyBatch
+
+class CNameAddressDB : public CDBWrapper
 {
 public:
-    //CNameAddressDB(const char* pszMode="r+") : BerkeleyBatch("nameindex/nameaddress.dat", pszMode) {}
+    CNameAddressDB(size_t n_cache_size, bool f_memory = false, bool f_wipe = false, bool f_obfuscate = false) :
+        CDBWrapper(GetDataDir() / "indexes" / "nameaddressV2", n_cache_size, f_memory, f_wipe, f_obfuscate)
+    {}
 
-    bool WriteAddress(const std::string& address, const std::set<CNameVal>& names)
-    {
+    bool WriteAddress(const std::string& address, const std::set<CNameVal>& names) {
         return Write(make_pair(std::string("addressi"), address), names);
     }
 
-    bool ReadAddress(const std::string& address, std::set<CNameVal>& names)
-    {
+    bool ReadAddress(const std::string& address, std::set<CNameVal>& names) {
         return Read(make_pair(std::string("addressi"), address), names);
     }
 
-    bool ExistsAddress(const std::string& address)
-    {
+    bool ExistsAddress(const std::string& address) {
         return Exists(make_pair(std::string("addressi"), address));
     }
 
-    bool EraseAddress(const std::string& address)
-    {
+    bool EraseAddress(const std::string& address) {
         return Erase(make_pair(std::string("addressi"), address));
     }
 
     // this will fail if you try to add a name that already exist
-    bool WriteSingleName(const std::string& address, const CNameVal& name)
-    {
+    bool WriteSingleName(const std::string& address, const CNameVal& name) {
         std::set<CNameVal> names;
         ReadAddress(address, names); // note: address will not exist if this is the first time we are writting it
         return names.insert(name).second && Write(make_pair(std::string("addressi"), address), names);
     }
 
     // this will fail if you try to erase a name that does not exist
-    bool EraseSingleName(const std::string& address, const CNameVal& name)
-    {
+    bool EraseSingleName(const std::string& address, const CNameVal& name) {
         std::set<CNameVal> names;
         if (ReadAddress(address, names)) // note: address should always exist, because we are trying to erase name from existing record
             return names.erase(name) && Write(make_pair(std::string("addressi"), address), names);
@@ -144,8 +142,7 @@ public:
     }
 
     // removes name from old address and adds it to new address
-    bool MoveName(const std::string& oldAddress, const std::string& newAddress, const CNameVal& name)
-    {
+    bool MoveName(const std::string& oldAddress, const std::string& newAddress, const CNameVal& name) {
         if (newAddress == oldAddress) // nothing to do
             return true;
 
