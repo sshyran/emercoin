@@ -64,10 +64,10 @@ public:
     }
 };
 
-class CNameDB : public CDB
+class CNameDB : public BerkeleyBatch
 {
 public:
-    CNameDB(const char* pszMode="r+") : CDB("nameindex/nameindexV2.dat", pszMode) {}
+//    CNameDB(const char* pszMode="r+") : BerkeleyBatch("nameindex/nameindexV2.dat", pszMode) {}
 
     bool WriteName(const CNameVal& name, const CNameRecord& rec)
     {
@@ -101,10 +101,10 @@ public:
 // secondary index for (address -> name) pairs
 // names listed here maybe expired
 // names that have OP_NAME_DELETE as their last operation are not listed here
-class CNameAddressDB : public CDB
+class CNameAddressDB : public BerkeleyBatch
 {
 public:
-    CNameAddressDB(const char* pszMode="r+") : CDB("nameindex/nameaddress.dat", pszMode) {}
+    //CNameAddressDB(const char* pszMode="r+") : BerkeleyBatch("nameindex/nameaddress.dat", pszMode) {}
 
     bool WriteAddress(const std::string& address, const std::set<CNameVal>& names)
     {
