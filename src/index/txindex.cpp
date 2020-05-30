@@ -264,11 +264,6 @@ bool TxIndex::FindTx(const uint256& tx_hash, uint256& block_hash, CTransactionRe
     return true;
 }
 
-bool TxIndex::FindTx(const uint256& txid, CDiskTxPos& pos) const
-{
-    return m_db->ReadTxPos(txid, pos);
-}
-
 bool TxIndex::FindTx(const CDiskTxPos& postx, CTransactionRef& tx) const
 {
     CAutoFile file(OpenBlockFile(postx, true), SER_DISK, CLIENT_VERSION);
@@ -286,4 +281,9 @@ bool TxIndex::FindTx(const CDiskTxPos& postx, CTransactionRef& tx) const
         return error("%s: Deserialize or I/O error - %s", __func__, e.what());
     }
     return true;
+}
+
+bool TxIndex::FindTxPosition(const uint256& txid, CDiskTxPos& pos) const
+{
+    return m_db->ReadTxPos(txid, pos);
 }

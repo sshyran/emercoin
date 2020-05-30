@@ -461,7 +461,7 @@ bool CheckProofOfStake(CValidationState &state, CBlockIndex* pindexPrev, const C
 
     // Get transaction index for the previous transaction
     CDiskTxPos postx;
-    if (!g_txindex->FindTx(txin.prevout.hash, postx))
+    if (!g_txindex->FindTxPosition(txin.prevout.hash, postx))
         return error("CheckProofOfStake() : tx index not found");  // tx index not found
 
     // Read txPrev and header of its block

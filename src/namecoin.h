@@ -69,10 +69,8 @@ public:
 class CNameDB : public CDBWrapper
 {
 public:
-
-    CNameDB(size_t n_cache_size, bool f_memory = false, bool f_wipe = false, bool f_obfuscate = false) :
-        CDBWrapper(GetDataDir() / "indexes" / "nameindexV3", n_cache_size, f_memory, f_wipe, f_obfuscate)
-    {}
+    CNameDB(size_t nCacheSize, bool fMemory = false, bool fWipe = false) : CDBWrapper(GetDataDir() / "indexes" / "nameindexV3", nCacheSize, fMemory, fWipe) {
+    }
 
     bool WriteName(const CNameVal& name, const CNameRecord& rec) {
         return Write(make_pair(std::string("namei"), name), rec);
@@ -107,9 +105,8 @@ public:
 class CNameAddressDB : public CDBWrapper
 {
 public:
-    CNameAddressDB(size_t n_cache_size, bool f_memory = false, bool f_wipe = false, bool f_obfuscate = false) :
-        CDBWrapper(GetDataDir() / "indexes" / "nameaddressV3", n_cache_size, f_memory, f_wipe, f_obfuscate)
-    {}
+    CNameAddressDB(size_t nCacheSize, bool fMemory = false, bool fWipe = false) : CDBWrapper(GetDataDir() / "indexes" / "nameaddressV3", nCacheSize, fMemory, fWipe) {
+    }
 
     bool WriteAddress(const std::string& address, const std::set<CNameVal>& names) {
         return Write(make_pair(std::string("addressi"), address), names);
@@ -158,6 +155,8 @@ public:
 };
 
 extern std::map<CNameVal, std::set<uint256> > mapNamePending;
+extern std::unique_ptr<CNameDB> pNameDB;
+extern std::unique_ptr<CNameAddressDB> pNameAddressDB;
 
 int IndexOfNameOutput(const CTransactionRef &tx);
 bool GetNameCurrentAddress(const CNameVal& name, CBitcoinAddress& address, std::string& error);

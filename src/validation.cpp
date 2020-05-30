@@ -5486,7 +5486,7 @@ bool GetEmc7POSReward(const CTransaction& tx, const CCoinsViewCache &view, CAmou
 
         CDiskTxPos postx;
         CTransactionRef txPrev;
-        if (g_txindex->FindTx(prevout.hash, postx)) {
+        if (g_txindex->FindTxPosition(prevout.hash, postx)) {
             CAutoFile file(OpenBlockFile(postx, true), SER_DISK, CLIENT_VERSION);
             CBlockHeader header;
             try {
