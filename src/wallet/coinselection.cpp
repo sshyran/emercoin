@@ -327,3 +327,10 @@ bool OutputGroup::EligibleForSpending(const CoinEligibilityFilter& eligibility_f
         && m_ancestors <= eligibility_filter.max_ancestors
         && m_descendants <= eligibility_filter.max_descendants;
 }
+
+// ------------ Emercoin DP-selector
+// Select coins subsed with dynamic programming (exclusive Emercoin feature from olegarch)
+bool SelectCoinsDP(std::vector<COutput>& vCoins, const CAmount& nTargetValue, std::set<CInputCoin>& setCoinsRet, CAmount& nValueRet) {
+    // vCoins: shuffle OK, but do not modify!
+    return false;
+} // SelectCoinsDP

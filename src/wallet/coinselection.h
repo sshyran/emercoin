@@ -98,4 +98,8 @@ bool SelectCoinsBnB(std::vector<OutputGroup>& utxo_pool, const CAmount& target_v
 // Original coin selection algorithm as a fallback
 bool KnapsackSolver(const CAmount& nTargetValue, std::vector<OutputGroup>& groups, std::set<CInputCoin>& setCoinsRet, CAmount& nValueRet);
 
+// Select coins subsed with dynamic programming (exclusive Emercoin feature from olegarch)
+class COutput;
+bool SelectCoinsDP(std::vector<COutput>& vCoins, const CAmount& nTargetValue, std::set<CInputCoin>& setCoinsRet, CAmount& nValueRet);
+
 #endif // BITCOIN_WALLET_COINSELECTION_H

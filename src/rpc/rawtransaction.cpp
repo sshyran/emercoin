@@ -1972,14 +1972,21 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
 
     LOCK2(cs_main, pwallet->cs_wallet);
 
+    //emcTODO - following commented code is not need, if AcceptToMemoryPool() rejects adding already existing TXID. Need check.
+#if 0    
     CCoinsView viewDummy;
     CCoinsViewCache view(&viewDummy);
     //emcTODO redo this
 //    const CCoins* existingCoins = view.AccessCoin(tx->GetHash());
 //    bool fHaveChain = existingCoins && existingCoins->nHeight < 1000000000;
-    bool fHaveChain = false;
+///??     bool fHaveChain = false;
+    COutPoint iter(tx->GetHash(), 0);
+    const Coin& existingCoin = view.AccessCoin(iter);
+    bool fHaveChain = existingCoin.nHeight > 0 && existingCoin.nHeight < 1000000000;
     if (fHaveChain)
         throw JSONRPCError(RPC_TRANSACTION_ALREADY_IN_CHAIN, "transaction already in block chain");
+#endif
+
     CValidationState state;
     bool fMissingInputs;
     CAmount nMaxRawTxFee = 0;
