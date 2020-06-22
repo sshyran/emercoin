@@ -1830,6 +1830,12 @@ UniValue randpay_createaddrchap(const JSONRPCRequest& request)
 
 UniValue randpay_createtx(const JSONRPCRequest& request)
 {
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    CWallet* const pwallet = wallet.get();
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
     //emcTODO fill this
     RPCHelpMan{"randpay_createtx amount \"addrchap\" risk timeout [naive]",
     "\nCreates randpay tx.\n"
@@ -1846,11 +1852,6 @@ UniValue randpay_createtx(const JSONRPCRequest& request)
         HelpExampleCli("randpay_createtx", "")
     }}.Check(request);
 
-    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
-    CWallet* const pwallet = wallet.get();
-    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
-        return NullUniValue;
-    }
 
     CAmount nAmount = AmountFromValue(request.params[0]);
     if (nAmount <= 0)
@@ -1934,6 +1935,12 @@ UniValue randpay_createtx(const JSONRPCRequest& request)
 
 UniValue randpay_submittx(const JSONRPCRequest& request)
 {
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    CWallet* const pwallet = wallet.get();
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
     //emcTODO fill this
     RPCHelpMan{"randpay_submittx \"hexstring\" risk",
     "\nVerifies and submits randpaytx.\n"
@@ -1950,11 +1957,6 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
         HelpExampleCli("randpay_createtx", "")
     }}.Check(request);
 
-    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
-    CWallet* const pwallet = wallet.get();
-    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
-        return NullUniValue;
-    }
 
 #ifdef ENABLE_WALLET
     InitMapRandKeyT();

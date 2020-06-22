@@ -119,7 +119,7 @@ bool AcceptPendingSyncCheckpoint()
         return false;
 
     // emercoin: checkpoint needs to be a block with 32 confirmation (rolled back to 3)
-    if (mapBlockIndex[hashPendingCheckpoint]->nHeight > ::ChainActive().Height() - 3 && !IsInitialBlockDownload())
+    if (mapBlockIndex[hashPendingCheckpoint]->nHeight > ::ChainActive().Height() - 3 && !::ChainstateActive().IsInitialBlockDownload())
         return false;
 
     if (!ValidateSyncCheckpoint(hashPendingCheckpoint)) {

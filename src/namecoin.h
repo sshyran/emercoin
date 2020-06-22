@@ -7,8 +7,8 @@
 #include <script/interpreter.h>
 #include <fs.h>
 #include <index/txindex.h>
+#include <script/standard.h>
 
-class CBitcoinAddress;
 class CKeyStore;
 struct NameIndexStats;
 
@@ -159,7 +159,7 @@ extern std::unique_ptr<CNameDB> pNameDB;
 extern std::unique_ptr<CNameAddressDB> pNameAddressDB;
 
 int IndexOfNameOutput(const CTransactionRef &tx);
-bool GetNameCurrentAddress(const CNameVal& name, CBitcoinAddress& address, std::string& error);
+bool GetNameCurrentAddress(const CNameVal& name, CTxDestination& dest, std::string& error);
 CNameVal nameValFromString(const std::string& str);
 CNameVal toCNameVal(const std::string& str);
 std::string stringFromNameVal(const CNameVal& nameVal);
@@ -168,7 +168,7 @@ std::string stringFromOp(int op);
 
 CAmount GetNameOpFee(const CBlockIndex* pindexBlock, const int nRentalDays, int op, const CNameVal& name, const CNameVal& value);
 
-bool DecodeNameTx(const CTransactionRef& tx, NameTxInfo& nti, bool fExtractAddress = false, bool fCheckIsMineAddress = true);
+bool DecodeNameTx(const CTransactionRef& tx, NameTxInfo& nti, bool fExtractAddress = false);
 void GetNameList(const CNameVal& nameUniq, std::map<CNameVal, NameTxInfo> &mapNames, std::map<CNameVal, NameTxInfo> &mapPending);
 bool GetNameValue(const CNameVal& name, CNameVal& value);
 

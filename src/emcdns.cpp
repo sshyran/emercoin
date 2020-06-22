@@ -35,13 +35,14 @@
 
 #include <ctype.h>
 
-#include "namecoin.h"
-#include "util.h"
-#include "emcdns.h"
-#include "random.h"
-#include "validation.h"
-#include "base58.h"
-#include "netbase.h"
+#include <namecoin.h>
+#include <emcdns.h>
+#include <random.h>
+#include <validation.h>
+#include <base58.h>
+#include <netbase.h>
+#include <key_io.h>
+#include <util/validation.h>
 
 /*---------------------------------------------------*/
 /*
@@ -457,7 +458,7 @@ int EmcDns::HandlePacket() {
     }
 
     if(m_status) {
-      if((m_status = IsInitialBlockDownload()) != 0) {
+      if((m_status = ::ChainstateActive().IsInitialBlockDownload()) != 0) {
         m_hdr->Bits |= 2; // Server failure - not available valid nameindex DB yet
         break;
       } else {
@@ -1256,20 +1257,20 @@ bool EmcDns::CheckEnumSig(const char *q_str, char *sig_str) {
         CNameRecord nameRec;
         CTransactionRef tx;
         LOCK(cs_main);
-        CNameDB dbName("r");
-        if(!dbName.ReadName(CNameVal(it->first.c_str(), it->first.c_str() + it->first.size()), nameRec))
+        if(!pNameDB->ReadName(CNameVal(it->first.c_str(), it->first.c_str() + it->first.size()), nameRec))
 	  break; // failed to read from name DB
         if(nameRec.vtxPos.size() < 1)
 	  break; // no result returned
-        if(!GetTransaction(nameRec.vtxPos.back().txPos, tx))
+        if(!g_txindex || !g_txindex->FindTx(nameRec.vtxPos.back().txPos, tx))
           break; // failed to read from from disk
         if(!DecodeNameTx(tx, nti, true))
           break; // failed to decode name
-	CBitcoinAddress addr(nti.strAddress);
-        if(!addr.IsValid())
-          break; // Invalid address
-        if(!addr.GetKeyID(ver.keyID))
-          break; // Address does not refer to key
+        CTxDestination dest = DecodeDestination(nti.strAddress);
+        if (!IsValidDestination(dest))
+            break; // Invalid address
+        //emcTODO - is this still needed?
+//        if(!addr.GetKeyID(ver.keyID))
+//          break; // Address does not refer to key
 
 	// Verifier has been read successfully, configure SRL if exist
 	char valbuf[VAL_SIZE], *str_val = valbuf;
