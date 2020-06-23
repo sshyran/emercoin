@@ -3770,7 +3770,7 @@ UniValue getaddressinfo(const JSONRPCRequest& request)
 
     isminetype mine = IsMine(*pwallet, dest);
     ret.pushKV("ismine", bool(mine & ISMINE_SPENDABLE));
-    bool solvable = IsSolvable(*pwallet, scriptPubKey);
+    bool solvable = IsSolvable(*pwallet, scriptPubKey, 0);
     ret.pushKV("solvable", solvable);
     if (solvable) {
        ret.pushKV("desc", InferDescriptor(scriptPubKey, *pwallet)->ToString());

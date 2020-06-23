@@ -434,7 +434,7 @@ public:
 const BaseSignatureCreator& DUMMY_SIGNATURE_CREATOR = DummySignatureCreator(32, 32);
 const BaseSignatureCreator& DUMMY_MAXIMUM_SIGNATURE_CREATOR = DummySignatureCreator(33, 32);
 
-bool IsSolvable(const SigningProvider& provider, const CScript& script, int nVersion)
+bool IsSolvable(const SigningProvider& provider, const CScript& script, int32_t nVersion)
 {
     // This check is to make sure that the script we created can actually be solved for and signed by us
     // if we were to have the private keys. This is just to make sure that the script is valid and that,

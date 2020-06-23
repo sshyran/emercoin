@@ -15,6 +15,8 @@
 #include <util/system.h>
 #include <util/strencodings.h>
 
+#include <namecoin.h>
+
 UniValue ValueFromAmount(const CAmount& amount)
 {
     bool sign = amount < 0;
@@ -184,13 +186,13 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
     entry.pushKV("vsize", (GetTransactionWeight(tx) + WITNESS_SCALE_FACTOR - 1) / WITNESS_SCALE_FACTOR);
     entry.pushKV("weight", GetTransactionWeight(tx));
     entry.pushKV("locktime", (int64_t)tx.nLockTime);
-    entry.push_back(Pair("time", (int64_t)tx.nTime));
+    entry.pushKV("time", (int64_t)tx.nTime);
 
     NameTxInfo nti;
     if (fName && DecodeNameTx(MakeTransactionRef(std::move(tx)), nti))
     {
-        entry.push_back(Pair("name", stringFromNameVal(nti.name)));
-        entry.push_back(Pair("value", encodeNameVal(nti.value, "")));
+        entry.pushKV("name", stringFromNameVal(nti.name));
+        entry.pushKV("value", encodeNameVal(nti.value, ""));
     }
 
     UniValue vin(UniValue::VARR);

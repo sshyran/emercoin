@@ -2636,7 +2636,7 @@ void CWallet::AvailableCoins(interfaces::Chain::Lock& locked_chain, std::vector<
                 continue;
             }
 
-            bool solvable = IsSolvable(*this, wtx.tx->vout[i].scriptPubKey);
+            bool solvable = IsSolvable(*this, wtx.tx->vout[i].scriptPubKey, wtx.tx->nVersion);
             bool spendable = ((mine & ISMINE_SPENDABLE) != ISMINE_NO) || (((mine & ISMINE_WATCH_ONLY) != ISMINE_NO) && (coinControl && coinControl->fAllowWatchOnly && solvable));
 
             vCoins.push_back(COutput(&wtx, i, nDepth, spendable, solvable, safeTx, (coinControl && coinControl->fAllowWatchOnly)));
@@ -5104,7 +5104,7 @@ void CWallet::LearnRelatedScripts(const CPubKey& key, OutputType type)
         CTxDestination witdest = WitnessV0KeyHash(key.GetID());
         CScript witprog = GetScriptForDestination(witdest);
         // Make sure the resulting program is solvable.
-        assert(IsSolvable(*this, witprog));
+        assert(IsSolvable(*this, witprog, 0));  //emcTODO - compress new name transactions by default
         AddCScript(witprog);
     }
 }

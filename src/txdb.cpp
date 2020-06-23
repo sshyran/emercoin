@@ -347,6 +347,16 @@ public:
     //! at which height this transaction was included in the active block chain
     int nHeight;
 
+    //! version of the CTransaction; accesses to this value should probably check for nHeight as well,
+    //! as new tx version will probably only be introduced at certain heights
+    int nVersion;
+
+    // ppcoin: whether transaction is a coinstake
+    bool fCoinStake;
+
+    // ppcoin: transaction timestamp
+    unsigned int nTime;
+
     //! empty constructor
     CCoins() : fCoinBase(false), vout(0), nHeight(0) { }
 
@@ -382,6 +392,12 @@ public:
         }
         // coinbase height
         ::Unserialize(s, VARINT(nHeight, VarIntMode::NONNEGATIVE_SIGNED));
+        // ppcoin flags
+        unsigned int nFlag = 0;
+        ::Unserialize(s, VARINT(nFlag));
+        fCoinStake = nFlag & 1;
+        // ppcoin transaction timestamp
+        ::Unserialize(s, VARINT(nTime));
     }
 };
 
@@ -430,7 +446,7 @@ bool CCoinsViewDB::Upgrade() {
             COutPoint outpoint(key.second, 0);
             for (size_t i = 0; i < old_coins.vout.size(); ++i) {
                 if (!old_coins.vout[i].IsNull() && !old_coins.vout[i].scriptPubKey.IsUnspendable()) {
-                    Coin newcoin(std::move(old_coins.vout[i]), old_coins.nHeight, old_coins.fCoinBase);
+                    Coin newcoin(std::move(old_coins.vout[i]), old_coins.nHeight, old_coins.fCoinBase, old_coins.fCoinStake, old_coins.nTime);
                     outpoint.n = i;
                     CoinEntry entry(&outpoint);
                     batch.Write(entry, newcoin);

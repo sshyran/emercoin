@@ -38,20 +38,21 @@ SaltedOutpointHasher::SaltedOutpointHasher() : k0(GetRand(std::numeric_limits<ui
 CCoinsViewCache::CCoinsViewCache(CCoinsView *baseIn) : CCoinsViewBacked(baseIn), cachedCoinsUsage(0) {
     // emercoin: insert special randpay utxo that can be spent unlimited number of times
     // you can only spent 0 emc from it
-    std::pair<CCoinsMap::iterator, bool> ret = cacheCoins.insert(std::make_pair(randpaytx, CCoinsCacheEntry()));
+    //typedef std::unordered_map<COutPoint, CCoinsCacheEntry, SaltedOutpointHasher> CCoinsMap;
+
+    std::pair<CCoinsMap::iterator, bool> ret = cacheCoins.insert(std::make_pair(COutPoint(randpaytx,0), CCoinsCacheEntry()));
     if (!ret.second)
         throw std::logic_error("Failed to insert randpay utxo!");
 
-    Coin& coin = ret.first->second.coins;
+    Coin& coin = ret.first->second.coin;
     coin.fCoinBase = false;
     coin.fCoinStake = false;
     coin.nHeight = 0;
-    coin.nVersion = 1;
     coin.nTime = 0;
 
     CTxOut txout = CTxOut();
     txout.nValue = 0;
-    coins.vout.push_back(txout);
+    coin.out = txout;
     ret.first->second.flags = CCoinsCacheEntry::DIRTY;   // set DIRTY/FRESH flags
 }
 
