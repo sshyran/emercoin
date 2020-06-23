@@ -42,12 +42,12 @@ CCoinsViewCache::CCoinsViewCache(CCoinsView *baseIn) : CCoinsViewBacked(baseIn),
     if (!ret.second)
         throw std::logic_error("Failed to insert randpay utxo!");
 
-    CCoins& coins = ret.first->second.coins;
-    coins.fCoinBase = false;
-    coins.fCoinStake = false;
-    coins.nHeight = 0;
-    coins.nVersion = 1;
-    coins.nTime = 0;
+    Coin& coin = ret.first->second.coins;
+    coin.fCoinBase = false;
+    coin.fCoinStake = false;
+    coin.nHeight = 0;
+    coin.nVersion = 1;
+    coin.nTime = 0;
 
     CTxOut txout = CTxOut();
     txout.nValue = 0;

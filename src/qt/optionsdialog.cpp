@@ -19,7 +19,7 @@
 #include <netbase.h>
 #include <txdb.h> // for -dbcache defaults
 
-#include <ConfigFile.h>
+#include <qt/ConfigFile.h>
 
 #include <QDataWidgetMapper>
 #include <QDir>

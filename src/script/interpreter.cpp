@@ -1511,7 +1511,7 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, int nVe
     int witnessversion;
     std::vector<unsigned char> witnessprogram;
     if (flags & SCRIPT_VERIFY_WITNESS) {
-        if (scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram, nVersion)) {
+        if (scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram)) {
             hadWitness = true;
             if (scriptSig.size() != 0) {
                 // The scriptSig must be _exactly_ CScript(), otherwise we reintroduce malleability.
@@ -1526,8 +1526,7 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, int nVe
         }
     }
 
-    // emercoin: check names in P2SH only after V7 fork
-    bool fIsP2SH = (flags & SCRIPT_VERIFY_WITNESS) ? scriptPubKey.IsPayToScriptHash(nVersion) : scriptPubKey.IsPayToScriptHash(0);
+    bool fIsP2SH = scriptPubKey.IsPayToScriptHash();
 
     // Additional validation for spend-to-script-hash transactions:
     if ((flags & SCRIPT_VERIFY_P2SH) && fIsP2SH)
@@ -1558,7 +1557,7 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, int nVe
 
         // P2SH witness program
         if (flags & SCRIPT_VERIFY_WITNESS) {
-            if (pubKey2.IsWitnessProgram(witnessversion, witnessprogram, 0)) {  // emercoin: this is a witness program inside scriptSig - we don't store names in scriptSig
+            if (pubKey2.IsWitnessProgram(witnessversion, witnessprogram)) {
                 hadWitness = true;
                 if (scriptSig != CScript() << std::vector<unsigned char>(pubKey2.begin(), pubKey2.end())) {
                     // The scriptSig must be _exactly_ a single push of the redeemScript. Otherwise we
@@ -1617,7 +1616,7 @@ size_t static WitnessSigOps(int witversion, const std::vector<unsigned char>& wi
     return 0;
 }
 
-size_t CountWitnessSigOps(const CScript& scriptSig, const CScript& scriptPubKey, const CScriptWitness* witness, unsigned int flags, int nVersion)
+size_t CountWitnessSigOps(const CScript& scriptSig, const CScript& scriptPubKey, const CScriptWitness* witness, unsigned int flags)
 {
     static const CScriptWitness witnessEmpty;
 
@@ -1628,11 +1627,11 @@ size_t CountWitnessSigOps(const CScript& scriptSig, const CScript& scriptPubKey,
 
     int witnessversion;
     std::vector<unsigned char> witnessprogram;
-    if (scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram, nVersion)) {
+    if (scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram)) {
         return WitnessSigOps(witnessversion, witnessprogram, witness ? *witness : witnessEmpty);
     }
 
-    if (scriptPubKey.IsPayToScriptHash(nVersion) && scriptSig.IsPushOnly()) {
+    if (scriptPubKey.IsPayToScriptHash() && scriptSig.IsPushOnly()) {
         CScript::const_iterator pc = scriptSig.begin();
         std::vector<unsigned char> data;
         while (pc < scriptSig.end()) {
@@ -1640,7 +1639,7 @@ size_t CountWitnessSigOps(const CScript& scriptSig, const CScript& scriptPubKey,
             scriptSig.GetOp(pc, opcode, data);
         }
         CScript subscript(data.begin(), data.end());
-        if (subscript.IsWitnessProgram(witnessversion, witnessprogram, 0)) { // emercoin: this is a witness program inside scriptSig - we don't store names in scriptSig
+        if (subscript.IsWitnessProgram(witnessversion, witnessprogram)) {
             return WitnessSigOps(witnessversion, witnessprogram, witness ? *witness : witnessEmpty);
         }
     }

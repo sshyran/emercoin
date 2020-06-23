@@ -34,6 +34,8 @@
 #include <sys/resource.h>
 #include <sys/stat.h>
 
+#include <pwd.h>
+
 #else
 
 #ifdef _MSC_VER
@@ -878,7 +880,7 @@ bool ArgsManager::ReadConfigStream(std::istream& stream, const std::string& file
 }
 
 std::string getConfigFile() {
-   return GetConfigFile(GetArg("-conf", BITCOIN_CONF_FILENAME)).string();
+   return GetConfigFile(gArgs.GetArg("-conf", BITCOIN_CONF_FILENAME)).string();
 }
 bool ArgsManager::ReadConfigFiles(std::string& error, bool ignore_invalid_keys)
 {

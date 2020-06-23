@@ -125,10 +125,10 @@ bool WalletInit::ParameterInteraction() const
     if (gArgs.GetArg("-prune", 0) && gArgs.GetBoolArg("-rescan", false))
         return InitError(_("Rescans are not possible in pruned mode. You will need to use -reindex which will download the whole blockchain again.").translated);
 
-    if (IsArgSet("-reservebalance")) {
+    if (gArgs.IsArgSet("-reservebalance")) {
         CAmount nReserveBalance = 0;
-        if (!ParseMoney(GetArg("-reservebalance", ""), nReserveBalance))
-            return InitError(strprintf(_("Invalid amount for -reservebalance=<amount>: '%s'"),gArgs.GetArg("-reservebalance", "")));
+        if (!ParseMoney(gArgs.GetArg("-reservebalance", ""), nReserveBalance))
+            return InitError(strprintf("Invalid amount for -reservebalance=<amount>: '%s'", gArgs.GetArg("-reservebalance", "")));
     }
 
     return true;

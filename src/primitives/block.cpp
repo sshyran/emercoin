@@ -9,6 +9,9 @@
 #include <tinyformat.h>
 #include <crypto/common.h>
 
+#include <arith_uint256.h>
+#include <checkpoints_eb.h>
+
 uint256 CBlockHeader::GetHash() const
 {
     return SerializeHash(*this);

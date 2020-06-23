@@ -1354,11 +1354,11 @@ static void ListTransactions(interfaces::Chain::Lock& locked_chain, CWallet* con
             else if (wtx.IsCoinStake())
             {
                 if (wtx.GetDepthInMainChain(locked_chain) < 1)
-                        entry.push_back(Pair("category", "stake-orphan"));
+                        entry.pushKV("category", "stake-orphan");
                     else if (wtx.GetBlocksToMaturity(locked_chain) > 0)
-                        entry.push_back(Pair("category", "stake"));
+                        entry.pushKV("category", "stake");
                     else
-                        entry.push_back(Pair("category", "stake-mint"));
+                        entry.pushKV("category", "stake-mint");
             }
             else
             {
@@ -2965,7 +2965,7 @@ static UniValue listunspent(const JSONRPCRequest& request)
                 entry.pushKV("label", i->second.name);
             }
 
-            if (scriptPubKey.IsPayToScriptHash(out.tx->tx->nVersion)) {
+            if (scriptPubKey.IsPayToScriptHash()) {
                 const CScriptID& hash = CScriptID(boost::get<ScriptHash>(address));
                 CScript redeemScript;
                 if (pwallet->GetCScript(hash, redeemScript)) {
@@ -4200,13 +4200,16 @@ UniValue walletcreatefundedpsbt(const JSONRPCRequest& request)
 // ppcoin: make a public-private key pair
 UniValue makekeypair(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() > 1)
-        throw runtime_error(
-            "makekeypair [prefix]\n"
-            "Make a public/private key pair.\n"
-            "[prefix] is optional preferred prefix for the public key.\n");
+    //emcTODO - fill this
+    RPCHelpMan{"makekeypair [prefix]",
+        "Make a public/private key pair.\n"
+        "[prefix] is optional preferred prefix for the public key.\n",
+        {},
+        RPCResult{""},
+        RPCExamples{""},
+    }.Check(request);
 
-    string strPrefix = "";
+    std::string strPrefix = "";
     if (request.params.size() > 0)
         strPrefix = request.params[0].get_str();
 
@@ -4223,21 +4226,24 @@ UniValue makekeypair(const JSONRPCRequest& request)
 
     CPrivKey vchPrivKey = key.GetPrivKey();
     UniValue result(UniValue::VOBJ);
-    result.push_back(Pair("PrivateKey", HexStr<CPrivKey::iterator>(vchPrivKey.begin(), vchPrivKey.end())));
-    result.push_back(Pair("PublicKey", HexStr(key.GetPubKey())));
+    result.pushKV("PrivateKey", HexStr<CPrivKey::iterator>(vchPrivKey.begin(), vchPrivKey.end()));
+    result.pushKV("PublicKey", HexStr(key.GetPubKey()));
     return result;
 }
 
 // ppcoin: reserve balance from being staked for network protection
 UniValue reservebalance(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() > 2)
-        throw runtime_error(
-            "reservebalance [<reserve> [amount]]\n"
-            "<reserve> is true or false to turn balance reserve on or off.\n"
-            "<amount> is a real and rounded to cent.\n"
-            "Set reserve amount not participating in network protection.\n"
-            "If no parameters provided current setting is printed.\n");
+    //emcTODO - fill this
+    RPCHelpMan{"reservebalance [<reserve> [amount]]",
+        "<reserve> is true or false to turn balance reserve on or off.\n"
+        "<amount> is a real and rounded to cent.\n"
+        "Set reserve amount not participating in network protection.\n"
+        "If no parameters provided current setting is printed.\n",
+        {},
+        RPCResult{""},
+        RPCExamples{""},
+    }.Check(request);
 
     if (request.params.size() > 0)
     {
@@ -4245,27 +4251,27 @@ UniValue reservebalance(const JSONRPCRequest& request)
         if (fReserve)
         {
             if (request.params.size() == 1)
-                throw runtime_error("must provide amount to reserve balance.\n");
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "must provide amount to reserve balance.\n");
             CAmount nAmount = AmountFromValue(request.params[1]);
             nAmount = (nAmount / CENT) * CENT;  // round to cent
             if (nAmount < 0)
-                throw runtime_error("amount cannot be negative.\n");
-            ForceSetArg("-reservebalance", FormatMoney(nAmount));
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "amount cannot be negative.\n");
+            gArgs.ForceSetArg("-reservebalance", FormatMoney(nAmount));
         }
         else
         {
             if (request.params.size() > 1)
-                throw runtime_error("cannot specify amount to turn off reserve.\n");
-            ForceSetArg("-reservebalance", "0");
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "cannot specify amount to turn off reserve.\n");
+            gArgs.ForceSetArg("-reservebalance", "0");
         }
     }
 
     UniValue result(UniValue::VOBJ);
     CAmount nReserveBalance = 0;
-    if (IsArgSet("-reservebalance") && !ParseMoney(GetArg("-reservebalance", "0"), nReserveBalance))
-        throw runtime_error("invalid reserve balance amount\n");
-    result.push_back(Pair("reserve", (nReserveBalance > 0)));
-    result.push_back(Pair("amount", ValueFromAmount(nReserveBalance)));
+    if (gArgs.IsArgSet("-reservebalance") && !ParseMoney(gArgs.GetArg("-reservebalance", "0"), nReserveBalance))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid reserve balance amount\n");
+    result.pushKV("reserve", (nReserveBalance > 0));
+    result.pushKV("amount", ValueFromAmount(nReserveBalance));
     return result;
 }
 
@@ -4279,6 +4285,13 @@ UniValue importwallet(const JSONRPCRequest& request);
 UniValue importprunedfunds(const JSONRPCRequest& request);
 UniValue removeprunedfunds(const JSONRPCRequest& request);
 UniValue importmulti(const JSONRPCRequest& request);
+
+UniValue name_new(const JSONRPCRequest& request);
+UniValue name_update(const JSONRPCRequest& request);
+UniValue name_delete(const JSONRPCRequest& request);
+UniValue sendtoname(const JSONRPCRequest& request);
+UniValue name_list(const JSONRPCRequest& request);
+UniValue name_debug(const JSONRPCRequest& request);
 
 // clang-format off
 static const CRPCCommand commands[] =

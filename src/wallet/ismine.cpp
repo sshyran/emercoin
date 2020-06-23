@@ -57,7 +57,6 @@ bool HaveKeys(const std::vector<valtype>& pubkeys, const CWallet& keystore)
 
 IsMineResult IsMineInner(const CWallet& keystore, const CScript& scriptPubKey, IsMineSigVersion sigversion, bool& fName)
 {
-    fName = false;
     IsMineResult ret = IsMineResult::NO;
 
     std::vector<valtype> vSolutions;
@@ -93,7 +92,8 @@ IsMineResult IsMineInner(const CWallet& keystore, const CScript& scriptPubKey, I
             // This also applies to the P2WSH case.
             break;
         }
-        ret = std::max(ret, IsMineInner(keystore, GetScriptForDestination(PKHash(uint160(vSolutions[0]))), IsMineSigVersion::WITNESS_V0));
+        bool tmp;
+        ret = std::max(ret, IsMineInner(keystore, GetScriptForDestination(PKHash(uint160(vSolutions[0]))), IsMineSigVersion::WITNESS_V0, tmp));
         break;
     }
     case TX_PUBKEYHASH:
@@ -119,7 +119,8 @@ IsMineResult IsMineInner(const CWallet& keystore, const CScript& scriptPubKey, I
         CScriptID scriptID = CScriptID(uint160(vSolutions[0]));
         CScript subscript;
         if (keystore.GetCScript(scriptID, subscript)) {
-            ret = std::max(ret, IsMineInner(keystore, subscript, IsMineSigVersion::P2SH));
+            bool tmp;
+            ret = std::max(ret, IsMineInner(keystore, subscript, IsMineSigVersion::P2SH, tmp));
         }
         break;
     }
@@ -138,7 +139,8 @@ IsMineResult IsMineInner(const CWallet& keystore, const CScript& scriptPubKey, I
         CScriptID scriptID = CScriptID(hash);
         CScript subscript;
         if (keystore.GetCScript(scriptID, subscript)) {
-            ret = std::max(ret, IsMineInner(keystore, subscript, IsMineSigVersion::WITNESS_V0));
+            bool tmp;
+            ret = std::max(ret, IsMineInner(keystore, subscript, IsMineSigVersion::WITNESS_V0, tmp));
         }
         break;
     }

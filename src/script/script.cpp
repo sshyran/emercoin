@@ -256,13 +256,12 @@ bool IsWitnessProgramInner(const CScript& script, int& version, std::vector<unsi
     return false;
 }
 
-bool CScript::IsWitnessProgram(int& version, std::vector<unsigned char>& program, int txVersion) const
+bool CScript::IsWitnessProgram(int& version, std::vector<unsigned char>& program) const
 {
     bool ret = IsWitnessProgramInner(*this, version, program);
 
     // emercoin: remove name (if any) and try again
-    if (!ret && txVersion == NAMECOIN_TX_VERSION)
-    {
+    if (!ret) {
         CScript scriptRemainder;
         if (!RemoveNameScriptPrefix(*this, scriptRemainder))
             return false;
@@ -422,7 +421,7 @@ bool DecodeNameScript(const CScript& script, NameTxInfo& ret, CScript::const_ite
     if (opcode != OP_DROP)
         return false;
 
-    vector<unsigned char> vch;
+    std::vector<unsigned char> vch;
 
     // read name
     ret.err_msg = "failed to read name";

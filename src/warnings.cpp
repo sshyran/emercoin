@@ -9,6 +9,8 @@
 #include <util/system.h>
 #include <util/translation.h>
 
+#include <checkpoints.h>
+
 static RecursiveMutex cs_warnings;
 static std::string strMiscWarning GUARDED_BY(cs_warnings);
 static bool fLargeWorkForkFound GUARDED_BY(cs_warnings) = false;
@@ -58,17 +60,15 @@ std::string GetWarnings(const std::string& strFor)
     if (strMintWarning != "")
     {
         strStatusBar = strMintWarning;
-        strGUI = (strGUI.empty() ? "" : uiAlertSeperator) + _(strMintWarning.c_str());
+        strGUI = (strGUI.empty() ? "" : uiAlertSeperator) + strMintWarning;
     }
 
     // ppcoin: should not enter safe mode for longer invalid chain
     //         if sync-checkpoint is too old do not enter safe mode
-    std::string statusmessage;
-    if (!RPCIsInWarmup(&statusmessage) && fCheckpointIsTooOld)
-    {
+    if (fCheckpointIsTooOld) {
         nPriority = 100;
         strStatusBar = "WARNING: Checkpoint is too old. Wait for block chain to download, or notify developers of the issue.";
-        strGUI = (strGUI.empty() ? "" : uiAlertSeperator) + _("WARNING: Checkpoint is too old. Wait for block chain to download, or notify developers of the issue.");
+        strGUI = (strGUI.empty() ? "" : uiAlertSeperator) + "WARNING: Checkpoint is too old. Wait for block chain to download, or notify developers of the issue.";
     }
 
     // Misc warnings like out of disk space and clock is wrong
@@ -97,24 +97,25 @@ std::string GetWarnings(const std::string& strFor)
     {
         nPriority = 3000;
         strStatusBar = "WARNING: Invalid checkpoint found! Displayed transactions may not be correct! You may need to upgrade, or notify developers of the issue.";
-        strGUI += (strGUI.empty() ? "" : uiAlertSeperator) + _("WARNING: Invalid checkpoint found! Displayed transactions may not be correct! You may need to upgrade, or notify developers of the issue.");
+        strGUI += (strGUI.empty() ? "" : uiAlertSeperator) + "WARNING: Invalid checkpoint found! Displayed transactions may not be correct! You may need to upgrade, or notify developers of the issue.";
     }
 
-    // Alerts
-    {
-        LOCK(cs_mapAlerts);
-        for (const auto& item : mapAlerts)
-        {
-            const CAlert& alert = item.second;
-            if (alert.AppliesToMe() && alert.nPriority > nPriority)
-            {
-                nPriority = alert.nPriority;
-                strStatusBar = strGUI = alert.strStatusBar;
-                if (nPriority > 1000)
-                    strRPC = strStatusBar;  // ppcoin: safe mode for high alert
-            }
-        }
-    }
+    //emcTODO strRPC safemode was removed. Re-add it again?
+//    // Alerts
+//    {
+//        LOCK(cs_mapAlerts);
+//        for (const auto& item : mapAlerts)
+//        {
+//            const CAlert& alert = item.second;
+//            if (alert.AppliesToMe() && alert.nPriority > nPriority)
+//            {
+//                nPriority = alert.nPriority;
+//                strStatusBar = strGUI = alert.strStatusBar;
+//                if (nPriority > 1000)
+//                    strRPC = strStatusBar;  // ppcoin: safe mode for high alert
+//            }
+//        }
+//    }
 
     if (strFor == "gui")
         return strGUI;

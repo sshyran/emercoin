@@ -101,7 +101,7 @@ txnouttype SolverInner(const CScript& scriptPubKey, std::vector<std::vector<unsi
 
     // Shortcut for pay-to-script-hash, which are more constrained than the other types:
     // it is always OP_HASH160 20 [20 byte hash] OP_EQUAL
-    if (scriptPubKey.IsPayToScriptHash(0))  // emercoin: there is no need to check for names here, because caller of this function will do just that
+    if (scriptPubKey.IsPayToScriptHash())
     {
         std::vector<unsigned char> hashBytes(scriptPubKey.begin()+2, scriptPubKey.begin()+22);
         vSolutionsRet.push_back(hashBytes);
@@ -110,7 +110,7 @@ txnouttype SolverInner(const CScript& scriptPubKey, std::vector<std::vector<unsi
 
     int witnessversion;
     std::vector<unsigned char> witnessprogram;
-    if (scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram, 0)) {    // emercoin: there is no need to check for names here, because caller of this function will do just that
+    if (scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram)) {
         if (witnessversion == 0 && witnessprogram.size() == WITNESS_V0_KEYHASH_SIZE) {
             vSolutionsRet.push_back(witnessprogram);
             return TX_WITNESS_V0_KEYHASH;
@@ -160,27 +160,27 @@ txnouttype SolverInner(const CScript& scriptPubKey, std::vector<std::vector<unsi
     return TX_NONSTANDARD;
 }
 
-bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsigned char> >& vSolutionsRet)
+txnouttype Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::vector<unsigned char> >& vSolutionsRet)
 {
-    bool ret = SolverInner(scriptPubKey, typeRet, vSolutionsRet);
+    typeRet = SolverInner(scriptPubKey, vSolutionsRet);
 
     // emercoin: remove name (if any exist) and try again
     CScript scriptWithoutName;
-    if (!ret && RemoveNameScriptPrefix(scriptPubKey, scriptWithoutName))
+    if (typeRet == TX_NONSTANDARD && RemoveNameScriptPrefix(scriptPubKey, scriptWithoutName))
     {
-        ret = SolverInner(scriptWithoutName, typeRet, vSolutionsRet);
+        typeRet = SolverInner(scriptWithoutName, vSolutionsRet);
 
         // make return type indicate name for supported tx types
-        if (ret) switch (typeRet) {
+        if (typeRet != TX_NONSTANDARD) switch (typeRet) {
         case TX_PUBKEYHASH: {typeRet = TX_NAME_PUBKEYHASH; break;}
         case TX_SCRIPTHASH: {typeRet = TX_NAME_SCRIPTHASH; break;}
         case TX_WITNESS_V0_KEYHASH: {typeRet = TX_NAME_WITNESS_V0_KEYHASH; break;}
         case TX_WITNESS_V0_SCRIPTHASH: {typeRet = TX_NAME_WITNESS_V0_SCRIPTHASH; break;}
-        default: {typeRet = TX_NONSTANDARD; ret = false; break;}  // unknown name type - don't know how to process this
+        default: {typeRet = TX_NONSTANDARD; break;}  // unknown name type - don't know how to process this
         }
     }
 
-    return ret;
+    return typeRet;
 }
 
 bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)

@@ -3,6 +3,8 @@
 #include <wallet/wallet.h>
 #include <base58.h>
 #include <timedata.h>
+#include <chainparams.h>
+#include <key_io.h>
 
 #include <math.h>
 using namespace std;
@@ -34,6 +36,7 @@ vector<KernelRecord> KernelRecord::decomposeOutput(const CWallet *wallet, const 
 
     if (showTransaction(wtx))
     {
+        auto locked_chain = wallet->chain().lock();
         for (size_t nOut = 0; nOut < wtx.tx->vout.size(); nOut++)
         {
             CTxOut txOut = wtx.tx->vout[nOut];
@@ -46,14 +49,14 @@ vector<KernelRecord> KernelRecord::decomposeOutput(const CWallet *wallet, const 
                 if (ExtractDestination(txOut.scriptPubKey, address))
                 {
                     // Sent to Bitcoin Address
-                    addrStr = CBitcoinAddress(address).ToString();
+                    addrStr = EncodeDestination(address);
                 }
                 else
                 {
                     // Sent to IP, or other non-address transaction like OP_EVAL
                     addrStr = mapValue["to"];
                 }
-                parts.push_back(KernelRecord(hash, nTime, addrStr, txOut.nValue, nOut, wallet->IsSpent(hash, nOut), coinAge));
+                parts.push_back(KernelRecord(hash, nTime, addrStr, txOut.nValue, nOut, wallet->IsSpent(*locked_chain, hash, nOut), coinAge));
             }
         }
     }

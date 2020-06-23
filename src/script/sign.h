@@ -164,7 +164,7 @@ void UpdateInput(CTxIn& input, const SignatureData& data);
  * have all private keys. While this function does not need private keys, the passed
  * provider is used to look up public keys and redeemscripts by hash.
  * Solvability is unrelated to whether we consider this output to be ours. */
-bool IsSolvable(const SigningProvider& provider, const CScript& script);
+bool IsSolvable(const SigningProvider& provider, const CScript& script, int nVersion);
 
 /** Check whether a scriptPubKey is known to be segwit. */
 bool IsSegWitOutput(const SigningProvider& provider, const CScript& script);

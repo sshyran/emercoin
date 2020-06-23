@@ -1,20 +1,20 @@
-#include "managenamespage.h"
-#include "ui_managenamespage.h"
+#include <qt/managenamespage.h>
+#include <qt/forms/ui_managenamespage.h>
 
-#include "nametablemodel.h"
-#include "walletmodel.h"
-#include "guiutil.h"
-#include "namecoin.h"
-#include "QNameCoin.h"
-#include "NameCoinStrings.h"
-#include "ui_interface.h"
-#include "validation.h"
-#include "csvmodelwriter.h"
-#include "ManageDnsPage.h"
-#include "DocNotarWidget.h"
-#include "DiplomaWidget.h"
-#include "InfoCardsWidget.h"
-#include "ManageSslPage.h"
+#include <nametablemodel.h>
+#include <walletmodel.h>
+#include <guiutil.h>
+#include <namecoin.h>
+#include <QNameCoin.h>
+#include <NameCoinStrings.h>
+#include <ui_interface.h>
+#include <validation.h>
+#include <csvmodelwriter.h>
+#include <ManageDnsPage.h>
+#include <DocNotarWidget.h>
+#include <DiplomaWidget.h>
+#include <InfoCardsWidget.h>
+#include <ManageSslPage.h>
 
 #include <QMessageBox>
 #include <QMenu>

@@ -31,6 +31,10 @@
 #include <wallet/coincontrol.h>
 #include <wallet/fees.h>
 
+#include <hooks.h>
+#include <index/txindex.h>
+#include <kernel.h>
+
 #include <algorithm>
 #include <assert.h>
 #include <future>
@@ -2217,7 +2221,7 @@ bool CWalletTx::SubmitMemoryPoolAndRelay(std::string& err_string, bool relay, in
     if (isAbandoned()) return false;
     // Don't try to submit coinbase transactions. These would fail anyway but would
     // cause log spam.
-    if (IsCoinBase() || IsCoinstake()) return false;
+    if (IsCoinBase() || IsCoinStake()) return false;
     // Don't try to submit conflicted or confirmed transactions.
     if (GetDepthInMainChain(locked_chain) != 0) return false;
 
@@ -2318,8 +2322,7 @@ CAmount CWalletTx::GetAvailableCredit(interfaces::Chain::Lock& locked_chain, boo
     bool allow_used_addresses = (filter & ISMINE_USED) || !pwallet->IsWalletFlagSet(WALLET_FLAG_AVOID_REUSE);
     CAmount nCredit = 0;
     uint256 hashTx = GetHash();
-    for (unsigned int i = 0; i < tx->vout.size(); i++)
-    {
+    for (unsigned int i = 0; i < tx->vout.size(); i++) {
         // ignore namecoin TxOut
         if (tx->nVersion == NAMECOIN_TX_VERSION && hooks->IsNameScript(tx->vout[i].scriptPubKey))
             continue;
@@ -2497,20 +2500,6 @@ CWallet::Balance CWallet::GetBalance(const int min_depth, bool avoid_reuse) cons
     return ret;
 }
 
-// ppcoin: total coins staked (non-spendable until maturity)
-CAmount CWallet::GetStake() const
-{
-    CAmount nTotal = 0;
-    LOCK2(cs_main, cs_wallet);
-    for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
-    {
-        const CWalletTx* pcoin = &(*it).second;
-        if (pcoin->IsCoinStake() && pcoin->GetBlocksToMaturity() > 0 && pcoin->GetDepthInMainChain() > 0)
-            nTotal += CWallet::GetCredit(*pcoin, ISMINE_ALL);
-    }
-    return nTotal;
-}
-
 CAmount CWallet::GetAvailableBalance(const CCoinControl* coinControl) const
 {
     auto locked_chain = chain().lock();
@@ -2549,7 +2538,7 @@ void CWallet::AvailableCoins(interfaces::Chain::Lock& locked_chain, std::vector<
         const uint256& wtxid = entry.first;
         const CWalletTx& wtx = entry.second;
 
-        if (nSpendTime > 0 && pcoin->tx->nTime > nSpendTime)
+        if (nSpendTime > 0 && wtx.tx->nTime > nSpendTime)
             continue;  // ppcoin: timestamp must not exceed spend time
 
         if (!locked_chain.checkFinalTx(*wtx.tx)) {
@@ -2615,7 +2604,7 @@ void CWallet::AvailableCoins(interfaces::Chain::Lock& locked_chain, std::vector<
         LOCK(cs_g_RandPayLockUTXO);
         for (unsigned int i = 0; i < wtx.tx->vout.size(); i++, rpLockTXn++) {
             // ignore namecoin TxOut
-            if (pcoin->tx->nVersion == NAMECOIN_TX_VERSION && hooks->IsNameScript(pcoin->tx->vout[i].scriptPubKey))
+            if (wtx.tx->nVersion == NAMECOIN_TX_VERSION && hooks->IsNameScript(wtx.tx->vout[i].scriptPubKey))
                 continue;
 
             uint256HashMap<time_t>::Data *p = g_RandPayLockUTXO.Search(rpLockTXkey);
@@ -3108,7 +3097,7 @@ bool CWallet::CreateTransaction(interfaces::Chain::Lock& locked_chain, const std
                 scriptChange = GetScriptForDestination(dest);
             }
             CTxOut change_prototype_txout(0, scriptChange);
-            coin_selection_params.change_output_size = GetSerializeSize(change_prototype_txout);
+            coin_selection_params.change_output_size = GetSerializeSize(change_prototype_txout, PROTOCOL_VERSION);
 
             CFeeRate discard_rate = GetDiscardRate(*this);
 
@@ -3395,22 +3384,23 @@ bool CWallet::CreateTransaction(interfaces::Chain::Lock& locked_chain, const std
     return true;
 }
 
-bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
-                                int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign)
-{
-    return CreateTransactionInner(vecSend, CWalletTx(), 0, wtxNew, reservekey, nFeeRet, nChangePosInOut, strFailReason, coinControl, sign);
-}
+//emcTODO redo this
+//bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
+//                                int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign)
+//{
+//    return CreateTransactionInner(vecSend, CWalletTx(), 0, wtxNew, reservekey, nFeeRet, nChangePosInOut, strFailReason, coinControl, sign);
+//}
 
-bool CWallet::CreateNameTx(const CRecipient& recipient, const CWalletTx& wtxNameIn, const CAmount& nFeeInput, CWalletTx& wtxNew, CReserveKey& reservekey,
-                           CAmount& nFeeRet, int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign)
-{
-    vector<CRecipient> vecSend = {recipient};
-    return CreateTransactionInner(vecSend, wtxNameIn, nFeeInput, wtxNew, reservekey, nFeeRet, nChangePosInOut, strFailReason, coinControl, sign);
-}
+//bool CWallet::CreateNameTx(const CRecipient& recipient, const CWalletTx& wtxNameIn, const CAmount& nFeeInput, CWalletTx& wtxNew, CReserveKey& reservekey,
+//                           CAmount& nFeeRet, int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign)
+//{
+//    vector<CRecipient> vecSend = {recipient};
+//    return CreateTransactionInner(vecSend, wtxNameIn, nFeeInput, wtxNew, reservekey, nFeeRet, nChangePosInOut, strFailReason, coinControl, sign);
+//}
 
 // ppcoin: create coin stake transaction
 typedef std::vector<unsigned char> valtype;
-bool CWallet::CreateCoinStake(const CWallet& keystore, unsigned int nBits, int64_t nSearchInterval, CMutableTransaction& txNew)
+bool CWallet::CreateCoinStake(const CWallet* pwallet, unsigned int nBits, int64_t nSearchInterval, CMutableTransaction& txNew)
 {
     // Transaction index is required to get to block header
     if (!g_txindex)
@@ -3421,7 +3411,7 @@ bool CWallet::CreateCoinStake(const CWallet& keystore, unsigned int nBits, int64
     // Should not be adjusted if you don't understand the consequences
     static unsigned int nStakeSplitAge = (60 * 60 * 24 * 90);
     LOCK2(cs_main, cs_wallet);
-    CAmount nPoWReward = GetProofOfWorkReward(GetLastBlockIndex(::ChainActive().Tip())->nBits);
+    CAmount nPoWReward = GetProofOfWorkReward(GetLastBlockIndex(::ChainActive().Tip(), false)->nBits);
     CAmount nCombineThreshold = nPoWReward / 3;
 
     arith_uint256 bnTargetPerCoinDay;
@@ -3434,19 +3424,47 @@ bool CWallet::CreateCoinStake(const CWallet& keystore, unsigned int nBits, int64
     scriptEmpty.clear();
     txNew.vout.push_back(CTxOut(0, scriptEmpty));
     // Choose coins to use
-    CAmount nBalance = GetBalance();
+    CAmount nBalance = GetBalance().m_mine_trusted;
     CAmount nReserveBalance = 0;
-    if (IsArgSet("-reservebalance") && !ParseMoney(GetArg("-reservebalance", ""), nReserveBalance))
+    if (gArgs.IsArgSet("-reservebalance") && !ParseMoney(gArgs.GetArg("-reservebalance", ""), nReserveBalance))
         return error("CreateCoinStake : invalid reserve balance amount");
     if (nBalance <= nReserveBalance)
         return false;
-    set<pair<const CWalletTx*,unsigned int> > setCoins;
-    vector<const CWalletTx*> vwtxPrev;
+    std::vector<CTransactionRef> vtxPrev;
     CAmount nValueIn = 0;
-    std::vector<COutput> vAvailableCoins;
-    AvailableCoins(vAvailableCoins, true, nullptr, false, txNew.nTime);
-    if (!SelectCoins(vAvailableCoins, nBalance - nReserveBalance, setCoins, nValueIn))
-        return false;
+    std::set<CInputCoin> setCoins;
+    {
+        std::vector<COutput> vAvailableCoins;
+        bool include_unsafe = false;
+        CCoinControl cctl;
+        cctl.m_avoid_address_reuse = false;
+        cctl.m_min_depth = 1;
+        cctl.m_max_depth = 9999999;
+        CAmount nMinimumAmount = 0;
+        CAmount nMaximumAmount = MAX_MONEY;
+        CAmount nMinimumSumAmount = MAX_MONEY;
+        uint64_t nMaximumCount = 0;
+        auto locked_chain = pwallet->chain().lock();
+        LOCK(pwallet->cs_wallet);
+        pwallet->AvailableCoins(*locked_chain, vAvailableCoins, include_unsafe, &cctl, nMinimumAmount, nMaximumAmount, nMinimumSumAmount, nMaximumCount);
+
+        //emcTODO - is this needs to be placed inside a while(true) loop?
+        bool bnb_used;
+        CoinSelectionParams coin_selection_params; // Parameters for coin selection, init with dummy
+        if (!SelectCoins(vAvailableCoins, nBalance - nReserveBalance, setCoins, nValueIn, cctl, coin_selection_params, bnb_used)) {
+//            // If BnB was used, it was the first pass. No longer the first pass and continue loop with knapsack.
+//            if (bnb_used) {
+//                coin_selection_params.use_bnb = false;
+//                continue;
+//            }
+//            else {
+//                strFailReason = _("Insufficient funds").translated;
+//                return false;
+//            }
+            return false;
+        }
+    }
+
     if (setCoins.empty())
         return false;
     CAmount nCredit = 0;
@@ -3465,14 +3483,16 @@ bool CWallet::CreateCoinStake(const CWallet& keystore, unsigned int nBits, int64
 
     for (const auto& pcoin : setCoins)
     {
-        uint256 tx_hash = pcoin.first->GetHash();
+        //emcTODO - is this correct? does it refer to tx hash where coin was located?
+        uint256 tx_hash = pcoin.outpoint.hash;
+        //uint256 tx_hash = pcoin.first->GetHash();
 
         pbo = CacheBlockOffset.Search(tx_hash);
         // Try Load, if missing or temporary removed
         if (pbo == NULL || pbo->value.first == NULL) {
           CDiskTxPos postx;
           CBlockHeader *cbh = (CBlockHeader *)0x1; // default=Error
-          if (g_txindex->FindTx(tx_hash, postx)) {
+          if (g_txindex && g_txindex->FindTxPosition(tx_hash, postx)) {
             // Read block header
             CAutoFile file(OpenBlockFile(postx, true), SER_DISK, CLIENT_VERSION);
             cbh = new CBlockHeader;
@@ -3503,28 +3523,26 @@ bool CWallet::CreateCoinStake(const CWallet& keystore, unsigned int nBits, int64
         if (header.GetBlockTime() + params.nStakeMinAge > txNew.nTime - nMaxStakeSearchInterval)
             continue; // only count coins meeting min age requirement
 
+        uint256 hashBlock = uint256();
+        CTransactionRef tx;
+        if (!g_txindex->FindTx(tx_hash, hashBlock, tx))
+            return error("failed to find tx");
+
         bool fKernelFound = false;
         for (unsigned int n=0; n<min(nSearchInterval,(int64_t)nMaxStakeSearchInterval) && !fKernelFound; n++)
         {
             // Search backward in time from the given txNew timestamp
             // Search nSearchInterval seconds back up to nMaxStakeSearchInterval
             uint256 hashProofOfStake = uint256();
-            COutPoint prevoutStake = COutPoint(pcoin.first->GetHash(), pcoin.second);
-            if (CheckStakeKernelHash(nBits, ::ChainActive().Tip(), header, offset, pcoin.first->tx, prevoutStake, txNew.nTime - n, hashProofOfStake))
+            if (CheckStakeKernelHash(nBits, ::ChainActive().Tip(), header, offset, tx, pcoin.outpoint, txNew.nTime - n, hashProofOfStake))
             {
                 // Found a kernel
                 if (gArgs.GetBoolArg("-printcoinstake", false))
                     LogPrintf("CreateCoinStake : kernel found\n");
                 vector<valtype> vSolutions;
-                txnouttype whichType;
+                scriptPubKeyKernel = pcoin.txout.scriptPubKey;
+                txnouttype whichType = Solver(scriptPubKeyKernel, vSolutions);
                 CScript scriptPubKeyOut;
-                scriptPubKeyKernel = pcoin.first->tx->vout[pcoin.second].scriptPubKey;
-                if (!Solver(scriptPubKeyKernel, whichType, vSolutions))
-                {
-                    if (gArgs.GetBoolArg("-printcoinstake", false))
-                        LogPrintf("CreateCoinStake : failed to parse kernel type=%d\n", whichType);
-                    break;
-                }
                 if (gArgs.GetBoolArg("-printcoinstake", false))
                     LogPrintf("CreateCoinStake : parsed kernel type=%d\n", whichType);
                 if (whichType != TX_PUBKEY && whichType != TX_PUBKEYHASH)
@@ -3537,7 +3555,7 @@ bool CWallet::CreateCoinStake(const CWallet& keystore, unsigned int nBits, int64
                 {
                     // convert to pay to public key type
                     CKey key;
-                    if (!keystore.GetKey(uint160(vSolutions[0]), key))
+                    if (!pwallet->GetKey(CKeyID(uint160(vSolutions[0])), key))
                     {
                         if (gArgs.GetBoolArg("-printcoinstake", false))
                             LogPrintf("CreateCoinStake : failed to get key for kernel type=%d\n", whichType);
@@ -3549,9 +3567,9 @@ bool CWallet::CreateCoinStake(const CWallet& keystore, unsigned int nBits, int64
                     scriptPubKeyOut = scriptPubKeyKernel;
 
                 txNew.nTime -= n;
-                txNew.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
-                nCredit += pcoin.first->tx->vout[pcoin.second].nValue;
-                vwtxPrev.push_back(pcoin.first);
+                txNew.vin.push_back(CTxIn(pcoin.outpoint));
+                nCredit += pcoin.txout.nValue;
+                vtxPrev.push_back(tx);
                 txNew.vout.push_back(CTxOut(0, scriptPubKeyOut));
                 if ((nSplitPos < 0) || (nSplitPos && header.GetBlockTime() + nStakeSplitAge > txNew.nTime && nCredit > nPoWReward))
                     txNew.vout.push_back(CTxOut(0, scriptPubKeyOut)); //split stake if (age < 90 && value > POW)
@@ -3566,13 +3584,18 @@ bool CWallet::CreateCoinStake(const CWallet& keystore, unsigned int nBits, int64
     }
     if (nCredit == 0 || nCredit > nBalance - nReserveBalance)
         return false;
-    BOOST_FOREACH(PAIRTYPE(const CWalletTx*, unsigned int) pcoin, setCoins)
+    for (const auto& pcoin : setCoins)
     {
         // Attempt to add more inputs
         // Only add coins of the same key/address as kernel
-        if (txNew.vout.size() == 2 && ((pcoin.first->tx->vout[pcoin.second].scriptPubKey == scriptPubKeyKernel || pcoin.first->tx->vout[pcoin.second].scriptPubKey == txNew.vout[1].scriptPubKey))
-            && pcoin.first->GetHash() != txNew.vin[0].prevout.hash)
+        if (txNew.vout.size() == 2 && ((pcoin.txout.scriptPubKey == scriptPubKeyKernel || pcoin.txout.scriptPubKey == txNew.vout[1].scriptPubKey))
+            && pcoin.outpoint.hash != txNew.vin[0].prevout.hash)
         {
+            uint256 hashBlock = uint256();
+            CTransactionRef tx;
+            if (!g_txindex->FindTx(pcoin.outpoint.hash, hashBlock, tx))
+                return error("failed to find tx");
+
             // Stop adding more inputs if already too many inputs
             if (txNew.vin.size() >= 100)
                 break;
@@ -3580,24 +3603,24 @@ bool CWallet::CreateCoinStake(const CWallet& keystore, unsigned int nBits, int64
             if (nCredit > nCombineThreshold)
                 break;
             // Stop adding inputs if reached reserve limit
-            if (nCredit + pcoin.first->tx->vout[pcoin.second].nValue > nBalance - nReserveBalance)
+            if (nCredit + pcoin.txout.nValue > nBalance - nReserveBalance)
                 break;
             // Do not add additional significant input
-            if (pcoin.first->tx->vout[pcoin.second].nValue > nCombineThreshold)
+            if (pcoin.txout.nValue > nCombineThreshold)
                 continue;
             // Do not add input that is still too young
-            if (pcoin.first->tx->nTime + params.nStakeMaxAge > txNew.nTime)
+            if (tx->nTime + params.nStakeMaxAge > txNew.nTime)
                 continue;
-            txNew.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
-            nCredit += pcoin.first->tx->vout[pcoin.second].nValue;
-            vwtxPrev.push_back(pcoin.first);
+            txNew.vin.push_back(CTxIn(pcoin.outpoint));
+            nCredit += pcoin.txout.nValue;
+            vtxPrev.push_back(tx);
         }
     }
     // Calculate coin age reward
     CAmount nReward = 0;
     {
-        CCoinsViewCache view(pcoinsTip);
-        if (!GetEmc7POSReward(txNew, view, nReward))
+        CCoinsViewCache view(&::ChainstateActive().CoinsTip());
+        if (!GetEmc7POSReward(CTransaction(txNew), view, nReward))
             return error("CreateCoinStake() : %s unable to get coin reward for coinstake", txNew.GetHash().ToString());
         if (nReward <= 10 * TX_DP_AMOUNT)
             return false; // Prevent extra small UTXO
@@ -3623,9 +3646,9 @@ bool CWallet::CreateCoinStake(const CWallet& keystore, unsigned int nBits, int64
 
         // Sign
         int nIn = 0;
-        BOOST_FOREACH(const CWalletTx* pcoin, vwtxPrev)
+        for (const CTransactionRef& tx : vtxPrev)
         {
-            if (!SignSignature(*this, *pcoin, txNew, nIn++, SIGHASH_ALL))
+            if (!SignSignature(*this, *tx, txNew, nIn++, SIGHASH_ALL))
                 return error("CreateCoinStake : failed to sign coinstake");
         }
 
@@ -5052,6 +5075,14 @@ int CWalletTx::GetDepthInMainChain(interfaces::Chain::Lock& locked_chain) const
     return locked_chain.getBlockDepth(m_confirm.hashBlock) * (isConflicted() ? -1 : 1);
 }
 
+int CWalletTx::GetDepthInMainChain() const
+{
+    if (isUnconfirmed() || isAbandoned()) return 0;
+
+    auto locked_chain = pwallet->chain().lock();
+    return locked_chain->getBlockDepth(m_confirm.hashBlock) * (isConflicted() ? -1 : 1);
+}
+
 int CWalletTx::GetBlocksToMaturity(interfaces::Chain::Lock& locked_chain) const
 {
     if (!IsCoinBase() || IsCoinStake())
@@ -5345,79 +5376,82 @@ bool CWallet::AddCryptedKeyInner(const CPubKey &vchPubKey, const std::vector<uns
 
 void SendMoneyCheck(const CAmount& nValue, const CAmount& curBalance)
 {
-    // Check amount
-    if (nValue <= 0)
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid amount");
+    //emcTODo redo this
+//    // Check amount
+//    if (nValue <= 0)
+//        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid amount");
 
-    if (nValue > curBalance)
-        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
+//    if (nValue > curBalance)
+//        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
 
-    if (pwalletMain->GetBroadcastTransactions() && !g_connman)
-        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+//    if (pwalletMain->GetBroadcastTransactions() && !g_connman)
+//        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
 
-    string strError;
-    if (pwalletMain->IsLocked())
-    {
-        strError = "Error: Wallet locked, unable to create transaction!";
-        LogPrintf("SendMoney() : %s", strError);
-        throw JSONRPCError(RPC_WALLET_ERROR, strError);
-    }
+//    string strError;
+//    if (pwalletMain->IsLocked())
+//    {
+//        strError = "Error: Wallet locked, unable to create transaction!";
+//        LogPrintf("SendMoney() : %s", strError);
+//        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+//    }
 
-    if (fWalletUnlockMintOnly)
-    {
-        string strError = _("Error: Wallet unlocked for block minting only, unable to create transaction.");
-        LogPrintf("SendMoney() : %s", strError);
-        throw JSONRPCError(RPC_WALLET_ERROR, strError);
-    }
+//    if (fWalletUnlockMintOnly)
+//    {
+//        string strError = _("Error: Wallet unlocked for block minting only, unable to create transaction.");
+//        LogPrintf("SendMoney() : %s", strError);
+//        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+//    }
 }
 
 void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew)
 {
-    CAmount curBalance = pwalletMain->GetBalance();
-    SendMoneyCheck(nValue, curBalance);
+    //emcTODO redo this
+//    CAmount curBalance = pwalletMain->GetBalance();
+//    SendMoneyCheck(nValue, curBalance);
 
-    // Parse Bitcoin address
-    CScript scriptPubKey = GetScriptForDestination(address);
+//    // Parse Bitcoin address
+//    CScript scriptPubKey = GetScriptForDestination(address);
 
-    // Create and send the transaction
-    CReserveKey reservekey(pwalletMain);
-    CAmount nFeeRequired;
-    std::string strError;
-    vector<CRecipient> vecSend;
-    int nChangePosRet = -1;
-    CRecipient recipient = {scriptPubKey, nValue, fSubtractFeeFromAmount};
-    vecSend.push_back(recipient);
-    if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError)) {
-        if (!fSubtractFeeFromAmount && nValue + nFeeRequired > curBalance)
-            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
-        throw JSONRPCError(RPC_WALLET_ERROR, strError);
-    }
-    CValidationState state;
-    if (!pwalletMain->CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {
-        strError = strprintf("Error: The transaction was rejected! Reason given: %s", state.GetRejectReason());
-        throw JSONRPCError(RPC_WALLET_ERROR, strError);
-    }
+//    // Create and send the transaction
+//    CReserveKey reservekey(pwalletMain);
+//    CAmount nFeeRequired;
+//    std::string strError;
+//    vector<CRecipient> vecSend;
+//    int nChangePosRet = -1;
+//    CRecipient recipient = {scriptPubKey, nValue, fSubtractFeeFromAmount};
+//    vecSend.push_back(recipient);
+//    if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError)) {
+//        if (!fSubtractFeeFromAmount && nValue + nFeeRequired > curBalance)
+//            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
+//        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+//    }
+//    CValidationState state;
+//    if (!pwalletMain->CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {
+//        strError = strprintf("Error: The transaction was rejected! Reason given: %s", state.GetRejectReason());
+//        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+//    }
 }
 
 void SendName(CScript scriptPubKey, CAmount nValue, CWalletTx& wtxNew, const CWalletTx& wtxNameIn, CAmount nFeeInput)
 {
-    CAmount curBalance = pwalletMain->GetBalance();
-    SendMoneyCheck(nValue, curBalance);
+    //emcTODO redo this
+//    CAmount curBalance = pwalletMain->GetBalance();
+//    SendMoneyCheck(nValue, curBalance);
 
-    // Create and send the transaction
-    CReserveKey reservekey(pwalletMain);
-    CAmount nFeeRequired;
-    std::string strError;
-    int nChangePosRet = -1;
-    CRecipient recipient = {scriptPubKey, nValue, false};
-    if (!pwalletMain->CreateNameTx(recipient, wtxNameIn, nFeeInput, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError)) {
-        if (nValue + nFeeRequired > curBalance)
-            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
-        throw JSONRPCError(RPC_WALLET_ERROR, strError);
-    }
-    CValidationState state;
-    if (!pwalletMain->CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {
-        strError = strprintf("Error: The transaction was rejected! Reason given: %s", state.GetRejectReason());
-        throw JSONRPCError(RPC_WALLET_ERROR, strError);
-    }
+//    // Create and send the transaction
+//    CReserveKey reservekey(pwalletMain);
+//    CAmount nFeeRequired;
+//    std::string strError;
+//    int nChangePosRet = -1;
+//    CRecipient recipient = {scriptPubKey, nValue, false};
+//    if (!pwalletMain->CreateNameTx(recipient, wtxNameIn, nFeeInput, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError)) {
+//        if (nValue + nFeeRequired > curBalance)
+//            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
+//        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+//    }
+//    CValidationState state;
+//    if (!pwalletMain->CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {
+//        strError = strprintf("Error: The transaction was rejected! Reason given: %s", state.GetRejectReason());
+//        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+//    }
 }

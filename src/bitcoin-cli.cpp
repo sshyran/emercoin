@@ -407,7 +407,7 @@ static UniValue CallRPC(BaseRequestHandler *rh, const std::string& strMethod, co
     // 2) escapes all unicode character as in legacy json_spirit
     // we must get back the same string byte by byte by invoking .read() with mode=1 or mode=2.
     // finaly we "return reply" and it gets .write() in upper function
-    int mode = GetBoolArg("-legacyrpc", true) ? 2 : (strMethod.rfind("name_", 0) != std::string::npos ? 1 : 0);
+    int mode = gArgs.GetBoolArg("-legacyrpc", true) ? 2 : (strMethod.rfind("name_", 0) != std::string::npos ? 1 : 0);
 
     // Parse reply
     UniValue valReply(UniValue::VSTR);

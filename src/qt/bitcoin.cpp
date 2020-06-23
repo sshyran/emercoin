@@ -580,7 +580,7 @@ int GuiMain(int argc, char* argv[])
     if (gArgs.GetBoolArg("-splash", DEFAULT_SPLASHSCREEN) && !gArgs.GetBoolArg("-min", false))
         app.createSplashScreen(networkStyle.data());
 
-	if(GetBoolArg("-exchtest", false)) {
+    if(gArgs.GetBoolArg("-exchtest", false)) {
 		exch_test();// DEBUG from olegarch - exchange test
 	}
 

@@ -1,9 +1,8 @@
-#include "exch.h"
-#include "univalue.h"
-#include "util.h"
+#include <qt/exch.h>
+#include <univalue.h>
 
 //#include "protocol.h"
-#include "net.h"
+#include <net.h>
 
 //#include <boost/asio.hpp>
 //#include <boost/asio/ssl.hpp>
@@ -62,7 +61,7 @@ double Exch::EstimatedEMC(double pay_amount) const {
 // Adjust amount for un-precise exchange calculation and market fluctuations
 // by adding add_percent (default) or config param "adjexchEXCHANGE_NAME"
 double Exch::AdjustExchAmount(double amo, double add_percent) const {
-  string percent_str(GetArg("-adjustexch" + Name(), ""));
+  string percent_str(gArgs.GetArg("-adjustexch" + Name(), ""));
   if(!percent_str.empty())
     add_percent = atof(percent_str.c_str());
   return amo * (1 + add_percent / 100.0);
@@ -96,12 +95,12 @@ UniValue Exch::httpsFetch(const char *get, const UniValue *post) {
   if(rc < 0)
     throw runtime_error(strReply.c_str());
 
-  LogPrint("exch", "DBG: Exch::httpsFetch(%s): Server returned HTTP: %d\n", get, rc);
+  LogPrint(BCLog::EXCH, "DBG: Exch::httpsFetch(%s): Server returned HTTP: %d\n", get, rc);
 
   if(strReply.empty())
     throw runtime_error("Response from server is empty");
 
-  LogPrint("exch", "DBG: Exch::httpsFetch(%s): Reply from server: [%s]\n", get, strReply.c_str());
+  LogPrint(BCLog::EXCH, "DBG: Exch::httpsFetch(%s): Reply from server: [%s]\n", get, strReply.c_str());
 
   size_t json_beg = strReply.find('{');
   size_t json_end = strReply.rfind('}');
@@ -175,7 +174,7 @@ string ExchCoinReform::MarketInfo(const string &currency, double amount) {
   try {
     const UniValue mi(RawMarketInfo("/api/marketinfo/ltc_" + currency + ".json"));
     //const UniValue mi(RawMarketInfo("/api/marketinfo/emc_" + currency + ".json"));
-    LogPrint("exch", "DBG: ExchCoinReform::MarketInfo(%s|%s) returns <%s>\n\n", Host().c_str(), currency.c_str(), mi.write(0, 0, 0).c_str());
+    LogPrint(BCLog::EXCH, "DBG: ExchCoinReform::MarketInfo(%s|%s) returns <%s>\n\n", Host().c_str(), currency.c_str(), mi.write(0, 0, 0).c_str());
     m_pair     = mi["pair"].get_str();
     m_rate     = atof(mi["rate"].get_str().c_str());
     m_limit    = atof(mi["limit"].get_str().c_str());
@@ -209,15 +208,15 @@ string ExchCoinReform::Send(const string &to, double amount) {
 
   try {
     UniValue Req(UniValue::VOBJ);
-    Req.push_back(Pair("amount", amount));
-    Req.push_back(Pair("withdrawal", to));
-    Req.push_back(Pair("pair", m_pair));
-    Req.push_back(Pair("refund_address", m_retAddr));
+    Req.pushKV("amount", amount);
+    Req.pushKV("withdrawal", to);
+    Req.pushKV("pair", m_pair);
+    Req.pushKV("refund_address", m_retAddr);
     // The public disclosure for RefID usage: https://bitcointalk.org/index.php?topic=362513
-    Req.push_back(Pair("ref_id", "2f77783d"));
+    Req.pushKV("ref_id", "2f77783d");
 
     UniValue Resp(httpsFetch("/api/sendamount", &Req));
-    LogPrint("exch", "DBG: ExchCoinReform::Send(%s|%s) returns <%s>\n\n", Host().c_str(), m_pair.c_str(), Resp.write(0, 0, 0).c_str());
+    LogPrint(BCLog::EXCH, "DBG: ExchCoinReform::Send(%s|%s) returns <%s>\n\n", Host().c_str(), m_pair.c_str(), Resp.write(0, 0, 0).c_str());
     m_rate     = atof(Resp["rate"].get_str().c_str());
     m_depAddr  = Resp["deposit"].get_str();			// Address to pay EMC
     m_outAddr  = Resp["withdrawal"].get_str();			// Address to pay from exchange
@@ -247,7 +246,7 @@ string ExchCoinReform::TxStat(const string &txkey, UniValue &details) {
   snprintf(buf, sizeof(buf), "/api/txstat/%s.json", key);
   try {
     details = httpsFetch(buf, NULL);
-    LogPrint("exch", "DBG: ExchCoinReform::TxStat(%s|%s) returns <%s>\n\n", Host().c_str(), buf, details.write(0, 0, 0).c_str());
+    LogPrint(BCLog::EXCH, "DBG: ExchCoinReform::TxStat(%s|%s) returns <%s>\n\n", Host().c_str(), buf, details.write(0, 0, 0).c_str());
     return details["status"].get_str();
   } catch(std::exception &e) { // something wrong at HTTPS
     return e.what();
@@ -268,7 +267,7 @@ string ExchCoinReform::CancelTX(const string &txkey) {
   snprintf(buf, sizeof(buf), "/api/cancel/%s.json", key);
   try {
     UniValue Resp(httpsFetch(buf, NULL));
-	LogPrint("exch", "DBG: ExchCoinReform::CancelTX(%s|%s) returns <%s>\n\n", Host().c_str(), buf, Resp.write(0, 0, 0).c_str());
+    LogPrint(BCLog::EXCH, "DBG: ExchCoinReform::CancelTX(%s|%s) returns <%s>\n\n", Host().c_str(), buf, Resp.write(0, 0, 0).c_str());
     m_txKey.erase(); // Preserve from double Cancel
     return m_txKey;
   } catch(std::exception &e) { // something wrong at HTTPS
@@ -290,7 +289,7 @@ int ExchCoinReform::Remain(const string &txkey) {
   snprintf(buf, sizeof(buf), "/api/timeremaining/%s.json", key);
   try {
     UniValue Resp(httpsFetch(buf, NULL));
-	LogPrint("exch", "DBG: ExchCoinReform::CancelTX(%s|%s) returns <%s>\n\n", Host().c_str(), buf, Resp.write(0, 0, 0).c_str());
+    LogPrint(BCLog::EXCH, "DBG: ExchCoinReform::CancelTX(%s|%s) returns <%s>\n\n", Host().c_str(), buf, Resp.write(0, 0, 0).c_str());
     return Resp["seconds_remaining"].get_int();
   } catch(std::exception &e) { // something wrong at HTTPS
     return 0;
@@ -342,7 +341,7 @@ void ExchCoinSwitch::FillHeader() {
   dummy_addr.s_addr = 0x08080808; // 8.8.8.8 - Google address
   CNetAddr fake_server_addr(dummy_addr);
   string ipAddr(GetLocalAddress(&fake_server_addr, NODE_NONE).ToStringIP());
-  LogPrint("exch", "DBG: ExchCoinSwitch::FillHeader() x-user-ip=%s\n", ipAddr.c_str());
+  LogPrint(BCLog::EXCH, "DBG: ExchCoinSwitch::FillHeader() x-user-ip=%s\n", ipAddr.c_str());
   m_header["x-user-ip"] = ipAddr;
   if(_sandBox)
 	m_header["x-api-key"] = "cRbHFJTlL6aSfZ0K2q7nj6MgV5Ih4hbA2fUG0ueO"; // sandbox API key
@@ -360,10 +359,10 @@ string ExchCoinSwitch::MarketInfo(const string &currency, double amount) {
 
   try {
     UniValue Req(UniValue::VOBJ);
-    Req.push_back(Pair("depositCoin", "emc"));
-	Req.push_back(Pair("destinationCoin", currLowercase));
+    Req.pushKV("depositCoin", "emc");
+    Req.pushKV("destinationCoin", currLowercase);
     UniValue Resp(httpsFetch("/v2/rate", &Req));
-	LogPrint("exch", "DBG: ExchCoinSwitch::MarketInfo(%s|%s) returns <%s>\n\n", Host().c_str(), currLowercase.c_str(), Resp.write(0, 0, 0).c_str());
+    LogPrint(BCLog::EXCH, "DBG: ExchCoinSwitch::MarketInfo(%s|%s) returns <%s>\n\n", Host().c_str(), currLowercase.c_str(), Resp.write(0, 0, 0).c_str());
     const UniValue& mi  = find_value(Resp, "data");
     m_rate     = mi["rate"].get_real();
     m_limit    = mi["limitMaxDestinationCoin"].get_real();
@@ -386,8 +385,8 @@ coinSwitch
 //-----------------------------------------------------
 static void AddAddr(UniValue &rc, const string &key, const string &val) {
   UniValue out(UniValue::VOBJ);
-  out.push_back(Pair("address", val));
-  rc.push_back(Pair(key, out));
+  out.pushKV("address", val);
+  rc.pushKV(key, out);
 }
 //-----------------------------------------------------
 // Create SEND exchange channel for 
@@ -408,13 +407,13 @@ string ExchCoinSwitch::Send(const string &to, double amount) {
 
   try {
     UniValue Req(UniValue::VOBJ);
-    Req.push_back(Pair("depositCoin", "emc"));
-    Req.push_back(Pair("destinationCoin", string(strchr(m_pair.c_str(), '/') + 1)));
-    Req.push_back(Pair("destinationCoinAmount", amount));
+    Req.pushKV("depositCoin", "emc");
+    Req.pushKV("destinationCoin", string(strchr(m_pair.c_str(), '/') + 1));
+    Req.pushKV("destinationCoinAmount", amount);
     AddAddr(Req, "destinationAddress", to);
     AddAddr(Req, "refundAddress", m_retAddr);
     const UniValue Resp(httpsFetch("/v2/order", &Req));
-    LogPrint("exch", "DBG: ExchCoinSwitch::Send(%s|%s) returns <%s>\n\n", Host().c_str(), m_pair.c_str(), Resp.write(0, 0, 0).c_str());
+    LogPrint(BCLog::EXCH, "DBG: ExchCoinSwitch::Send(%s|%s) returns <%s>\n\n", Host().c_str(), m_pair.c_str(), Resp.write(0, 0, 0).c_str());
     const UniValue& r = find_value(Resp, "data");
 
     m_txKey    = Name() + ':' + r["orderId"].get_str();		// TX reference key
@@ -454,7 +453,7 @@ string ExchCoinSwitch::TxStat(const string &txkey, UniValue &details) {
   snprintf(buf, sizeof(buf), "/v2/order/%s", key);
   try {
     details = httpsFetch(buf, NULL);
-    LogPrint("exch", "DBG: ExchCoinSwitch::TxStat(%s|%s) returns <%s>\n\n", Host().c_str(), buf, details.write(0, 0, 0).c_str());
+    LogPrint(BCLog::EXCH, "DBG: ExchCoinSwitch::TxStat(%s|%s) returns <%s>\n\n", Host().c_str(), buf, details.write(0, 0, 0).c_str());
     const UniValue& r = find_value(details, "data");
     return r["status"].get_str();
   } catch(std::exception &e) { // something wrong at HTTPS
@@ -477,7 +476,7 @@ string ExchCoinSwitch::CancelTX(const string &txkey) {
   snprintf(buf, sizeof(buf), "/api/cancel/%s.json", key);
   try {
     UniValue Resp(httpsFetch(buf, NULL));
-	LogPrint("exch", "DBG: ExchCoinSwitch::CancelTX(%s|%s) returns <%s>\n\n", Host().c_str(), buf, Resp.write(0, 0, 0).c_str());
+    LogPrint(BCLog::EXCH, "DBG: ExchCoinSwitch::CancelTX(%s|%s) returns <%s>\n\n", Host().c_str(), buf, Resp.write(0, 0, 0).c_str());
     m_txKey.erase(); // Preserve from double Cancel
     return m_txKey;
   } catch(std::exception &e) { // something wrong at HTTPS
@@ -500,7 +499,7 @@ int ExchCoinSwitch::Remain(const string &txkey) {
   snprintf(buf, sizeof(buf), "/v2/order/%s", key);
   try {
     const UniValue Resp(httpsFetch(buf, NULL));
-    LogPrint("exch", "DBG: ExchCoinSwitch::Remain(%s|%s) returns <%s>\n\n", Host().c_str(), buf, Resp.write(0, 0, 0).c_str());
+    LogPrint(BCLog::EXCH, "DBG: ExchCoinSwitch::Remain(%s|%s) returns <%s>\n\n", Host().c_str(), buf, Resp.write(0, 0, 0).c_str());
     const UniValue& r = find_value(Resp, "data");
     return r["validTill"].get_int64() / 1000 - time(NULL);
   } catch(std::exception &e) { // something wrong at HTTPS
@@ -555,7 +554,7 @@ string ExchEasyRabbit::MarketInfo(const string &currency, double amount) {
     char https_get[200];
     sprintf(https_get, "/api/pairinfo?apikey=%s&from=EMC&to=%s", EasyRabbitAPIKey, curUC.c_str());
     const UniValue Resp1(httpsFetch(https_get, NULL));
-    LogPrint("exch", "DBG: ExchEasyRabbit::MarketInfo1(%s|%s) returns <%s>\n\n", Host().c_str(), https_get, Resp1.write(0, 0, 0).c_str());
+    LogPrint(BCLog::EXCH, "DBG: ExchEasyRabbit::MarketInfo1(%s|%s) returns <%s>\n\n", Host().c_str(), https_get, Resp1.write(0, 0, 0).c_str());
     const UniValue& mi1(find_value(Resp1, "Data")[0]);
     m_pair     = "EMC/" + curUC;
     m_min      = atof(mi1["Min"].get_str().c_str());
@@ -563,7 +562,7 @@ string ExchEasyRabbit::MarketInfo(const string &currency, double amount) {
     m_minerFee = atof(mi1["Network_fee"].get_str().c_str());
     sprintf(https_get, "/api/exrates?apikey=%s&from=EMC&to=%s&amount=%.4lf&amounttype=receive", EasyRabbitAPIKey, curUC.c_str(), amount);
     const UniValue Resp2(httpsFetch(https_get, NULL));
-    LogPrint("exch", "DBG: ExchEasyRabbit::MarketInfo2(%s|%s) returns <%s>\n\n", Host().c_str(), https_get, Resp2.write(0, 0, 0).c_str());
+    LogPrint(BCLog::EXCH, "DBG: ExchEasyRabbit::MarketInfo2(%s|%s) returns <%s>\n\n", Host().c_str(), https_get, Resp2.write(0, 0, 0).c_str());
     const UniValue& mi2(find_value(Resp2, "Data")[0]);
     m_depAmo   = atof(mi2["Deposit_amount"].get_str().c_str());   // amount in EMC - used in SEND
     m_outAmo   = atof(mi2["Receive_amount"].get_str().c_str());   // Amount transferred to BTC
@@ -604,7 +603,7 @@ string ExchEasyRabbit::Send(const string &to, double amount) {
     char https_get[600];
     sprintf(https_get, "/api/placeorder?apikey=%s&from=EMC&to=%s&amount=%.4lf&address=%s&refundaddress=%s", EasyRabbitAPIKey, strchr(m_pair.c_str(), '/') + 1, m_depAmo, to.c_str(), m_retAddr.c_str());
     const UniValue Resp(httpsFetch(https_get, NULL));
-    LogPrint("exch", "DBG: ExchEasyRabbit::Send(%s|%s) returns <%s>\n\n", Host().c_str(), https_get, Resp.write(0, 0, 0).c_str());
+    LogPrint(BCLog::EXCH, "DBG: ExchEasyRabbit::Send(%s|%s) returns <%s>\n\n", Host().c_str(), https_get, Resp.write(0, 0, 0).c_str());
     const UniValue& r(find_value(Resp, "Data")[0]);
     m_txKey    = Name() + ':' + r["Id"].get_str();		// TX reference key
     m_depAddr  = r["Deposit_address"].get_str();                // Address to pay EMC
@@ -630,7 +629,7 @@ string ExchEasyRabbit::TxStat(const string &txkey, UniValue &details) {
   snprintf(buf, sizeof(buf), "/api/orderstatus?apikey=%s&id=%s", EasyRabbitAPIKey, key);
   try {
     details = httpsFetch(buf, NULL);
-    LogPrint("exch", "DBG: ExchEasyRabbit::TxStat(%s|%s) returns <%s>\n\n", Host().c_str(), buf, details.write(0, 0, 0).c_str());
+    LogPrint(BCLog::EXCH, "DBG: ExchEasyRabbit::TxStat(%s|%s) returns <%s>\n\n", Host().c_str(), buf, details.write(0, 0, 0).c_str());
     const UniValue& r = find_value(details, "Data")[0];
     return r["Status"].get_str();
   } catch(std::exception &e) { // something wrong at HTTPS

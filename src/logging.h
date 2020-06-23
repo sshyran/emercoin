@@ -55,6 +55,7 @@ namespace BCLog {
         QT          = (1 << 19),
         LEVELDB     = (1 << 20),
 
+        EXCH        = (1 << 29),
         STAKE       = (1 << 29),
         ALERT       = (1 << 30),
 

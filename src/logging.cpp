@@ -150,10 +150,11 @@ const CLogCategoryDesc LogCategories[] =
     {BCLog::COINDB, "coindb"},
     {BCLog::QT, "qt"},
     {BCLog::LEVELDB, "leveldb"},
+    {BCLog::EXCH, "stake"},
+    {BCLog::STAKE, "stake"},
     {BCLog::ALERT, "alert"},
     {BCLog::ALL, "1"},
     {BCLog::ALL, "all"},
-    {BCLog::STAKE, "stake"},
 };
 
 bool GetLogCategory(BCLog::LogFlags& flag, const std::string& str)

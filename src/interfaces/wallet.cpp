@@ -55,7 +55,7 @@ WalletTx MakeWalletTx(interfaces::Chain::Lock& locked_chain, CWallet& wallet, co
     result.credit = wtx.GetCredit(locked_chain, ISMINE_ALL);
     result.debit = wtx.GetDebit(ISMINE_ALL);
     result.change = wtx.GetChange();
-    result.time = wtx.GetTxTime();
+    result.time = wtx.tx->nTime;
     result.value_map = wtx.mapValue;
     result.is_coinbase = wtx.IsCoinBase();
     return result;
@@ -87,7 +87,7 @@ WalletTxOut MakeWalletTxOut(interfaces::Chain::Lock& locked_chain,
 {
     WalletTxOut result;
     result.txout = wtx.tx->vout[n];
-    result.time = wtx.GetTxTime();
+    result.time = wtx.tx->nTime;
     result.depth_in_main_chain = depth;
     result.is_spent = wallet.IsSpent(locked_chain, wtx.GetHash(), n);
     return result;
