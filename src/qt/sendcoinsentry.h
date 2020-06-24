@@ -6,7 +6,7 @@
 #define BITCOIN_QT_SENDCOINSENTRY_H
 
 #include <qt/walletmodel.h>
-#include <../exch.h>
+#include <qt/exch.h>
 
 #include <QStackedWidget>
 

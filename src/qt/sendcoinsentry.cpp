@@ -15,8 +15,13 @@
 #include <qt/optionsmodel.h>
 #include <qt/platformstyle.h>
 
+#include <namecoin.h>
+#include <key_io.h>
+#include <qt/bitcoinunits.h>
+
 #include <QApplication>
 #include <QClipboard>
+#include <QStandardItemModel>
 
 SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *parent) :
     QStackedWidget(parent),
@@ -334,11 +339,11 @@ void SendCoinsEntry::on_payTo_editingFinished()
     std::vector<unsigned char> vchName(strName.begin(), strName.end());
 
     std::string error;
-    CBitcoinAddress address;
-    if (!GetNameCurrentAddress(vchName, address, error))
+    CTxDestination dest;
+    if (!GetNameCurrentAddress(vchName, dest, error))
         return;
 
-    QString qstrAddress = QString::fromStdString(address.ToString());
+    QString qstrAddress = QString::fromStdString(EncodeDestination(dest));
 
     if (QMessageBox::Yes != QMessageBox::question(this, tr("Confirm name as address"),
             tr("This name exist and still active. Do you wish to use address of its current owner - %1?").arg(qstrAddress),

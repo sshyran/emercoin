@@ -44,7 +44,6 @@ AskPassphraseDialog::AskPassphraseDialog(Mode _mode, QWidget *parent, SecureStri
 
     ui->passLabelDuration->hide();
     ui->passEditDuration->hide();
-    ui->passLabelMintOnly->hide();
     ui->passCheckBoxMintOnly->hide();
 
     switch(mode)
@@ -71,7 +70,6 @@ AskPassphraseDialog::AskPassphraseDialog(Mode _mode, QWidget *parent, SecureStri
             ui->passEdit3->hide();
             ui->passLabelDuration->show();
             ui->passEditDuration->show();
-            ui->passLabelMintOnly->show();
             ui->passCheckBoxMintOnly->show();
             ui->passEditDuration->setValidator( new QIntValidator(0, 1000000000, this) );
             setWindowTitle(tr("Unlock wallet"));

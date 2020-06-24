@@ -1,13 +1,14 @@
 ﻿//ManageSslPage.cpp by Emercoin developers
-#include "ManageSslPage.h"
-#include "Settings.h"
-#include "CertTableModel.h"
-#include "EmailLineEdit.h"
-#include "CertTableView.h"
-#include "CertLogger.h"
-#include "ShellImitation.h"
-#include "OpenSslConfigWriter.h"
-#include "OpenSslExecutable.h"
+#include <qt/ManageSslPage.h>
+#include <qt/Settings.h>
+#include <qt/CertTableModel.h>
+#include <qt/EmailLineEdit.h>
+#include <qt/CertTableView.h>
+#include <qt/CertLogger.h>
+#include <qt/ShellImitation.h>
+#include <qt/OpenSslConfigWriter.h>
+#include <qt/OpenSslExecutable.h>
+
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
@@ -145,7 +146,7 @@ QString ManageSslPage::randName() {
 	QByteArray uid = QUuid::createUuid().toByteArray();
         int x = 0;
         do {
-            uid[0] += ++x; // to mitigate low-probable case, when h(x) == x
+            uid[0] = uid[0] + (++x); // to mitigate low-probable case, when h(x) == x
             uid = QCryptographicHash::hash(uid, QCryptographicHash::Sha256);
         } while(uid[0] < 0x10); // To preserve 0-prefix
         uid.truncate(8);

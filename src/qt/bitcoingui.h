@@ -166,8 +166,8 @@ private:
     HelpMessageDialog* helpMessageDialog = nullptr;
     ModalOverlay* modalOverlay = nullptr;
 
-    QAction *mintingAction = 0;
-    MintingView *mintingView;
+    QAction *manageNamesAction = nullptr;
+    QAction *mintingAction = nullptr;
 
 #ifdef Q_OS_MAC
     CAppNapInhibitor* m_app_nap_inhibitor = nullptr;

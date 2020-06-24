@@ -48,7 +48,7 @@ struct TransactionView::TableView: public QTableView{
         setSelectionBehavior(QAbstractItemView::SelectRows);
         setSelectionMode(QAbstractItemView::ExtendedSelection);
         setSortingEnabled(true);
-        sortDefault();
+        sortByColumn(TransactionTableModel::Date, Qt::DescendingOrder);
         verticalHeader()->hide();
 
         setColumnWidth(TransactionTableModel::Status, STATUS_COLUMN_WIDTH);
@@ -56,9 +56,6 @@ struct TransactionView::TableView: public QTableView{
         setColumnWidth(TransactionTableModel::Date, DATE_COLUMN_WIDTH);
         setColumnWidth(TransactionTableModel::Type, TYPE_COLUMN_WIDTH);
         setColumnWidth(TransactionTableModel::Amount, AMOUNT_MINIMUM_COLUMN_WIDTH);
-    }
-    void sortDefault() {
-        sortByColumn(TransactionTableModel::Date, Qt::DescendingOrder);
     }
     QString format(CAmount amount)const {
         return BitcoinUnits::format(_walletModel->getOptionsModel()->getDisplayUnit(), amount, false, BitcoinUnits::separatorAlways);
@@ -276,7 +273,7 @@ void TransactionView::setModel(WalletModel *_model)
     transactionProxyModel->setSortRole(Qt::EditRole);
 
     transactionView->setModel(transactionProxyModel);
-    transactionView->sortDefault();
+    transactionView->sortByColumn(TransactionTableModel::Date, Qt::DescendingOrder);
 
     columnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(transactionView, AMOUNT_MINIMUM_COLUMN_WIDTH, MINIMUM_COLUMN_WIDTH, this);
 

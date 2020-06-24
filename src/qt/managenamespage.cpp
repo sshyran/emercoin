@@ -1,20 +1,22 @@
 #include <qt/managenamespage.h>
 #include <qt/forms/ui_managenamespage.h>
 
-#include <nametablemodel.h>
-#include <walletmodel.h>
-#include <guiutil.h>
+#include <qt/nametablemodel.h>
+#include <qt/walletmodel.h>
+#include <qt/guiutil.h>
+#include <qt/QNameCoin.h>
+#include <qt/NameCoinStrings.h>
+#include <qt/csvmodelwriter.h>
+#include <qt/ManageDnsPage.h>
+#include <qt/DocNotarWidget.h>
+#include <qt/DiplomaWidget.h>
+#include <qt/InfoCardsWidget.h>
+#include <qt/ManageSslPage.h>
+
 #include <namecoin.h>
-#include <QNameCoin.h>
-#include <NameCoinStrings.h>
 #include <ui_interface.h>
 #include <validation.h>
-#include <csvmodelwriter.h>
-#include <ManageDnsPage.h>
-#include <DocNotarWidget.h>
-#include <DiplomaWidget.h>
-#include <InfoCardsWidget.h>
-#include <ManageSslPage.h>
+#include <key_io.h>
 
 #include <QMessageBox>
 #include <QMenu>
@@ -497,7 +499,7 @@ void ManageNamesPage::onSaveValueAsBinaryAction()
         return;
 
     QDataStream in(&file);
-    BOOST_FOREACH(const unsigned char& uch, value)
+    for (const unsigned char& uch : value)
         in << uch;
     file.close();
 }
@@ -657,11 +659,11 @@ void ManageNamesPage::on_registerAddress_editingFinished()
     std::vector<unsigned char> vchName(strName.begin(), strName.end());
 
     std::string error;
-    CBitcoinAddress address;
-    if (!GetNameCurrentAddress(vchName, address, error))
+    CTxDestination dest;
+    if (!GetNameCurrentAddress(vchName, dest, error))
         return;
 
-    QString qstrAddress = QString::fromStdString(address.ToString());
+    QString qstrAddress = QString::fromStdString(EncodeDestination(dest));
 
     if (QMessageBox::Yes != QMessageBox::question(this, tr("Confirm name as address"),
             tr("This name exist and still active. Do you wish to use address of its current owner - %1?").arg(qstrAddress),

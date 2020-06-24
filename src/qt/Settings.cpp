@@ -1,13 +1,13 @@
 ﻿//Settings.cpp by Emercoin developers
-#include "Settings.h"
+#include <qt/Settings.h>
 #include <QStandardPaths>
 #include <boost/filesystem.hpp>
-#include "../util.h"
+#include <util/system.h>
 extern const char * const BITCOIN_CONF_FILENAME;
 
 QString Settings::configPath() {
-	std::string confPath = GetArg("-conf", BITCOIN_CONF_FILENAME);
-	boost::filesystem::path boostPath = GetConfigFile(confPath);
+    std::string confPath = gArgs.GetArg("-conf", BITCOIN_CONF_FILENAME);
+    boost::filesystem::path boostPath = GetConfigFile(confPath);
 	return QString::fromStdString(boostPath.string());
 }
 QDir Settings::configDir() {

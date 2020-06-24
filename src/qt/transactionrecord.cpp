@@ -9,6 +9,8 @@
 #include <key_io.h>
 #include <wallet/ismine.h>
 
+#include <hooks.h>
+
 #include <stdint.h>
 
 #include <QDateTime>

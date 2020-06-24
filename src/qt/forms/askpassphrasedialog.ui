@@ -92,14 +92,27 @@
        </property>
       </widget>
      </item>
-     <item row="3" column="1">
-      <widget class="QCheckBox" name="toggleShowPasswordButton">
+     <item row="3" column="0">
+      <widget class="QLabel" name="passLabelDuration">
        <property name="text">
-        <string>Show passphrase</string>
+        <string>Unlock Duration</string>
        </property>
       </widget>
      </item>
-     <item row="4" column="1">
+     <item row="3" column="1">
+      <widget class="QLineEdit" name="passEditDuration">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>2592000</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="1">
       <widget class="QLabel" name="capsLabel">
        <property name="font">
         <font>
@@ -112,6 +125,20 @@
        </property>
        <property name="alignment">
         <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QCheckBox" name="toggleShowPasswordButton">
+       <property name="text">
+        <string>Show passphrase</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QCheckBox" name="passCheckBoxMintOnly">
+       <property name="text">
+        <string>Mint only mode</string>
        </property>
       </widget>
      </item>
