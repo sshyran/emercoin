@@ -24,6 +24,7 @@
 #include <wallet/ismine.h>
 
 #include <qt/exch.h>
+#include <univalue.h>
 
 #include <stdint.h>
 #include <string>
@@ -327,13 +328,13 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
     // emercoin: show TxStat for exchanges
     while (true)
     {
-        if (wtx.mapValue["to"].empty() || wtx.mapValue["comment"].empty())
+        if (wtx.value_map["to"].empty() || wtx.value_map["comment"].empty())
             break;
 
         std::vector<std::string> vTo;
         std::vector<std::string> vComment;
-        boost::split(vTo, wtx.mapValue["to"], boost::is_any_of("\n"));
-        boost::split(vComment, wtx.mapValue["comment"], boost::is_any_of("\n"));
+        boost::split(vTo, wtx.value_map["to"], boost::is_any_of("\n"));
+        boost::split(vComment, wtx.value_map["comment"], boost::is_any_of("\n"));
 
         if (vTo.size() != vComment.size())
             break;

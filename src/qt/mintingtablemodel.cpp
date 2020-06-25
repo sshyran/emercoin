@@ -68,13 +68,18 @@ public:
      */
     void refreshWallet()
     {
-        // cs_main lock was added because GetDepthInMainChain requires it
-        LOCK2(cs_main, walletModel->wallet().cs_wallet);
         cachedWallet.clear();
-        for(std::map<uint256, CWalletTx>::iterator it = wallet->mapWallet.begin(); it != wallet->mapWallet.end(); ++it)
-        {
-            std::vector<KernelRecord> txList = KernelRecord::decomposeOutput(wallet, it->second);
-            if(KernelRecord::showTransaction(it->second))
+        const auto& vwtx = walletModel->wallet().getWalletTxs();
+        for(const auto& wtx : vwtx) {
+            std::vector<KernelRecord> txList = KernelRecord::decomposeOutput(walletModel->wallet(), wtx);
+
+            int numBlocks;
+            interfaces::WalletTxStatus status;
+            interfaces::WalletOrderForm orderForm;
+            bool inMempool;
+            walletModel->wallet().getWalletTxDetails(wtx.tx->GetHash(), status, orderForm, inMempool, numBlocks);
+
+            if(KernelRecord::showTransaction(wtx.is_coinbase, status.depth_in_main_chain))
                 for(const KernelRecord& kr : txList) {
                     if(!kr.spent) {
                         cachedWallet.append(kr);
@@ -92,11 +97,9 @@ public:
     {
         LogPrintf("minting updateWallet %s %i\n", hash.ToString(), status);
         {
-            LOCK2(cs_main, walletModel->wallet().cs_wallet);
-
             // Find transaction in wallet
-            std::map<uint256, CWalletTx>::iterator mi = walletModel->wallet()->mapWallet.find(hash);
-            bool inWallet = mi != walletModel->wallet()->mapWallet.end();
+            auto wtx = walletModel->wallet().getWalletTx(hash);
+            bool inWallet = wtx.tx ? true : false;
 
             // Find bounds of this transaction in model
             QList<KernelRecord>::iterator lower = qLowerBound(
@@ -108,7 +111,16 @@ public:
             bool inModel = (lower != upper);
 
             // Determine whether to show transaction or not
-            bool showTransaction = (inWallet && KernelRecord::showTransaction(mi->second));
+            bool showTransaction = false;
+            if (inWallet) {
+                int numBlocks;
+                interfaces::WalletTxStatus status;
+                interfaces::WalletOrderForm orderForm;
+                bool inMempool;
+                walletModel->wallet().getWalletTxDetails(wtx.tx->GetHash(), status, orderForm, inMempool, numBlocks);
+
+                showTransaction = KernelRecord::showTransaction(wtx.is_coinbase, status.depth_in_main_chain);
+            }
 
             if(status == CT_UPDATED)
             {
@@ -138,7 +150,7 @@ public:
                 {
                     // Added -- insert at the right position
                     std::vector<KernelRecord> toInsert =
-                            KernelRecord::decomposeOutput(wallet, mi->second);
+                            KernelRecord::decomposeOutput(walletModel->wallet(), wtx);
                     if(toInsert.size() != 0) /* only if something to insert */
                     {
                         parent->beginInsertRows(QModelIndex(), lowerIndex, lowerIndex+toInsert.size()-1);
@@ -168,7 +180,7 @@ public:
                 break;
             case CT_UPDATED:
                 // Updated -- remove spent coins from table
-                std::vector<KernelRecord> toCheck = KernelRecord::decomposeOutput(wallet, mi->second);
+                std::vector<KernelRecord> toCheck = KernelRecord::decomposeOutput(walletModel->wallet(), wtx);
                 if(!toCheck.empty())
                 {
                     for(const KernelRecord &rec : toCheck)
@@ -226,13 +238,10 @@ public:
 
     QString describe(KernelRecord *rec)
     {
-        {
-            LOCK(walletModel->wallet()->cs_wallet);
-            std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(rec->hash);
-            if(mi != wallet->mapWallet.end())
-            {
-                return TransactionDesc::toHTML(walletModel->node(), walletModel->wallet(), nullptr, BitcoinUnits::BTC);  //ppcTODO - fix the last 2 parameters
-            }
+        auto tx = walletModel->wallet().getTx(rec->hash);
+        if (tx) {
+            //emcTODO - get/construct a proper TransactionRecord
+            return TransactionDesc::toHTML(walletModel->node(), walletModel->wallet(), rec, BitcoinUnits::BTC);
         }
         return QString("");
     }
