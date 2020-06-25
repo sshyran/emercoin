@@ -111,14 +111,15 @@ void SendCoinsEntry::setModel(WalletModel *_model)
     std::string sAddress;
     if (this->model)
     {
-        if (this->model->getAddressForChange(sAddress))
-            this->eBox.Reset(sAddress);
-        else
-        {
-            ui->checkBoxExch->setDisabled(true);
-            ui->exchWidget->setVisible(false);
-            ui->exchWidget->setDisabled(true);
-        }
+        //emcTODO redo this later
+//        if (this->model->getAddressForChange(sAddress))
+//            this->eBox.Reset(sAddress);
+//        else
+//        {
+//            ui->checkBoxExch->setDisabled(true);
+//            ui->exchWidget->setVisible(false);
+//            ui->exchWidget->setDisabled(true);
+//        }
     }
 #else
     // emercoin: disabled in this version

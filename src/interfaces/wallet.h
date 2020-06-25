@@ -291,6 +291,10 @@ public:
     //! Register handler for keypool changed messages.
     using CanGetAddressesChangedFn = std::function<void()>;
     virtual std::unique_ptr<Handler> handleCanGetAddressesChanged(CanGetAddressesChangedFn fn) = 0;
+
+    // emercoin
+    virtual void relockWalletAfterDuration(int nDuration) = 0;
+    virtual bool fillComments(const uint256& txid, const std::vector< std::pair<std::string, std::string> >& comments) = 0;
 };
 
 //! Information about one wallet address.

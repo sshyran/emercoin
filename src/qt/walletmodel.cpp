@@ -381,13 +381,10 @@ bool WalletModel::setWalletEncrypted(bool encrypted, const SecureString &passphr
 
 bool WalletModel::setWalletLocked(bool locked, const SecureString &passPhrase, int64_t nSeconds, bool fMintOnly)
 {
-    if(locked)
-    {
+    if (locked) {
         // Lock
         return m_wallet->lock();
-    }
-    else
-    {
+    } else {
         // Unlock
         if (!m_wallet->unlock(passPhrase))
             return false;
@@ -395,7 +392,7 @@ bool WalletModel::setWalletLocked(bool locked, const SecureString &passPhrase, i
         fWalletUnlockMintOnly = fMintOnly;
 
         if (nSeconds > 0 && nSeconds < std::numeric_limits<int>::max())  // seconds
-            relockWalletAfterDuration(wallet, nSeconds);
+            m_wallet->relockWalletAfterDuration(nSeconds);
 
         return true;
     }
@@ -642,17 +639,18 @@ bool WalletModel::isMultiwallet()
 }
 
 // emercoin: get existing address from keypool without removing it from keypool
-bool WalletModel::getAddressForChange(std::string &sAddress)
-{
-    if (!wallet()->IsLocked())
-        wallet->TopUpKeyPool();
+//emcTODO redo this later
+//bool WalletModel::getAddressForChange(std::string &sAddress)
+//{
+//    if (!m_wallet->isLocked())
+//        m_wallet->TopUpKeyPool();
 
-    CReserveKey reservekey(wallet);
-    CPubKey vchPubKey;
-    if (!reservekey.GetReservedKey(vchPubKey))
-        return false;
-    CKeyID keyID = vchPubKey.GetID();
+//    CReserveKey reservekey(wallet);
+//    CPubKey vchPubKey;
+//    if (!reservekey.GetReservedKey(vchPubKey))
+//        return false;
+//    CKeyID keyID = vchPubKey.GetID();
 
-    sAddress = CBitcoinAddress(keyID).ToString();
-    return true;
-}
+//    sAddress = CBitcoinAddress(keyID).ToString();
+//    return true;
+//}

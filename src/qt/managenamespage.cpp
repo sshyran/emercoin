@@ -17,6 +17,7 @@
 #include <ui_interface.h>
 #include <validation.h>
 #include <key_io.h>
+#include <univalue.h>
 
 #include <QMessageBox>
 #include <QMenu>

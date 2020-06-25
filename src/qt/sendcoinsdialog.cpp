@@ -388,20 +388,12 @@ void SendCoinsDialog::on_sendButton_clicked()
     }
 
     // emercoin: add comment and comment-to
-    CWalletTx* wtx = currentTransaction.getTransaction();
-    for (const auto& rcp : recipients)
-    {
-        if (rcp.comment.size() > 0)
-            wtx->mapValue["comment"] += rcp.comment + "\n";
-        if (rcp.commentto.size() > 0)
-            wtx->mapValue["to"] += rcp.commentto + "\n";
+    std::vector< std::pair<std::string, std::string> > comments;
+    comments.reserve(recipients.size());
+    for (const auto& rcp : recipients) {
+        comments.push_back(std::make_pair(rcp.comment, rcp.commentto));
     }
-
-    // remove trailing newline
-    if (wtx->mapValue["comment"].size() > 0)
-        wtx->mapValue["comment"].erase(wtx->mapValue["comment"].end()-1);
-    if (wtx->mapValue["to"].size() > 0)
-        wtx->mapValue["to"].erase(wtx->mapValue["to"].end()-1);
+    model->wallet().fillComments(currentTransaction.getWtx()->GetHash(), comments);
 
     // now send the prepared transaction
     WalletModel::SendCoinsReturn sendStatus = model->sendCoins(currentTransaction);
@@ -714,7 +706,7 @@ void SendCoinsDialog::updateSmartFeeLabel()
     if(!model || !model->getOptionsModel())
         return;
 
-    ui->labelSmartFee->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), CWallet::GetRequiredFee(1000)) + "/kB");
+    ui->labelSmartFee->setText("?/kB");
     ui->labelSmartFee2->hide();
     ui->labelFeeEstimation->setText("");
 

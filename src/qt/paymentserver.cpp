@@ -117,16 +117,16 @@ void PaymentServer::ipcParseCommandLine(interfaces::Node& node, int argc, char* 
 				continue;
 			}
 
-            SendCoinsRecipient r;
-            if (GUIUtil::parseBitcoinURI(arg, &r) && !r.address.isEmpty())
+            std::vector<SendCoinsRecipient> rv;
+            if (GUIUtil::parseBitcoinURI(arg, rv) && !rv[0].address.isEmpty())
             {
                 auto tempChainParams = CreateChainParams(CBaseChainParams::MAIN);
 
-                if (IsValidDestinationString(r.address.toStdString(), *tempChainParams)) {
+                if (IsValidDestinationString(rv[0].address.toStdString(), *tempChainParams)) {
                     node.selectParams(CBaseChainParams::MAIN);
                 } else {
                     tempChainParams = CreateChainParams(CBaseChainParams::TESTNET);
-                    if (IsValidDestinationString(r.address.toStdString(), *tempChainParams)) {
+                    if (IsValidDestinationString(rv[0].address.toStdString(), *tempChainParams)) {
                         node.selectParams(CBaseChainParams::TESTNET);
                     }
                 }
@@ -303,7 +303,7 @@ void PaymentServer::handleURIOrFile(const QString& s)
         QString s2 = s;//ensure // after ':' so QUrl parses properly
         const QString moreDetailedPrefix = BITCOIN_IPC_PREFIX + "//";
         if(!s.startsWith(moreDetailedPrefix)) {
-            remove(0, BITCOIN_IPC_PREFIX.length());
+            s2.remove(0, BITCOIN_IPC_PREFIX.length());
             s2.prepend(moreDetailedPrefix);
         }
         const QUrl url = s2;
@@ -342,7 +342,7 @@ void PaymentServer::handleURIOrFile(const QString& s)
         // normal URI
         {
             std::vector<SendCoinsRecipient> recipients;
-            if (GUIUtil::parseBitcoinURI(s, &recipients))
+            if (GUIUtil::parseBitcoinURI(s, recipients))
             {
                 if (!IsValidDestinationString(recipients[0].address.toStdString())) {
 #ifndef ENABLE_BIP70
@@ -354,7 +354,7 @@ void PaymentServer::handleURIOrFile(const QString& s)
                             CClientUIInterface::ICON_WARNING);
                     }
 #endif
-                    Q_EMIT message(tr("URI handling"), tr("Invalid payment address %1").arg(recipient.address),
+                    Q_EMIT message(tr("URI handling"), tr("Invalid payment address %1").arg(recipients[0].address),
                         CClientUIInterface::MSG_ERROR);
                 }
                 else

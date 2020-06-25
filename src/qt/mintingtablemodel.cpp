@@ -1,24 +1,23 @@
 #include <qt/mintingtablemodel.h>
 #include <qt/mintingfilterproxy.h>
-
-#include <kernelrecord.h>
 #include <qt/transactiondesc.h>
-
-//#include <qt/guiutil.h>
 #include <qt/walletmodel.h>
 #include <qt/guiconstants.h>
 #include <qt/bitcoinunits.h>
 #include <qt/optionsmodel.h>
 #include <qt/addresstablemodel.h>
+#include <qt/transactionrecord.h>
 
-
+#include <kernelrecord.h>
 #include <wallet/wallet.h>
 #include <validation.h>
+#include <chainparams.h>
 
 #include <ui_interface.h>
 
 #include <QColor>
 #include <QTimer>
+#include <QDebug>
 
 // Amount column is right-aligned it contains numbers
 static int column_alignments[] = {
@@ -236,46 +235,58 @@ public:
         }
     }
 
-    QString describe(KernelRecord *rec)
+    QString describe(TransactionRecord* rec)
     {
-        auto tx = walletModel->wallet().getTx(rec->hash);
-        if (tx) {
-            //emcTODO - get/construct a proper TransactionRecord
-            return TransactionDesc::toHTML(walletModel->node(), walletModel->wallet(), rec, BitcoinUnits::BTC);
-        }
-        return QString("");
+        return TransactionDesc::toHTML(walletModel->node(), walletModel->wallet(), rec, BitcoinUnits::BTC);
     }
 
 };
 
+// queue notifications to show a non freezing progress dialog e.g. for rescan
 struct TransactionNotification2
 {
 public:
     TransactionNotification2() {}
-    TransactionNotification2(uint256 _hash, ChangeType _status):
-        hash(_hash), status(_status) {}
+    TransactionNotification2(uint256 _hash, ChangeType _status, bool _showTransaction):
+        hash(_hash), status(_status), showTransaction(_showTransaction) {}
 
     void invoke(QObject *ttm)
     {
         QString strHash = QString::fromStdString(hash.GetHex());
-        QMetaObject::invokeMethod(ttm, "updateTransaction", Qt::QueuedConnection,
+        qDebug() << "NotifyTransactionChanged: " + strHash + " status= " + QString::number(status);
+        bool invoked = QMetaObject::invokeMethod(ttm, "updateTransaction", Qt::QueuedConnection,
                                   Q_ARG(QString, strHash),
-                                  Q_ARG(int, status));
+                                  Q_ARG(int, status),
+                                  Q_ARG(bool, showTransaction));
+        assert(invoked);
     }
 private:
     uint256 hash;
     ChangeType status;
+    bool showTransaction;
 };
 
-static void NotifyTransactionChanged(MintingTableModel *ttm, CWallet *wallet, const uint256 &hash, ChangeType status)
+static bool fQueueNotifications = false;
+static std::vector< TransactionNotification2 > vQueueNotifications;
+
+static void NotifyTransactionChanged(MintingTableModel *ttm, const uint256 &hash, ChangeType status)
 {
-    TransactionNotification2 notification(hash, status);
+    // Find transaction in wallet
+    // Determine whether to show transaction or not (determine this here so that no relocking is needed in GUI thread)
+    bool showTransaction = TransactionRecord::showTransaction();
+
+    TransactionNotification2 notification(hash, status, showTransaction);
+
+    if (fQueueNotifications)
+    {
+        vQueueNotifications.push_back(notification);
+        return;
+    }
     notification.invoke(ttm);
 }
 
-MintingTableModel::MintingTableModel(CWallet* wallet, WalletModel *parent) :
+MintingTableModel::MintingTableModel(WalletModel *parent) :
         QAbstractTableModel(parent),
-        wallet(wallet),
         walletModel(parent),
         mintingInterval(60*24),
         priv(new MintingTablePriv(walletModel, this)),
@@ -297,12 +308,12 @@ MintingTableModel::MintingTableModel(CWallet* wallet, WalletModel *parent) :
     timer->start(MODEL_UPDATE_DELAY);
 
     connect(walletModel->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
-    wallet->NotifyTransactionChanged.connect(boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
+    m_handler_transaction_changed = walletModel->wallet().handleTransactionChanged(std::bind(NotifyTransactionChanged, this, std::placeholders::_1, std::placeholders::_2));
 }
 
 MintingTableModel::~MintingTableModel()
 {
-    wallet->NotifyTransactionChanged.disconnect(boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
+    m_handler_transaction_changed->disconnect();
     delete priv;
 }
 

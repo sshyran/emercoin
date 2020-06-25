@@ -490,6 +490,45 @@ public:
         return MakeHandler(m_wallet->NotifyCanGetAddressesChanged.connect(fn));
     }
 
+    void relockWalletAfterDuration(int nDuration) override
+    {
+        // Keep a weak pointer to the wallet so that it is possible to unload the
+        // wallet before the following callback is called. If a valid shared pointer
+        // is acquired in the callback then the wallet is still loaded.
+        std::weak_ptr<CWallet> weak_wallet = m_wallet;
+        m_wallet->chain().rpcRunLater(strprintf("lockwallet(%s)", m_wallet->GetName()), [weak_wallet] {
+            if (auto shared_wallet = weak_wallet.lock()) {
+                LOCK(shared_wallet->cs_wallet);
+                shared_wallet->Lock();
+                shared_wallet->nRelockTime = 0;
+            }
+        }, nDuration);
+    }
+
+    bool fillComments(const uint256& txid, const std::vector< std::pair<std::string, std::string> >& comments) override
+    {
+        LOCK(m_wallet->cs_wallet);
+        auto mi = m_wallet->mapWallet.find(txid);
+        if (mi == m_wallet->mapWallet.end()) {
+            return false;
+        }
+
+        auto& wtx = mi->second;
+        for (const auto& c : comments) {
+            if (c.first.size() > 0)
+                wtx.mapValue["comment"] += c.first + "\n";
+            if (c.second.size() > 0)
+                wtx.mapValue["to"] += c.second + "\n";
+        }
+
+        // remove trailing newline
+        if (wtx.mapValue["comment"].size() > 0)
+            wtx.mapValue["comment"].erase(wtx.mapValue["comment"].end()-1);
+        if (wtx.mapValue["to"].size() > 0)
+            wtx.mapValue["to"].erase(wtx.mapValue["to"].end()-1);
+        return true;
+    }
+
     std::shared_ptr<CWallet> m_wallet;
 };
 
