@@ -460,7 +460,7 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
         CTxDestination address;
         int witnessversion = 0;
         std::vector<unsigned char> witnessprogram;
-        if (out.txout.scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram, 0)) // emercoin: there should not be any names in coin control dialog
+        if (out.txout.scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram))
         {
             nBytesInputs += (32 + 4 + 1 + (107 / WITNESS_SCALE_FACTOR) + 4);
             fWitness = true;

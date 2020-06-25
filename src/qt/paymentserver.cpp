@@ -20,6 +20,8 @@
 #include <util/system.h>
 #include <wallet/wallet.h>
 
+#include <qt/RandPayRequest.h>
+
 #include <cstdlib>
 #include <memory>
 

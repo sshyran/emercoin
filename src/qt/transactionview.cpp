@@ -36,8 +36,7 @@
 #include <QVBoxLayout>
 
 struct TransactionView::TableView: public QTableView{
-    TransactionView* _parent = 0;
-    WalletModel *_walletModel = 0;
+    TransactionView *_parent;
     TableView(TransactionView*parent): _parent(parent) {
         setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
         setTabKeyNavigation(false);
@@ -58,7 +57,7 @@ struct TransactionView::TableView: public QTableView{
         setColumnWidth(TransactionTableModel::Amount, AMOUNT_MINIMUM_COLUMN_WIDTH);
     }
     QString format(CAmount amount)const {
-        return BitcoinUnits::format(_walletModel->getOptionsModel()->getDisplayUnit(), amount, false, BitcoinUnits::separatorAlways);
+        return BitcoinUnits::format(_parent->model->getOptionsModel()->getDisplayUnit(), amount, false, BitcoinUnits::separatorAlways);
     }
     QString formatSelectedAmount()const {
         QMap<int, QModelIndex> rowToIndex;
@@ -87,7 +86,7 @@ struct TransactionView::TableView: public QTableView{
     }
     virtual void selectionChanged(const QItemSelection & selected, const QItemSelection & deselected)override {
         QTableView::selectionChanged(selected, deselected);
-        if(_walletModel)
+        if(_parent->model)
             Q_EMIT _parent->amountSelected(formatSelectedAmount());
     }
 };
@@ -263,7 +262,6 @@ void TransactionView::setModel(WalletModel *_model)
     this->model = _model;
     if(!_model)
         return;
-    transactionView->_walletModel = _model;
     transactionProxyModel = new TransactionFilterProxy(this);
     transactionProxyModel->setSourceModel(_model->getTransactionTableModel());
     transactionProxyModel->setDynamicSortFilter(true);
@@ -283,15 +281,15 @@ void TransactionView::setModel(WalletModel *_model)
         QStringList listUrls = _model->getOptionsModel()->getThirdPartyTxUrls().split('|', QString::SkipEmptyParts);
         for (int i = 0; i < listUrls.size(); ++i)
         {
-            QString host = QUrl(listUrls[i].trimmed(), QUrl::StrictMode).host();
+            QString url = listUrls[i].trimmed();
+            QString host = QUrl(url, QUrl::StrictMode).host();
             if (!host.isEmpty())
             {
                 QAction *thirdPartyTxUrlAction = new QAction(host, this); // use host as menu item label
                 if (i == 0)
                     contextMenu->addSeparator();
                 contextMenu->addAction(thirdPartyTxUrlAction);
-                connect(thirdPartyTxUrlAction, SIGNAL(triggered()), mapperThirdPartyTxUrls, SLOT(map()));
-                mapperThirdPartyTxUrls->setMapping(thirdPartyTxUrlAction, listUrls[i].trimmed());
+                connect(thirdPartyTxUrlAction, &QAction::triggered, [this, url] { openThirdPartyTxUrl(url); });
             }
         }
     }

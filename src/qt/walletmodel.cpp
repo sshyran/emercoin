@@ -24,6 +24,9 @@
 #include <wallet/coincontrol.h>
 #include <wallet/wallet.h>
 
+#include <qt/nametablemodel.h>
+#include <qt/mintingtablemodel.h>
+
 #include <stdint.h>
 
 #include <QDebug>
@@ -43,8 +46,8 @@ WalletModel::WalletModel(std::unique_ptr<interfaces::Wallet> wallet, interfaces:
     addressTableModel = new AddressTableModel(this);
     transactionTableModel = new TransactionTableModel(platformStyle, this);
     recentRequestsTableModel = new RecentRequestsTableModel(this);
-    nameTableModel = new NameTableModel(wallet, this);
-    mintingTableModel = new MintingTableModel(wallet, this);
+    nameTableModel = new NameTableModel(this);
+    mintingTableModel = new MintingTableModel(this);
 
     subscribeToCoreSignals();
 }
@@ -641,7 +644,7 @@ bool WalletModel::isMultiwallet()
 // emercoin: get existing address from keypool without removing it from keypool
 bool WalletModel::getAddressForChange(std::string &sAddress)
 {
-    if (!wallet->IsLocked())
+    if (!wallet()->IsLocked())
         wallet->TopUpKeyPool();
 
     CReserveKey reservekey(wallet);

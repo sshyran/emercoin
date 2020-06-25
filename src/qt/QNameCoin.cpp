@@ -1,7 +1,9 @@
-#include "QNameCoin.h"
+#include <qt/QNameCoin.h>
+#include <qt/RandPayRequest.h>
+
+#include <rpc/server.h>
+
 #include <QDate>
-#include "../rpc/server.h"
-#include "RandPayRequest.h"
 
 using CNameVal = std::vector<unsigned char>;
 std::vector<CNameVal> NameCoin_myNames();

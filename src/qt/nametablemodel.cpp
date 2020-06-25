@@ -207,8 +207,8 @@ public:
 };
 
 
-NameTableModel::NameTableModel(CWallet *wallet, WalletModel *parent) :
-    QAbstractTableModel(parent), walletModel(parent), wallet(wallet), priv(0), cachedNumBlocks(0)
+NameTableModel::NameTableModel(WalletModel *parent) :
+    QAbstractTableModel(parent), walletModel(parent), priv(0), cachedNumBlocks(0)
 {
     columns << tr("Name") << tr("Value") << tr("Address") << tr("Expires in");
     priv = new NameTablePriv(wallet, this);

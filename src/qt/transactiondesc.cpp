@@ -23,6 +23,8 @@
 #include <policy/policy.h>
 #include <wallet/ismine.h>
 
+#include <qt/exch.h>
+
 #include <stdint.h>
 #include <string>
 #include <boost/algorithm/string/split.hpp>
@@ -328,8 +330,8 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
         if (wtx.mapValue["to"].empty() || wtx.mapValue["comment"].empty())
             break;
 
-        vector<string> vTo;
-        vector<string> vComment;
+        std::vector<std::string> vTo;
+        std::vector<std::string> vComment;
         boost::split(vTo, wtx.mapValue["to"], boost::is_any_of("\n"));
         boost::split(vComment, wtx.mapValue["comment"], boost::is_any_of("\n"));
 

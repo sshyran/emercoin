@@ -12,7 +12,6 @@
 #include <qt/addresstablemodel.h>
 
 
-#include <util.h>
 #include <wallet/wallet.h>
 #include <validation.h>
 
@@ -52,12 +51,11 @@ struct TxLessThan
 class MintingTablePriv
 {
 public:
-    MintingTablePriv(CWallet *wallet, MintingTableModel *parent):
-            wallet(wallet),
-            parent(parent)
+    MintingTablePriv(WalletModel *walletModel, MintingTableModel *parent):
+            walletModel(walletModel), parent(parent)
     {
     }
-    CWallet *wallet;
+    WalletModel *walletModel;
     MintingTableModel *parent;
 
     /* Local cache of wallet.
@@ -71,7 +69,7 @@ public:
     void refreshWallet()
     {
         // cs_main lock was added because GetDepthInMainChain requires it
-        LOCK2(cs_main, wallet->cs_wallet);
+        LOCK2(cs_main, walletModel->wallet().cs_wallet);
         cachedWallet.clear();
         for(std::map<uint256, CWalletTx>::iterator it = wallet->mapWallet.begin(); it != wallet->mapWallet.end(); ++it)
         {
@@ -94,11 +92,11 @@ public:
     {
         LogPrintf("minting updateWallet %s %i\n", hash.ToString(), status);
         {
-            LOCK2(cs_main, wallet->cs_wallet);
+            LOCK2(cs_main, walletModel->wallet().cs_wallet);
 
             // Find transaction in wallet
-            std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(hash);
-            bool inWallet = mi != wallet->mapWallet.end();
+            std::map<uint256, CWalletTx>::iterator mi = walletModel->wallet()->mapWallet.find(hash);
+            bool inWallet = mi != walletModel->wallet()->mapWallet.end();
 
             // Find bounds of this transaction in model
             QList<KernelRecord>::iterator lower = qLowerBound(
@@ -229,11 +227,11 @@ public:
     QString describe(KernelRecord *rec)
     {
         {
-            LOCK(wallet->cs_wallet);
+            LOCK(walletModel->wallet()->cs_wallet);
             std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(rec->hash);
             if(mi != wallet->mapWallet.end())
             {
-                return TransactionDesc::toHTML(wallet, mi->second, nullptr, 0);  //ppcTODO - fix the last 2 parameters
+                return TransactionDesc::toHTML(walletModel->node(), walletModel->wallet(), nullptr, BitcoinUnits::BTC);  //ppcTODO - fix the last 2 parameters
             }
         }
         return QString("");
@@ -271,7 +269,7 @@ MintingTableModel::MintingTableModel(CWallet* wallet, WalletModel *parent) :
         wallet(wallet),
         walletModel(parent),
         mintingInterval(60*24),
-        priv(new MintingTablePriv(wallet, this)),
+        priv(new MintingTablePriv(walletModel, this)),
         cachedNumBlocks(0)
 {
 	for(int i = 0; i<ColCount; ++i)
@@ -314,7 +312,7 @@ void MintingTableModel::updateAge()
     Q_EMIT dataChanged(index(0, CoinDay), index(priv->size()-1, CoinDay));
     Q_EMIT dataChanged(index(0, MintProbability), index(priv->size()-1, MintProbability));
 }
-
+WalletModel *walletModel;
 void MintingTableModel::setMintingProxyModel(MintingFilterProxy *mintingProxy)
 {
     mintingProxyModel = mintingProxy;

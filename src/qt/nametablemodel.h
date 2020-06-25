@@ -18,7 +18,7 @@ class NameTableModel : public QAbstractTableModel
     Q_OBJECT
 
 public:
-    explicit NameTableModel(CWallet *wallet, WalletModel *parent = 0);
+    explicit NameTableModel(WalletModel *parent = nullptr);
     ~NameTableModel();
 
     bool fMyNames;

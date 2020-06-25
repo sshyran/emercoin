@@ -33,7 +33,7 @@ class RandPayRequest: public QUrlQuery {
 		bool needConfirmation()const;
 		bool askConfirmation()const;
 		bool makePayment();
-		QString checkAmountInWallet()const;
+        QString checkAmountInWallet()const;
 		static void emitMessage(PaymentServer* server, const QString & s);
 
 		struct Dialog;
