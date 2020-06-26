@@ -2,16 +2,15 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "checkpoints.h"
+#include <checkpoints.h>
 
-#include "chain.h"
-#include "chainparams.h"
-#include "txdb.h"
-#include "validation.h"
-#include "uint256.h"
-#include "util.h"
-#include "netmessagemaker.h"
-#include "key.h"
+#include <chain.h>
+#include <chainparams.h>
+#include <txdb.h>
+#include <validation.h>
+#include <uint256.h>
+#include <netmessagemaker.h>
+#include <key.h>
 
 #include <stdint.h>
 
@@ -28,9 +27,8 @@ namespace Checkpoints {
         if (cpit == checkpoints.end())
             return true;
         return (cpit->first == nHeight)?
-            hash == cpit->second
-            :
-            mapBlockIndex.find(cpit->second) == mapBlockIndex.end();
+            hash == cpit->second :
+            LookupBlockIndex(cpit->second) == nullptr;
     }
 } // namespace Checkpoints
 
@@ -48,13 +46,13 @@ uint256 hashInvalidCheckpoint = uint256();
 // ppcoin: only descendant of current sync-checkpoint is allowed
 bool ValidateSyncCheckpoint(uint256 hashCheckpoint)
 {
-    if (!mapBlockIndex.count(hashSyncCheckpoint))
-        return error("ValidateSyncCheckpoint: block index missing for current sync-checkpoint %s", hashSyncCheckpoint.ToString());
-    if (!mapBlockIndex.count(hashCheckpoint))
-        return error("ValidateSyncCheckpoint: block index missing for received sync-checkpoint %s", hashCheckpoint.ToString());
+    CBlockIndex* pindexSyncCheckpoint = LookupBlockIndex(hashSyncCheckpoint);
+    CBlockIndex* pindexCheckpointRecv = LookupBlockIndex(hashCheckpoint);
 
-    CBlockIndex* pindexSyncCheckpoint = mapBlockIndex[hashSyncCheckpoint];
-    CBlockIndex* pindexCheckpointRecv = mapBlockIndex[hashCheckpoint];
+    if (!pindexSyncCheckpoint)
+        return error("ValidateSyncCheckpoint: block index missing for current sync-checkpoint %s", hashSyncCheckpoint.ToString());
+    if (!pindexCheckpointRecv)
+        return error("ValidateSyncCheckpoint: block index missing for received sync-checkpoint %s", hashCheckpoint.ToString());
 
     // emercoin: ignore checkpoint that are bellow last hard checkpoint
     static int nLastHardCheckpointHeight = 0;
@@ -66,7 +64,8 @@ bool ValidateSyncCheckpoint(uint256 hashCheckpoint)
     if (pindexCheckpointRecv->nHeight <= pindexSyncCheckpoint->nHeight)
     {
         // emercoin: debug only, because there is a potential to do a DoS attack with this check by spamming old checkpoints
-        if (logCategories != BCLog::NONE) {
+        uint32_t log_categories = LogInstance().GetCategoryMask();
+        if (log_categories != BCLog::NONE) {
             // Received an older checkpoint, trace back from current checkpoint
             // to the same height of the received checkpoint to verify
             // that current checkpoint should be a descendant block
@@ -100,10 +99,11 @@ bool ValidateSyncCheckpoint(uint256 hashCheckpoint)
 
 bool WriteSyncCheckpoint(const uint256& hashCheckpoint)
 {
-    if (mapBlockIndex[hashCheckpoint]->nStatus & BLOCK_HAVE_DATA) {
+    CBlockIndex* checkpointNew = LookupBlockIndex(hashCheckpoint);
+    if (checkpointNew && checkpointNew->nStatus & BLOCK_HAVE_DATA) {
         if (!pblocktree->WriteSyncCheckpoint(hashCheckpoint))
             return error("WriteSyncCheckpoint(): failed to write to txdb sync checkpoint %s", hashCheckpoint.ToString());
-        FlushStateToDisk();
+        ::ChainstateActive().ForceFlushStateToDisk();
     }
     hashSyncCheckpoint = hashCheckpoint;
     return true;
@@ -114,12 +114,12 @@ bool AcceptPendingSyncCheckpoint()
     if (strMasterPubKey == "") return false;  // no public key == no checkpoints
 
     LOCK(cs_main);
-    bool havePendingCheckpoint = hashPendingCheckpoint != uint256() && mapBlockIndex.count(hashPendingCheckpoint);
-    if (!havePendingCheckpoint)
+    CBlockIndex* pendingCheckpoint = LookupBlockIndex(hashPendingCheckpoint);
+    if (pendingCheckpoint)
         return false;
 
     // emercoin: checkpoint needs to be a block with 32 confirmation (rolled back to 3)
-    if (mapBlockIndex[hashPendingCheckpoint]->nHeight > ::ChainActive().Height() - 3 && !::ChainstateActive().IsInitialBlockDownload())
+    if (pendingCheckpoint->nHeight > ::ChainActive().Height() - 3 && !::ChainstateActive().IsInitialBlockDownload())
         return false;
 
     if (!ValidateSyncCheckpoint(hashPendingCheckpoint)) {
@@ -196,16 +196,16 @@ bool CheckSync(CBlockIndex* pindexNew, std::set<CBlockIndex*>& setDirtyBlockInde
     assert(pindexNew != NULL);
     if (pindexNew->nHeight == 0) return true;                // genesis cannot be checked against previous block
 
+    const CBlockIndex* pindexSync = LookupBlockIndex(hashSyncCheckpoint);
     // sync-checkpoint should always be accepted header
-    assert(mapBlockIndex.count(hashSyncCheckpoint));
-    const CBlockIndex* pindexSync = mapBlockIndex[hashSyncCheckpoint];
+    assert(pindexSync != nullptr);
 
     if (pindexNew->nFlags & HEADER_CHECKPOINT_VALIDATED)
         return true;
 
     // lower height than sync-checkpoint
     if (pindexNew->nHeight < pindexSync->nHeight)
-        return mapBlockIndex.count(pindexNew->GetBlockHash());
+        return true;
 
     const CBlockIndex* pindex = pindexNew;
     while (pindex->nHeight > pindexSync->nHeight) {
@@ -306,9 +306,9 @@ bool IsSyncCheckpointTooOld(unsigned int nSeconds)
         return false;
 
     LOCK(cs_main);
+    const CBlockIndex* pindexSync = LookupBlockIndex(hashSyncCheckpoint);
     // sync-checkpoint should always be accepted block
-    assert(mapBlockIndex.count(hashSyncCheckpoint));
-    const CBlockIndex* pindexSync = mapBlockIndex[hashSyncCheckpoint];
+    assert(pindexSync != nullptr);
 
     return (pindexSync->GetBlockTime() + nSeconds < GetAdjustedTime());
 }
@@ -343,8 +343,8 @@ bool CSyncCheckpoint::ProcessSyncCheckpoint()
         return false;
 
     LOCK(cs_main);
-    if (!mapBlockIndex.count(hashCheckpoint))
-    {
+    CBlockIndex* pindexCheckpoint = LookupBlockIndex(hashCheckpoint);
+    if (!pindexCheckpoint) {
         // We haven't received the checkpoint chain, keep the checkpoint as pending
         CheckpointsSync::hashPendingCheckpoint = hashCheckpoint;
         CheckpointsSync::checkpointMessagePending = *this;
@@ -364,7 +364,6 @@ bool CSyncCheckpoint::ProcessSyncCheckpoint()
         return false;
 
     //emcTODO - redo this somehow
-//    CBlockIndex* pindexCheckpoint = mapBlockIndex[hashCheckpoint];
 //    if (pindexCheckpoint->nStatus & BLOCK_HAVE_DATA && !::ChainActive().Contains(pindexCheckpoint))
 //    {
 //        // checkpoint chain received but not yet main chain
@@ -381,7 +380,7 @@ bool CSyncCheckpoint::ProcessSyncCheckpoint()
     CheckpointsSync::checkpointMessage = *this;
     CheckpointsSync::hashPendingCheckpoint = uint256();
     CheckpointsSync::checkpointMessagePending.SetNull();
-    LogPrintf("ProcessSyncCheckpoint: sync-checkpoint at height=%d hash=%s\n", mapBlockIndex[hashCheckpoint]->nHeight, hashCheckpoint.ToString());
+    LogPrintf("ProcessSyncCheckpoint: sync-checkpoint at height=%d hash=%s\n", pindexCheckpoint->nHeight, hashCheckpoint.ToString());
     return true;
 }
 

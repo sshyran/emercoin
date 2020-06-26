@@ -1226,8 +1226,7 @@ bool AppInitSanityChecks()
     emercoinRandseed = GetRand(1 << 30);
 
     // emercoin: moved here because ECC need to be initialized to execute this
-    if (gArgs.IsArgSet("-checkpointkey")) // ppcoin: checkpoint master priv key
-    {
+    if (gArgs.IsArgSet("-checkpointkey")) {  // ppcoin: checkpoint master priv key
         if (!CheckpointsSync::SetCheckpointPrivKey(gArgs.GetArg("-checkpointkey", "")))
             return InitError("Unable to sign checkpoint, wrong checkpointkey?\n");
         else LogPrintf("Setting checkpoint private key is successful\n");
