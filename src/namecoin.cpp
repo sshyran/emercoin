@@ -369,6 +369,12 @@ bool GetNameCurrentAddress(const CNameVal& name, CTxDestination& dest, string& e
 
 UniValue name_list(const JSONRPCRequest& request)
 {
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    CWallet* const pwallet = wallet.get();
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
     if (request.fHelp || request.params.size() > 2)
         throw runtime_error(
                 "name_list [name] [valuetype]\n"
@@ -385,7 +391,7 @@ UniValue name_list(const JSONRPCRequest& request)
     string outputType = request.params.size() > 1 ? request.params[1].get_str() : "";
 
     map<CNameVal, NameTxInfo> mapNames, mapPending;
-    GetNameList(nameUniq, mapNames, mapPending);
+    GetNameList(nameUniq, mapNames, mapPending, pwallet);
 
     UniValue oRes(UniValue::VARR);
     for (const auto& item : mapNames)
@@ -974,6 +980,12 @@ bool createNameScript(CScript& nameScript, const CNameVal& name, const CNameVal&
 
 UniValue name_new(const JSONRPCRequest& request)
 {
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    CWallet* const pwallet = wallet.get();
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
     //emcTODO fill this
     RPCHelpMan{"name_new <name> <value> <days> [toaddress] [valuetype]\n",
         "Creates new key->value pair which expires after specified number of days.\n"
@@ -1002,7 +1014,7 @@ UniValue name_new(const JSONRPCRequest& request)
     string strAddress = request.params.size() > 3 ? request.params[3].get_str() : "";
     string strValueType = request.params.size() > 4 ? request.params[4].get_str() : "";
 
-    NameTxReturn ret = name_operation(OP_NAME_NEW, name, value, nRentalDays, strAddress, strValueType);
+    NameTxReturn ret = name_operation(OP_NAME_NEW, name, value, nRentalDays, strAddress, strValueType, pwallet);
     if (!ret.ok)
         throw JSONRPCError(ret.err_code, ret.err_msg);
     return ret.hex.GetHex();
@@ -1010,6 +1022,12 @@ UniValue name_new(const JSONRPCRequest& request)
 
 UniValue name_update(const JSONRPCRequest& request)
 {
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    CWallet* const pwallet = wallet.get();
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
     //emcTODO fill this
     RPCHelpMan{"name_update <name> <value> <days> [toaddress] [valuetype]\n",
         "Update name value, add days to expiration time and possibly transfer a name to diffrent address.\n"
@@ -1037,7 +1055,7 @@ UniValue name_update(const JSONRPCRequest& request)
     string strAddress = request.params.size() > 3 ? request.params[3].get_str() : "";
     string strValueType = request.params.size() > 4 ? request.params[4].get_str() : "";
 
-    NameTxReturn ret = name_operation(OP_NAME_UPDATE, name, value, nRentalDays, strAddress, strValueType);
+    NameTxReturn ret = name_operation(OP_NAME_UPDATE, name, value, nRentalDays, strAddress, strValueType, pwallet);
     if (!ret.ok)
         throw JSONRPCError(ret.err_code, ret.err_msg);
     return ret.hex.GetHex();
@@ -1045,6 +1063,12 @@ UniValue name_update(const JSONRPCRequest& request)
 
 UniValue name_delete(const JSONRPCRequest& request)
 {
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    CWallet* const pwallet = wallet.get();
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
     //emcTODO fill this
     RPCHelpMan{"name_delete <name>\nDelete a name if you own it. Others may do name_new after this command.",
         "",
@@ -1059,7 +1083,7 @@ UniValue name_delete(const JSONRPCRequest& request)
 
     CNameVal name = nameValFromValue(request.params[0]);
 
-    NameTxReturn ret = name_operation(OP_NAME_DELETE, name, CNameVal(), 0, "", "");
+    NameTxReturn ret = name_operation(OP_NAME_DELETE, name, CNameVal(), 0, "", "", pwallet);
     if (!ret.ok)
         throw JSONRPCError(ret.err_code, ret.err_msg);
     return ret.hex.GetHex();

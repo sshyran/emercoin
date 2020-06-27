@@ -82,9 +82,6 @@ bool IsStandardTx(const CTransaction& tx, bool permit_bare_multisig, const CFeeR
         else if ((whichType == TX_MULTISIG) && (!permit_bare_multisig)) {
             reason = "bare-multisig";
             return false;
-        } else if (IsDust(txout, dust_relay_fee)) {
-            reason = "dust";
-            return false;
         }
     }
 

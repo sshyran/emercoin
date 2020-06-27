@@ -477,6 +477,7 @@ public:
          */
         std::vector<COutPoint>& m_coins_to_uncache;
         const bool m_test_accept;
+        bool fRandPayCheck;
     };
 
     // Single transaction acceptance
@@ -1051,6 +1052,7 @@ bool MemPoolAccept::Finalize(ATMPArgs& args, Workspace& ws)
 
 bool MemPoolAccept::AcceptSingleTransaction(const CTransactionRef& ptx, ATMPArgs& args)
 {
+    //emcTODO - make sure that randpay check is used inside calls that accepts args when it is needed
     AssertLockHeld(cs_main);
     LOCK(m_pool.cs); // mempool "read lock" (held through GetMainSignals().TransactionAddedToMempool())
 
@@ -1083,10 +1085,10 @@ bool MemPoolAccept::AcceptSingleTransaction(const CTransactionRef& ptx, ATMPArgs
 /** (try to) add transaction to memory pool with a specified acceptance time **/
 static bool AcceptToMemoryPoolWithTime(const CChainParams& chainparams, CTxMemPool& pool, CValidationState &state, const CTransactionRef &tx,
                         bool* pfMissingInputs, int64_t nAcceptTime, std::list<CTransactionRef>* plTxnReplaced,
-                        bool bypass_limits, const CAmount nAbsurdFee, bool test_accept) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+                        bool bypass_limits, const CAmount nAbsurdFee, bool test_accept, bool fRandPayCheck=false) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
     std::vector<COutPoint> coins_to_uncache;
-    MemPoolAccept::ATMPArgs args { chainparams, state, pfMissingInputs, nAcceptTime, plTxnReplaced, bypass_limits, nAbsurdFee, coins_to_uncache, test_accept };
+    MemPoolAccept::ATMPArgs args { chainparams, state, pfMissingInputs, nAcceptTime, plTxnReplaced, bypass_limits, nAbsurdFee, coins_to_uncache, test_accept, fRandPayCheck };
     bool res = MemPoolAccept(pool).AcceptSingleTransaction(tx, args);
     if (!res) {
         // Remove coins that were not present in the coins cache before calling ATMPW;
@@ -1105,10 +1107,10 @@ static bool AcceptToMemoryPoolWithTime(const CChainParams& chainparams, CTxMemPo
 
 bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransactionRef &tx,
                         bool* pfMissingInputs, std::list<CTransactionRef>* plTxnReplaced,
-                        bool bypass_limits, const CAmount nAbsurdFee, bool test_accept)
+                        bool bypass_limits, const CAmount nAbsurdFee, bool test_accept, bool fRandPayCheck)
 {
     const CChainParams& chainparams = Params();
-    return AcceptToMemoryPoolWithTime(chainparams, pool, state, tx, pfMissingInputs, GetTime(), plTxnReplaced, bypass_limits, nAbsurdFee, test_accept);
+    return AcceptToMemoryPoolWithTime(chainparams, pool, state, tx, pfMissingInputs, GetTime(), plTxnReplaced, bypass_limits, nAbsurdFee, test_accept, fRandPayCheck);
 }
 
 /**
@@ -5339,7 +5341,7 @@ bool LoadMempool(CTxMemPool& pool)
                 LOCK(cs_main);
                 AcceptToMemoryPoolWithTime(chainparams, pool, state, tx, nullptr /* pfMissingInputs */, nTime,
                                            nullptr /* plTxnReplaced */, false /* bypass_limits */, 0 /* nAbsurdFee */,
-                                           false /* test_accept */);
+                                           false /* test_accept */); //emcTODO - is randpay check needed here?
                 if (state.IsValid()) {
                     ++count;
                 } else {

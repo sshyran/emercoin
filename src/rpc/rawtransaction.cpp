@@ -39,6 +39,7 @@
 #include <net.h>
 #include <wallet/coincontrol.h>
 #include <core_io.h>
+#include <namecoin.h>
 
 #include <numeric>
 #include <stdint.h>
@@ -58,7 +59,12 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, 
     // Blockchain contextual information (confirmations and blocktime) is not
     // available to code in bitcoin-common, so we query them here and push the
     // data into the returned UniValue.
-    TxToUniv(tx, uint256(), entry, true, RPCSerializationFlags(), fName);
+    NameTxInfo nti;
+    std::pair<std::string, std::string>* nameKV = nullptr;
+    if (fName && DecodeNameTx(MakeTransactionRef(std::move(tx)), nti))
+        *nameKV = std::make_pair(stringFromNameVal(nti.name), encodeNameVal(nti.value, ""));
+
+    TxToUniv(tx, uint256(), entry, true, RPCSerializationFlags(), nameKV);
 
     if (!hashBlock.IsNull()) {
         LOCK(cs_main);
@@ -497,7 +503,7 @@ static UniValue decoderawtransaction(const JSONRPCRequest& request)
     }
 
     UniValue result(UniValue::VOBJ);
-    TxToUniv(CTransaction(std::move(mtx)), uint256(), result, false);
+    TxToUniv(CTransaction(std::move(mtx)), uint256(), result);
 
     return result;
 }
@@ -1057,7 +1063,7 @@ UniValue decodepsbt(const JSONRPCRequest& request)
 
     // Add the decoded tx
     UniValue tx_univ(UniValue::VOBJ);
-    TxToUniv(CTransaction(*psbtx.tx), uint256(), tx_univ, false);
+    TxToUniv(CTransaction(*psbtx.tx), uint256(), tx_univ);
     result.pushKV("tx", tx_univ);
 
     // Unknown data
@@ -1094,7 +1100,7 @@ UniValue decodepsbt(const JSONRPCRequest& request)
             in.pushKV("witness_utxo", out);
         } else if (input.non_witness_utxo) {
             UniValue non_wit(UniValue::VOBJ);
-            TxToUniv(*input.non_witness_utxo, uint256(), non_wit, false);
+            TxToUniv(*input.non_witness_utxo, uint256(), non_wit);
             in.pushKV("non_witness_utxo", non_wit);
             CAmount utxo_val = input.non_witness_utxo->vout[psbtx.tx->vin[i].prevout.n].nValue;
             if (MoneyRange(utxo_val) && MoneyRange(total_in + utxo_val)) {

@@ -1760,7 +1760,7 @@ static UniValue gettransaction(const JSONRPCRequest& request)
 
     if (verbose) {
         UniValue decoded(UniValue::VOBJ);
-        TxToUniv(*wtx.tx, uint256(), decoded, false);
+        TxToUniv(*wtx.tx, uint256(), decoded);
         entry.pushKV("decoded", decoded);
     }
 

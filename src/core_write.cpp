@@ -15,8 +15,6 @@
 #include <util/system.h>
 #include <util/strencodings.h>
 
-#include <namecoin.h>
-
 UniValue ValueFromAmount(const CAmount& amount)
 {
     bool sign = amount < 0;
@@ -177,7 +175,7 @@ void ScriptPubKeyToUniv(const CScript& scriptPubKey,
     out.pushKV("addresses", a);
 }
 
-void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry, bool include_hex, int serialize_flags, bool fName)
+void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry, bool include_hex, int serialize_flags, const std::pair<std::string, std::string>* nameKV)
 {
     entry.pushKV("txid", tx.GetHash().GetHex());
     entry.pushKV("hash", tx.GetWitnessHash().GetHex());
@@ -188,11 +186,9 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
     entry.pushKV("locktime", (int64_t)tx.nLockTime);
     entry.pushKV("time", (int64_t)tx.nTime);
 
-    NameTxInfo nti;
-    if (fName && DecodeNameTx(MakeTransactionRef(std::move(tx)), nti))
-    {
-        entry.pushKV("name", stringFromNameVal(nti.name));
-        entry.pushKV("value", encodeNameVal(nti.value, ""));
+    if (nameKV) {
+        entry.pushKV("name", nameKV->first);
+        entry.pushKV("value", nameKV->second);
     }
 
     UniValue vin(UniValue::VARR);

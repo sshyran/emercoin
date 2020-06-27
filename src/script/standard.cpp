@@ -160,9 +160,9 @@ txnouttype SolverInner(const CScript& scriptPubKey, std::vector<std::vector<unsi
     return TX_NONSTANDARD;
 }
 
-txnouttype Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::vector<unsigned char> >& vSolutionsRet)
+txnouttype Solver(const CScript& scriptPubKey, std::vector<std::vector<unsigned char> >& vSolutionsRet)
 {
-    typeRet = SolverInner(scriptPubKey, vSolutionsRet);
+    txnouttype typeRet = SolverInner(scriptPubKey, vSolutionsRet);
 
     // emercoin: remove name (if any exist) and try again
     CScript scriptWithoutName;

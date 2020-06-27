@@ -9,7 +9,7 @@
 #include <index/txindex.h>
 #include <script/standard.h>
 
-class CKeyStore;
+class CWallet;
 struct NameIndexStats;
 
 static const unsigned int NAMEINDEX_CHAIN_SIZE = 1000;
@@ -169,7 +169,7 @@ std::string stringFromOp(int op);
 CAmount GetNameOpFee(const CBlockIndex* pindexBlock, const int nRentalDays, int op, const CNameVal& name, const CNameVal& value);
 
 bool DecodeNameTx(const CTransactionRef& tx, NameTxInfo& nti, bool fExtractAddress = false);
-void GetNameList(const CNameVal& nameUniq, std::map<CNameVal, NameTxInfo> &mapNames, std::map<CNameVal, NameTxInfo> &mapPending);
+void GetNameList(const CNameVal& nameUniq, std::map<CNameVal, NameTxInfo> &mapNames, std::map<CNameVal, NameTxInfo> &mapPending, CWallet* pwallet);
 bool GetNameValue(const CNameVal& name, CNameVal& value);
 
 struct NameTxReturn
@@ -180,7 +180,7 @@ struct NameTxReturn
      std::string address;
      uint256 hex;   // Transaction hash in hex
 };
-NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, const int nRentalDays, const string& strAddress, const string& strValueType);
+NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, const int nRentalDays, const string& strAddress, const string& strValueType, CWallet* pwallet);
 
 
 struct nameTempProxy

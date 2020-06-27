@@ -3142,20 +3142,6 @@ bool CWallet::CreateTransaction(interfaces::Chain::Lock& locked_chain, const std
                     }
                     // Include the fee cost for outputs. Note this is only used for BnB right now
                     coin_selection_params.tx_noinputs_size += ::GetSerializeSize(txout, PROTOCOL_VERSION);
-
-                    if (IsDust(txout, chain().relayDustFee()))
-                    {
-                        if (recipient.fSubtractFeeFromAmount && nFeeRet > 0)
-                        {
-                            if (txout.nValue < 0)
-                                strFailReason = _("The transaction amount is too small to pay the fee").translated;
-                            else
-                                strFailReason = _("The transaction amount is too small to send after the fee has been deducted").translated;
-                        }
-                        else
-                            strFailReason = _("Transaction amount too small").translated;
-                        return false;
-                    }
                     txNew.vout.push_back(txout);
                 }
 
@@ -3195,30 +3181,19 @@ bool CWallet::CreateTransaction(interfaces::Chain::Lock& locked_chain, const std
                     // Fill a vout to ourself
                     CTxOut newTxOut(nChange, scriptChange);
 
-                    // Never create dust outputs; if we would, just
-                    // add the dust to the fee.
-                    // The nChange when BnB is used is always going to go to fees.
-                    if (IsDust(newTxOut, discard_rate) || bnb_used)
+                    if (nChangePosInOut == -1)
                     {
-                        nChangePosInOut = -1;
-                        nFeeRet += nChange;
+                        // Insert change txn at random position:
+                        nChangePosInOut = GetRandInt(txNew.vout.size()+1);
                     }
-                    else
+                    else if ((unsigned int)nChangePosInOut > txNew.vout.size())
                     {
-                        if (nChangePosInOut == -1)
-                        {
-                            // Insert change txn at random position:
-                            nChangePosInOut = GetRandInt(txNew.vout.size()+1);
-                        }
-                        else if ((unsigned int)nChangePosInOut > txNew.vout.size())
-                        {
-                            strFailReason = _("Change index out of range").translated;
-                            return false;
-                        }
+                        strFailReason = _("Change index out of range").translated;
+                        return false;
+                    }
 
-                        std::vector<CTxOut>::iterator position = txNew.vout.begin()+nChangePosInOut;
-                        txNew.vout.insert(position, newTxOut);
-                    }
+                    std::vector<CTxOut>::iterator position = txNew.vout.begin()+nChangePosInOut;
+                    txNew.vout.insert(position, newTxOut);
                 } else {
                     nChangePosInOut = -1;
                 }
@@ -3256,7 +3231,7 @@ bool CWallet::CreateTransaction(interfaces::Chain::Lock& locked_chain, const std
                     if (nChangePosInOut == -1 && nSubtractFeeFromAmount == 0 && pick_new_inputs) {
                         unsigned int tx_size_with_change = nBytes + coin_selection_params.change_output_size + 2; // Add 2 as a buffer in case increasing # of outputs changes compact size
                         CAmount fee_needed_with_change = GetMinimumFee(*this, tx_size_with_change, coin_control, nullptr);
-                        CAmount minimum_value_for_change = GetDustThreshold(change_prototype_txout, discard_rate);
+                        CAmount minimum_value_for_change = MIN_TXOUT_AMOUNT;  //emcTODO - perhaps tweak this value to be larger?
                         if (nFeeRet >= fee_needed_with_change + minimum_value_for_change) {
                             pick_new_inputs = false;
                             nFeeRet = fee_needed_with_change;

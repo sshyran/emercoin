@@ -295,6 +295,7 @@ void PruneBlockFilesManual(int nManualPruneHeight);
 
 /** (try to) add transaction to memory pool
  * plTxnReplaced will be appended to with all transactions replaced from mempool **/
+//emcTODO - check places from where AcceptToMemoryPool should be called with fRandPayCheck = true
 bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransactionRef &tx,
                         bool* pfMissingInputs, std::list<CTransactionRef>* plTxnReplaced,
                         bool bypass_limits, const CAmount nAbsurdFee, bool test_accept=false, bool fRandPayCheck=false) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
@@ -400,7 +401,7 @@ int GetWitnessCommitmentIndex(const CBlock& block);
 void UpdateUncommittedBlockStructures(CBlock& block, const CBlockIndex* pindexPrev, const Consensus::Params& consensusParams);
 
 /** Produce the necessary coinbase commitment for a block (modifies the hash, don't call for mined blocks). */
-std::vector<unsigned char> GenerateCoinbaseCommitment(CBlock& block);
+std::vector<unsigned char> GenerateCoinbaseCommitment(CBlock& block, const CBlockIndex* pindexPrev, const Consensus::Params& consensusParams);
 
 /** RAII wrapper for VerifyDB: Verify consistency of the block and coin databases */
 class CVerifyDB {
