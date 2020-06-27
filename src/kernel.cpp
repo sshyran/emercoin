@@ -12,6 +12,7 @@
 #include <consensus/validation.h>
 #include <txdb.h>
 #include <index/txindex.h>
+#include <wallet/coincontrol.h>
 
 using namespace std;
 
@@ -525,5 +526,289 @@ bool CheckStakeModifierCheckpoints(int nHeight, unsigned int nStakeModifierCheck
     if (Params().NetworkIDString() != "main") return true; // Testnet or Regtest has no checkpoints
     if (mapStakeModifierCheckpoints.count(nHeight))
         return nStakeModifierChecksum == mapStakeModifierCheckpoints[nHeight];
+    return true;
+}
+
+// ppcoin: create coin stake transaction
+typedef std::vector<unsigned char> valtype;
+bool CreateCoinStake(const CWallet* pwallet, unsigned int nBits, int64_t nSearchInterval, CMutableTransaction& txNew)
+{
+    // Transaction index is required to get to block header
+    if (!g_txindex)
+        return error("CreateCoinStake : transaction index unavailable");
+
+    const Consensus::Params& params = Params().GetConsensus();
+    // The following split & combine thresholds are important to security
+    // Should not be adjusted if you don't understand the consequences
+    static unsigned int nStakeSplitAge = (60 * 60 * 24 * 90);
+    LOCK2(cs_main, pwallet->cs_wallet);
+    CAmount nPoWReward = GetProofOfWorkReward(GetLastBlockIndex(::ChainActive().Tip(), false)->nBits);
+    CAmount nCombineThreshold = nPoWReward / 3;
+
+    arith_uint256 bnTargetPerCoinDay;
+    bnTargetPerCoinDay.SetCompact(nBits);
+
+    txNew.vin.clear();
+    txNew.vout.clear();
+    // Mark coin stake transaction
+    CScript scriptEmpty;
+    scriptEmpty.clear();
+    txNew.vout.push_back(CTxOut(0, scriptEmpty));
+    // Choose coins to use
+    CAmount nBalance = pwallet->GetBalance().m_mine_trusted;
+    CAmount nReserveBalance = 0;
+    if (gArgs.IsArgSet("-reservebalance") && !ParseMoney(gArgs.GetArg("-reservebalance", ""), nReserveBalance))
+        return error("CreateCoinStake : invalid reserve balance amount");
+    if (nBalance <= nReserveBalance)
+        return false;
+    std::vector<CTransactionRef> vtxPrev;
+    CAmount nValueIn = 0;
+    std::set<CInputCoin> setCoins;
+    {
+        std::vector<COutput> vAvailableCoins;
+        bool include_unsafe = false;
+        CCoinControl cctl;
+        cctl.m_avoid_address_reuse = false;
+        cctl.m_min_depth = 1;
+        cctl.m_max_depth = 9999999;
+        CAmount nMinimumAmount = 0;
+        CAmount nMaximumAmount = MAX_MONEY;
+        CAmount nMinimumSumAmount = MAX_MONEY;
+        uint64_t nMaximumCount = 0;
+        auto locked_chain = pwallet->chain().lock();
+        LOCK(pwallet->cs_wallet);
+        pwallet->AvailableCoins(*locked_chain, vAvailableCoins, include_unsafe, &cctl, nMinimumAmount, nMaximumAmount, nMinimumSumAmount, nMaximumCount);
+
+        //emcTODO - is this needs to be placed inside a while(true) loop?
+        bool bnb_used;
+        CoinSelectionParams coin_selection_params; // Parameters for coin selection, init with dummy
+        if (!pwallet->SelectCoins(vAvailableCoins, nBalance - nReserveBalance, setCoins, nValueIn, cctl, coin_selection_params, bnb_used)) {
+            //emcTODO - do we need to somehow add this BnB stuff here? below is a copy of how it is used with SelectCoins() calls
+//            // If BnB was used, it was the first pass. No longer the first pass and continue loop with knapsack.
+//            if (bnb_used) {
+//                coin_selection_params.use_bnb = false;
+//                continue;
+//            }
+//            else {
+//                strFailReason = _("Insufficient funds").translated;
+//                return false;
+//            }
+            return false;
+        }
+    }
+
+    if (setCoins.empty())
+        return false;
+    CAmount nCredit = 0;
+    CScript scriptPubKeyKernel;
+
+    // This is static cache for minimize block loads for each POS-attempt
+    // Possible values of ->value.first
+    // Addr > 0x4 -- This is pointer to blockheader in the memory
+    // Addr = 0x1 -- Was read error, don't load this block anymore
+    // NULL -- Block removed after mint, but maybe need reload again into same cell
+    static uint256HashMap<std::pair<CBlockHeader*, unsigned int> > CacheBlockOffset;
+    CacheBlockOffset.Set(setCoins.size() << 1); // 2x pointers
+    uint256HashMap<std::pair<CBlockHeader*, unsigned int> >::Data *pbo = NULL;
+
+    int nSplitPos = gArgs.GetArg("-splitpos", 1); // 0=No Split, 1=RandSplit before 90d, -1=Principal+Reward
+
+    for (const auto& pcoin : setCoins)
+    {
+        //emcTODO - is this correct? does it refer to tx hash where coin was located?
+        uint256 tx_hash = pcoin.outpoint.hash;
+        //uint256 tx_hash = pcoin.first->GetHash();
+
+        pbo = CacheBlockOffset.Search(tx_hash);
+        // Try Load, if missing or temporary removed
+        if (pbo == NULL || pbo->value.first == NULL) {
+          CDiskTxPos postx;
+          CBlockHeader *cbh = (CBlockHeader *)0x1; // default=Error
+          if (g_txindex && g_txindex->FindTxPosition(tx_hash, postx)) {
+            // Read block header
+            CAutoFile file(OpenBlockFile(postx, true), SER_DISK, CLIENT_VERSION);
+            cbh = new CBlockHeader;
+            try {
+              file >> *cbh;
+            } catch (std::exception &e) {
+          delete cbh;
+          cbh = (CBlockHeader *)0x1; // Error
+            }
+      } // ReadTxIndex()
+
+          if (pbo == NULL) {
+              std::pair<CBlockHeader*, unsigned int> bo(cbh, postx.nTxOffset + CBlockHeader::NORMAL_SERIALIZE_SIZE);
+              pbo = CacheBlockOffset.Insert(tx_hash, bo);
+          } else
+              pbo->value.first = cbh;
+        } // if(pbo == NULL)
+
+        // Don't work, if reaadErr=0x1, or temporary removed=NULL
+        if(pbo->value.first < (CBlock*)0x4)
+            continue;
+
+        CBlockHeader& header = *(pbo->value.first);
+        unsigned int offset  = pbo->value.second;
+
+
+        static int nMaxStakeSearchInterval = 60;
+        if (header.GetBlockTime() + params.nStakeMinAge > txNew.nTime - nMaxStakeSearchInterval)
+            continue; // only count coins meeting min age requirement
+
+        uint256 hashBlock = uint256();
+        CTransactionRef tx;
+        if (!g_txindex->FindTx(tx_hash, hashBlock, tx))
+            return error("failed to find tx");
+
+        bool fKernelFound = false;
+        for (unsigned int n=0; n<std::min(nSearchInterval,(int64_t)nMaxStakeSearchInterval) && !fKernelFound; n++)
+        {
+            // Search backward in time from the given txNew timestamp
+            // Search nSearchInterval seconds back up to nMaxStakeSearchInterval
+            uint256 hashProofOfStake = uint256();
+            if (CheckStakeKernelHash(nBits, ::ChainActive().Tip(), header, offset, tx, pcoin.outpoint, txNew.nTime - n, hashProofOfStake))
+            {
+                // Found a kernel
+                if (gArgs.GetBoolArg("-printcoinstake", false))
+                    LogPrintf("CreateCoinStake : kernel found\n");
+                std::vector<valtype> vSolutions;
+                scriptPubKeyKernel = pcoin.txout.scriptPubKey;
+                txnouttype whichType = Solver(scriptPubKeyKernel, vSolutions);
+                CScript scriptPubKeyOut;
+                if (gArgs.GetBoolArg("-printcoinstake", false))
+                    LogPrintf("CreateCoinStake : parsed kernel type=%d\n", whichType);
+                if (whichType != TX_PUBKEY && whichType != TX_PUBKEYHASH)
+                {
+                    if (gArgs.GetBoolArg("-printcoinstake", false))
+                        LogPrintf("CreateCoinStake : no support for kernel type=%d\n", whichType);
+                    break;  // only support pay to public key and pay to address
+                }
+                if (whichType == TX_PUBKEYHASH) // pay to address type
+                {
+                    // convert to pay to public key type
+                    CKey key;
+                    if (!pwallet->GetKey(CKeyID(uint160(vSolutions[0])), key))
+                    {
+                        if (gArgs.GetBoolArg("-printcoinstake", false))
+                            LogPrintf("CreateCoinStake : failed to get key for kernel type=%d\n", whichType);
+                        break;  // unable to find corresponding public key
+                    }
+                    scriptPubKeyOut << ToByteVector(key.GetPubKey()) << OP_CHECKSIG;
+                }
+                else
+                    scriptPubKeyOut = scriptPubKeyKernel;
+
+                txNew.nTime -= n;
+                txNew.vin.push_back(CTxIn(pcoin.outpoint));
+                nCredit += pcoin.txout.nValue;
+                vtxPrev.push_back(tx);
+                txNew.vout.push_back(CTxOut(0, scriptPubKeyOut));
+                if ((nSplitPos < 0) || (nSplitPos && header.GetBlockTime() + nStakeSplitAge > txNew.nTime && nCredit > nPoWReward))
+                    txNew.vout.push_back(CTxOut(0, scriptPubKeyOut)); //split stake if (age < 90 && value > POW)
+                if (gArgs.GetBoolArg("-printcoinstake", false))
+                    LogPrintf("CreateCoinStake : added kernel type=%d\n", whichType);
+                fKernelFound = true;
+                break;
+            }
+        }
+        if (fKernelFound)
+            break; // if kernel is found stop searching
+    }
+    if (nCredit == 0 || nCredit > nBalance - nReserveBalance)
+        return false;
+    for (const auto& pcoin : setCoins)
+    {
+        // Attempt to add more inputs
+        // Only add coins of the same key/address as kernel
+        if (txNew.vout.size() == 2 && ((pcoin.txout.scriptPubKey == scriptPubKeyKernel || pcoin.txout.scriptPubKey == txNew.vout[1].scriptPubKey))
+            && pcoin.outpoint.hash != txNew.vin[0].prevout.hash)
+        {
+            uint256 hashBlock = uint256();
+            CTransactionRef tx;
+            if (!g_txindex->FindTx(pcoin.outpoint.hash, hashBlock, tx))
+                return error("failed to find tx");
+
+            // Stop adding more inputs if already too many inputs
+            if (txNew.vin.size() >= 100)
+                break;
+            // Stop adding more inputs if value is already pretty significant
+            if (nCredit > nCombineThreshold)
+                break;
+            // Stop adding inputs if reached reserve limit
+            if (nCredit + pcoin.txout.nValue > nBalance - nReserveBalance)
+                break;
+            // Do not add additional significant input
+            if (pcoin.txout.nValue > nCombineThreshold)
+                continue;
+            // Do not add input that is still too young
+            if (tx->nTime + params.nStakeMaxAge > txNew.nTime)
+                continue;
+            txNew.vin.push_back(CTxIn(pcoin.outpoint));
+            nCredit += pcoin.txout.nValue;
+            vtxPrev.push_back(tx);
+        }
+    }
+    // Calculate coin age reward
+    CAmount nReward = 0;
+    {
+        CCoinsViewCache view(&::ChainstateActive().CoinsTip());
+        if (!GetEmc7POSReward(CTransaction(txNew), view, nReward))
+            return error("CreateCoinStake() : %s unable to get coin reward for coinstake", txNew.GetHash().ToString());
+        if (nReward <= 10 * TX_DP_AMOUNT)
+            return false; // Prevent extra small UTXO
+        nCredit += nReward;
+    }
+
+    CAmount nMinFee = 0;
+    while(true)
+    {
+        // Set output amount
+        if (txNew.vout.size() == 3)
+        {
+            if(nSplitPos < 0) {
+                txNew.vout[1].nValue = nReward;
+            } else {
+                CAmount vout1 = nCredit / 4 + GetRand(nCredit / 2);
+                txNew.vout[1].nValue = (vout1 / TX_DP_AMOUNT) * TX_DP_AMOUNT;
+            }
+            txNew.vout[2].nValue = nCredit - nMinFee - txNew.vout[1].nValue;
+        }
+        else
+            txNew.vout[1].nValue = nCredit - nMinFee;
+
+        // Sign
+        int nIn = 0;
+        for (const CTransactionRef& tx : vtxPrev)
+        {
+            if (!SignSignature(*pwallet, *tx, txNew, nIn++, SIGHASH_ALL))
+                return error("CreateCoinStake : failed to sign coinstake");
+        }
+
+        // Limit size
+        unsigned int nBytes = ::GetSerializeSize(txNew, SER_NETWORK, PROTOCOL_VERSION);
+        if (nBytes >= 1000000/5)
+            return error("CreateCoinStake : exceeded coinstake size limit");
+
+        // Check enough fee is paid
+        if (nMinFee < txNew.GetMinFee() - MIN_TX_FEE)
+        {
+            nMinFee = txNew.GetMinFee() - MIN_TX_FEE;
+        if(nMinFee > nCredit)
+              return error("CreateCoinStake : Unable to create: nMinFee > nCredit");
+            continue; // try signing again
+        }
+        else
+        {
+            if (gArgs.GetBoolArg("-printfee", false))
+                LogPrintf("CreateCoinStake : fee for coinstake %s\n", FormatMoney(nMinFee));
+            break;
+        }
+    }
+
+    // Successfully generated coinstake
+    // Remove block reference from the cache
+    delete pbo->value.first;
+    pbo->value.first = NULL; // Set "temporary removed"
+    CacheBlockOffset.MarkDel(pbo);
     return true;
 }

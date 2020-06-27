@@ -28,7 +28,6 @@ public:
     virtual bool ExtractAddress(const CScript& script, string& address);
     virtual bool CheckPendingNames(const CTransactionRef& tx);
     virtual void AddToPendingNames(const CTransactionRef& tx);
-    virtual bool IsNameScript(CScript scr);
     virtual bool getNameValue(const string& sName, string& sValue);
     virtual bool DumpToTextFile();
 };
@@ -1737,12 +1736,6 @@ bool CNamecoinHooks::ConnectBlock(CBlockIndex* pindex, const vector<nameTempProx
     }
 
     return true;
-}
-
-bool CNamecoinHooks::IsNameScript(CScript scr)
-{
-    NameTxInfo nti;
-    return DecodeNameScript(scr, nti);
 }
 
 bool CNamecoinHooks::getNameValue(const string& sName, string& sValue)

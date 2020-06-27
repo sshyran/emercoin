@@ -11,6 +11,8 @@ class CBlockIndex;
 class COutPoint;
 class CValidationState;
 class uint256;
+class CWallet;
+class CMutableTransaction;
 
 class CTransaction;
 typedef std::shared_ptr<const CTransaction> CTransactionRef;
@@ -38,5 +40,7 @@ unsigned int GetStakeModifierChecksum(const CBlockIndex* pindex);
 
 // Check stake modifier hard checkpoints
 bool CheckStakeModifierCheckpoints(int nHeight, unsigned int nStakeModifierChecksum);
+
+bool CreateCoinStake(const CWallet* pwallet, unsigned int nBits, int64_t nSearchInterval, CMutableTransaction &txNew);
 
 #endif // PPCOIN_KERNEL_H

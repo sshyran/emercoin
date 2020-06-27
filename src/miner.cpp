@@ -27,6 +27,7 @@
 #include <wallet/coincontrol.h>
 #include <warnings.h>
 #include <net.h>
+#include <kernel.h>
 
 #include <algorithm>
 #include <queue>
@@ -132,7 +133,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         CMutableTransaction txCoinStake;
         int64_t nSearchTime = txCoinStake.nTime; // search to current time
         if (nSearchTime > nLastCoinStakeSearchTime) {
-            if (pwallet->CreateCoinStake(pwallet, pblock->nBits, nSearchTime-nLastCoinStakeSearchTime, txCoinStake)) {
+            if (CreateCoinStake(pwallet, pblock->nBits, nSearchTime-nLastCoinStakeSearchTime, txCoinStake)) {
                 // make sure coinstake would meet timestamp protocol
                 if (txCoinStake.nTime >= std::max(pindexPrev->GetMedianTimePast()+1, pindexPrev->GetBlockTime() - nMaxClockDrift)) {
                     // as it would be the same as the block timestamp
