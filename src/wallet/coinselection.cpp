@@ -3,11 +3,13 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <wallet/coinselection.h>
+#include <wallet/wallet.h> // for COutput
 
 #include <util/system.h>
 #include <util/moneystr.h>
 
 #include <boost/optional.hpp>
+
 
 // Descending order comparator
 struct {
@@ -331,6 +333,186 @@ bool OutputGroup::EligibleForSpending(const CoinEligibilityFilter& eligibility_f
 // ------------ Emercoin DP-selector
 // Select coins subsed with dynamic programming (exclusive Emercoin feature from olegarch)
 bool SelectCoinsDP(std::vector<COutput>& vCoins, const CAmount& nTargetValue, std::set<CInputCoin>& setCoinsRet, CAmount& nValueRet) {
-    // vCoins: shuffle OK, but do not modify!
+    // Use (myconf=1, theirconf=3, ChanLen=unlim) filter policy
+    const int nConfMine   = 1;
+    const int nConfTheirs = 3;
+
+    setCoinsRet.clear();
+    nValueRet = 0;
+    if(vCoins.empty())
+        return false;
+
+    // UTXO, contains minimal value, largest than target
+    // Initially set a fake input ref, will be updated within filter loop
+    CInputCoin coinLowestLarger(vCoins[0].GetInputCoin());
+    coinLowestLarger.effective_value = std::numeric_limits<CAmount>::max();
+
+    // std::vector<std::pair<CAmount, std::pair<const CWalletTx*,unsigned int> > > vValue;
+
+    std::vector<CInputCoin> vValue;
+    vValue.reserve(vCoins.size());
+    CAmount nTotalLower = 0;
+
+    // Shuffle/sort
+    // We need sort non-filtered, sice during copy to vValue depth is lost
+    static int sortir = -1;
+    if(sortir < 0)
+       sortir = gArgs.GetArg("-sortir", 0);
+
+    switch(sortir) {
+       case 1:
+         sort(vCoins.begin(), vCoins.end(), 
+               [](const COutput &a, const COutput &b) -> bool
+                 { return a.nDepth < b.nDepth; }
+             );
+         break;
+       default:
+          random_shuffle(vCoins.begin(), vCoins.end(), GetRandInt);
+         break;
+    } // switch
+
+
+    // Copy/filter coins
+    // Namecoin inputs removed above, within SelectCoins()
+    for(const COutput &output : vCoins)
+    {
+        if (!output.fSpendable)
+            continue;
+
+        const CWalletTx *pcoin = output.tx;
+        if (output.nDepth < (pcoin->IsFromMe(ISMINE_ALL) ? nConfMine : nConfTheirs))
+            continue;
+
+        CInputCoin coin(output.GetInputCoin());
+        CAmount n = coin.effective_value;
+
+        //        std::pair<CAmount,std::pair<const CWalletTx*,unsigned int> > coin = std::make_pair(n,make_pair(pcoin, i));
+
+        if (n == nTargetValue)
+        {
+            setCoinsRet.insert(coin);
+            nValueRet = n;
+            return true;
+        }
+        else if (n < nTargetValue + MIN_CHANGE)
+        {
+            vValue.push_back(coin);
+            nTotalLower += n;
+        }
+        else if (n < coinLowestLarger.effective_value)
+        {
+            coinLowestLarger = coin;
+        }
+    } // for
+
+    if (nTotalLower == nTargetValue)
+    {
+        for (auto &coin : vValue)
+        {
+            setCoinsRet.insert(coin);
+            nValueRet += coin.effective_value;
+        }
+        return true;
+    }
+
+    if (nTotalLower < nTargetValue)
+    {
+        if (coinLowestLarger.effective_value == std::numeric_limits<CAmount>::max())
+            return false;
+        setCoinsRet.insert(coinLowestLarger);
+        nValueRet += coinLowestLarger.effective_value;
+        return true;
+    }
+
+    bool fPrintSel = LogInstance().GetCategoryMask() != BCLog::NONE && gArgs.GetBoolArg("-printselectcoin", false);
+
+    // If possible, solve subset sum by dynamic programming
+    // Adeed by olegarch
+
+    // Maximal DP array size. Default=0.5G (12,800EMC)
+    static uint32_t nMaxDP = 0;
+    if(nMaxDP == 0)
+        nMaxDP = gArgs.GetArg("-maxdp", 128 * 1024 * 1024);
+
+    int32_t *dp; 
+    int tgt_shift = -(nTargetValue % TX_DP_AMOUNT > TX_DP_AMOUNT / 2);
+    uint32_t dp_tgt = nTargetValue / TX_DP_AMOUNT - tgt_shift;
+    if(dp_tgt < nMaxDP && (dp = (int32_t *)malloc((dp_tgt + 2) * sizeof(int32_t))) != NULL) {
+        memset(dp, ~0, (dp_tgt + 1) * sizeof(int32_t));
+        dp[dp_tgt + 1] = dp[0] = 0; // Zero CENTs can be reached anyway, and set right barrier
+
+        uint32_t min_over_sum  = ~0, min_over_txrem;
+
+        // Apply UTXOs to DP array, until exact sum will be found
+        for(int32_t utxo_no = 0;  dp[dp_tgt] < 0 && utxo_no < (int32_t)vValue.size(); utxo_no++) {
+            int32_t saved_tgt = dp[dp_tgt]; // Saved for possible revert, if problem in fraction of TX_DP_AMOUNT
+            uint32_t offset = vValue[utxo_no].effective_value / TX_DP_AMOUNT;
+            int      remain = vValue[utxo_no].effective_value % TX_DP_AMOUNT;
+            int ndx = dp_tgt + 1;
+            int carma = 10 + (int)sqrt(vValue.size());
+            do {
+                if(dp[--ndx] < 0)
+                    ndx = ~dp[ndx]; // skip gap
+                uint32_t nxt = ndx + offset;
+                int sumrem   = remain + (uint8_t)dp[ndx];
+                if(sumrem >= TX_DP_AMOUNT) {
+                    nxt++;
+                    sumrem -= TX_DP_AMOUNT;
+                }
+                sumrem |= utxo_no << 8;
+                if(nxt <= dp_tgt) {
+                    if(dp[nxt] < 0) {
+                        dp[nxt] = sumrem;
+                        int rval = ~nxt;
+                        while(dp[++nxt] < 0)
+                            dp[nxt] = rval;
+                        carma += 2;
+                    } else
+                        carma--;
+                } else
+                    if(nxt < min_over_sum) {
+                        min_over_sum = nxt;
+                        min_over_txrem = sumrem;
+                    }
+            } while(ndx != 0 && carma > 0);
+            if(dp[dp_tgt] >= 0 && (carma = (int)(uint8_t)dp[dp_tgt] - nTargetValue % TX_DP_AMOUNT) && (carma ^ tgt_shift) < 0)
+                dp[dp_tgt] = saved_tgt; // Rollback target, if subcent fraction is not enough/over
+        } // for
+
+        if(dp[dp_tgt] >= 0) // Found exactly sum without payback
+            min_over_txrem = dp[min_over_sum = dp_tgt];
+        else
+            if(min_over_sum == (uint32_t)~0)   // Special case: Total bal > nTargetValue, but dp_bal is still less
+                min_over_sum = 0;       // So, skip DP, use the original stochastic algo
+
+        while(min_over_sum) {
+            uint32_t utxo_no = min_over_txrem >> 8;
+            uint8_t  remain  = min_over_txrem;
+            if (fPrintSel)
+                LogPrintf("SelectCoins() DP Added #%u: Val=%s\n", utxo_no, FormatMoney(vValue[utxo_no].effective_value));
+            setCoinsRet.insert(vValue[utxo_no]);
+            nValueRet    += vValue[utxo_no].effective_value;
+            min_over_sum -= vValue[utxo_no].effective_value / TX_DP_AMOUNT + (vValue[utxo_no].effective_value % TX_DP_AMOUNT > remain);
+            min_over_txrem = dp[min_over_sum];
+        }
+
+        free(dp);
+
+        if(nValueRet >= nTargetValue) {
+            //// debug print
+            if (fPrintSel)
+                LogPrintf("SelectCoins() DP subset: Target=%s Found=%s Payback=%s Qty=%u\n",
+                        FormatMoney(nTargetValue),
+                        FormatMoney(nValueRet),
+                        FormatMoney(nValueRet - nTargetValue),
+                        (unsigned)setCoinsRet.size()
+                        );
+            return true; // sum found by DP
+        }
+    } // DP compute
+
+    // Result - not found
+    nValueRet = 0;
+    setCoinsRet.clear();
     return false;
 } // SelectCoinsDP

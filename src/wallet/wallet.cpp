@@ -2822,6 +2822,17 @@ bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAm
             ++it;
     }
 
+    // Remove Namecoin inputs!
+    for (std::vector<COutput>::iterator it = vCoins.begin(); it != vCoins.end();) {
+        const CWalletTx *pcoin = it->tx;
+        int i = it->i;
+        NameTxInfo nti;
+        if (pcoin->tx->nVersion == NAMECOIN_TX_VERSION && DecodeNameScript(pcoin->tx->vout[i].scriptPubKey, nti))
+            it = vCoins.erase(it);
+        else
+            ++it;
+    }
+
     bool res = nTargetValue <= nValueFromPresetInputs || SelectCoinsDP(vCoins, nTargetValue - nValueFromPresetInputs, setCoinsRet, nValueRet); 
 
     if(!res) { // DP unable to select or fails, go to classic bitcoin algos
@@ -2840,7 +2851,7 @@ bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAm
         bool fRejectLongChains = gArgs.GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS);
 
         res = nTargetValue <= nValueFromPresetInputs ||
-            SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, CoinEligibilityFilter(1, 6, 0), groups, setCoinsRet, nValueRet, coin_selection_params, bnb_used) ||
+        /*    SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, CoinEligibilityFilter(1, 6, 0), groups, setCoinsRet, nValueRet, coin_selection_params, bnb_used) || */
             SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, CoinEligibilityFilter(1, 1, 0), groups, setCoinsRet, nValueRet, coin_selection_params, bnb_used) ||
             (m_spend_zero_conf_change && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 
                 CoinEligibilityFilter(0, 1, 2), groups, setCoinsRet, nValueRet, coin_selection_params, bnb_used)) ||
