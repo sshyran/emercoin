@@ -4286,13 +4286,6 @@ UniValue importprunedfunds(const JSONRPCRequest& request);
 UniValue removeprunedfunds(const JSONRPCRequest& request);
 UniValue importmulti(const JSONRPCRequest& request);
 
-UniValue name_new(const JSONRPCRequest& request);
-UniValue name_update(const JSONRPCRequest& request);
-UniValue name_delete(const JSONRPCRequest& request);
-UniValue sendtoname(const JSONRPCRequest& request);
-UniValue name_list(const JSONRPCRequest& request);
-UniValue name_debug(const JSONRPCRequest& request);
-
 // clang-format off
 static const CRPCCommand commands[] =
 { //  category              name                                actor (function)                argNames
@@ -4357,12 +4350,6 @@ static const CRPCCommand commands[] =
     // emercoin commands
     { "wallet",             "makekeypair",                      &makekeypair,                   {"prefix"} },
     { "wallet",             "reservebalance",                   &reservebalance,                {"reserve", "amount"} },
-    { "wallet",             "name_new",                         &name_new,                      {"name","value","days","toaddress","valuetype"} },
-    { "wallet",             "name_update",                      &name_update,                   {"name","value","days","toaddress","valuetype"} },
-    { "wallet",             "name_delete",                      &name_delete,                   {"name"} },
-    { "wallet",             "sendtoname",                       &sendtoname,                    {"name","amount","comment","comment-to"} },
-    { "wallet",             "name_list",                        &name_list,                     {"name","valuetype"} },
-    { "hidden",             "name_debug",                       &name_debug,                    {} },
 };
 // clang-format on
 
