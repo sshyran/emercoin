@@ -11,3 +11,5 @@ void CBlockHeader::SetAuxPow(CAuxPow* pow)
         nVersion &= ~BLOCK_VERSION_AUXPOW;
     auxpow.reset(pow);
 }
+
+

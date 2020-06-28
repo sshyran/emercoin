@@ -5,6 +5,8 @@
 
 #include <primitives/block.h>
 
+#include <auxpow.h>
+
 #include <hash.h>
 #include <tinyformat.h>
 #include <crypto/common.h>

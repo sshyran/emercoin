@@ -99,10 +99,12 @@ template<typename Stream> void SerReadWrite(Stream& s, std::shared_ptr<CAuxPow>&
     ::Unserialize(s, *pobj);
 }
 
+template void SerReadWrite<CDataStream>(CDataStream& s, std::shared_ptr<CAuxPow>& pobj, CSerActionUnserialize ser_action);
+
+#if 0
 //template void SerReadWrite<CAutoFile>(CAutoFile& s, const std::shared_ptr<const CAuxPow>& pobj, CSerActionSerialize ser_action);
 //template void SerReadWrite<CVectorWriter>(CVectorWriter& s, const std::shared_ptr<const CAuxPow>& pobj, CSerActionSerialize ser_action);
 //template void SerReadWrite<CHashWriter>(CHashWriter& s, const std::shared_ptr<const CAuxPow>& pobj, CSerActionSerialize ser_action);
-//template void SerReadWrite<CDataStream>(CDataStream& s, const std::shared_ptr<const CAuxPow>& pobj, CSerActionSerialize ser_action);
 //template void SerReadWrite<CSizeComputer>(CSizeComputer& s, const std::shared_ptr<const CAuxPow>& pobj, CSerActionSerialize ser_action);
 
 template void SerReadWrite<CAutoFile>(CAutoFile& s, std::shared_ptr<CAuxPow>& pobj, CSerActionUnserialize ser_action);
@@ -114,5 +116,15 @@ template void SerReadWrite<CDataStream>(CDataStream& s, std::shared_ptr<CAuxPow>
 
 
 //SerReadWriteMany
+
+template<typename Stream> void SerReadWrite(Stream& s, const std::shared_ptr<const CAuxPow>& pobj, CSerActionSerialize ser_action) { 
+    ::Serialize(s, *pobj);
+}
+
+template<typename Stream> void SerReadWrite(Stream& s, std::shared_ptr<CAuxPow>& pobj, CSerActionUnserialize ser_action) {
+    pobj.reset(new CAuxPow());
+    ::Unserialize(s, *pobj);
+}
+#endif
 
 #endif

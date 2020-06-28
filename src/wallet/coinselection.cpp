@@ -386,8 +386,6 @@ bool SelectCoinsDP(std::vector<COutput>& vCoins, const CAmount& nTargetValue, st
         CInputCoin coin(output.GetInputCoin());
         CAmount n = coin.effective_value;
 
-        //        std::pair<CAmount,std::pair<const CWalletTx*,unsigned int> > coin = std::make_pair(n,make_pair(pcoin, i));
-
         if (n == nTargetValue)
         {
             setCoinsRet.insert(coin);

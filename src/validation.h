@@ -31,6 +31,8 @@
 #include <utility>
 #include <vector>
 
+#include <auxpow.h>
+
 class CChainState;
 class CBlockIndex;
 class CBlockTreeDB;

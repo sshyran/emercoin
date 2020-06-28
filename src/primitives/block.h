@@ -85,8 +85,7 @@ public:
         if (!(s.GetType() & SER_GETHASH))
         {
             if (this->nVersion & BLOCK_VERSION_AUXPOW)
-                //READWRITE(auxpow);
-                ;
+                SerReadWrite(s, auxpow, ser_action);
             else
                 auxpow.reset();
 
@@ -260,5 +259,6 @@ struct CBlockLocator
 bool IsProtocolV03(unsigned int nTimeCoinStake);
 bool IsProtocolV04(unsigned int nTimeBlock);
 bool IsProtocolV05(unsigned int nTimeTx);
+
 
 #endif // BITCOIN_PRIMITIVES_BLOCK_H
