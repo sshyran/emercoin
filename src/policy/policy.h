@@ -77,8 +77,6 @@ static constexpr unsigned int STANDARD_NOT_MANDATORY_VERIFY_FLAGS = STANDARD_SCR
 static constexpr unsigned int STANDARD_LOCKTIME_VERIFY_FLAGS = LOCKTIME_VERIFY_SEQUENCE |
                                                                LOCKTIME_MEDIAN_TIME_PAST;
 
-bool IsDust(const CTxOut& txout, const CFeeRate& dustRelayFee);
-
 bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType);
     /**
      * Check for standard transaction types
