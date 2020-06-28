@@ -514,7 +514,7 @@ static UniValue listaddressgroupings(const JSONRPCRequest& request)
     return jsonGroupings;
 }
 
-static UniValue signmessage(const JSONRPCRequest& request)
+UniValue signmessage(const JSONRPCRequest& request)
 {
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
     CWallet* const pwallet = wallet.get();

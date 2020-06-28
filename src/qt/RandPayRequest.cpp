@@ -205,6 +205,7 @@ void RandPayRequest::showSuccess(const QNetworkRequest & r) {
 	d.exec();
 }*/
 bool RandPayRequest::makePayment() {
+#ifdef ENABLE_BIP70
 	QString s = QNameCoin::randPayCreateTx(*this, _error);
 	if(!_error.isEmpty()) {
 		return false;
@@ -213,6 +214,9 @@ bool RandPayRequest::makePayment() {
 		_server->postRandpayRequest(_submit, s.toLocal8Bit());
 	}
 	return true;
+#else
+    return false;
+#endif
 }
 bool RandPayRequest::needConfirmation()const {
 	Q_ASSERT(_risk!=0);//_risk checked before

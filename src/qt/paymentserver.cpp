@@ -673,13 +673,13 @@ void PaymentServer::fetchRequest(const QUrl& url)
 }
 
 void PaymentServer::postRandpayRequest(const QUrl& url, const QByteArray & data) {
-	QNetworkRequest netRequest;
-	netRequest.setAttribute(QNetworkRequest::User, BIP70_MESSAGE_PAYMENTREQUEST);
-	netRequest.setUrl(url);
-	netRequest.setRawHeader("User-Agent", CLIENT_NAME.c_str());
-	netRequest.setRawHeader("Accept", BIP71_MIMETYPE_PAYMENTREQUEST);
-	netRequest.setRawHeader("RandPay", "true");
-	netManager->post(netRequest, data);
+    QNetworkRequest netRequest;
+    netRequest.setAttribute(QNetworkRequest::User, BIP70_MESSAGE_PAYMENTREQUEST);
+    netRequest.setUrl(url);
+    netRequest.setRawHeader("User-Agent", CLIENT_NAME.c_str());
+    netRequest.setRawHeader("Accept", BIP71_MIMETYPE_PAYMENTREQUEST);
+    netRequest.setRawHeader("RandPay", "true");
+    netManager->post(netRequest, data);
 }
 
 void PaymentServer::fetchPaymentACK(WalletModel* walletModel, const SendCoinsRecipient& recipient, QByteArray transaction)
