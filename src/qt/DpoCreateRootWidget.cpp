@@ -8,10 +8,11 @@
 #include <QSettings>
 #include <QLabel>
 
-DpoCreateRootWidget::DpoCreateRootWidget() {
+DpoCreateRootWidget::DpoCreateRootWidget(WalletModel* model) : model(model) {
+    assert(model);
 	setWindowTitle(tr("1) Organization registration"));
 	auto lay = new QVBoxLayout(this);
-	_NVPair = new NameValueLineEdits;
+    _NVPair = new NameValueLineEdits(model);
 	_NVPair->setValueMultiline(true);
 
 	auto description = new QLabel(tr("Create a root record for an organization:"));

@@ -1,7 +1,11 @@
 ﻿//RegisterDiplomaWidget.h by Emercoin developers
 #pragma once
+#include <qt/NameValueLineEdits.h>
+
 #include <QLabel>
-#include "NameValueLineEdits.h"
+
+class WalletModel;
+
 class QComboBox;
 class QBoxLayout;
 class QSpinBox;
@@ -9,7 +13,7 @@ class QPlainTextEdit;
 
 class RegisterDiplomaWidget: public QWidget {
 	public:
-		RegisterDiplomaWidget();
+        RegisterDiplomaWidget(WalletModel* model);
 		NameValueLineEdits* _NVPair = 0;
 	protected:
 		QComboBox* _chooseRoot = 0;
@@ -23,4 +27,5 @@ class RegisterDiplomaWidget: public QWidget {
 		void showError(const QString & s);
 
 		void recalcValue();
+        WalletModel* model;
 };

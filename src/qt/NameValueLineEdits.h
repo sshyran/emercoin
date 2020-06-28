@@ -1,13 +1,14 @@
 ﻿//NameValueLineEdits.h by Emercoin developers
 #pragma once
-#include "SelectableLineEdit.h"
+#include <qt/SelectableLineEdit.h>
 class SelectableTextEdit;
 class QLabel;
+class WalletModel;
 
 //Displays NVS (Name-value storage) name and value in line edits, allows to copy them easily.
 class NameValueLineEdits: public QWidget {
 	public:
-		NameValueLineEdits();
+        NameValueLineEdits(WalletModel* model);
 		void setName(const QString & s);
 		void setValue(const QString & s);
 		void setValuePlaceholder(const QString & s);
@@ -28,4 +29,6 @@ class NameValueLineEdits: public QWidget {
 		SelectableTextEdit* _valueMuti = 0;
 
 		void copyValue();
+    private:
+        WalletModel* model;
 };

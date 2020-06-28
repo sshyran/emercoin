@@ -1,12 +1,15 @@
 ﻿//RegisterUniversityWidget.h by Emercoin developers
 #pragma once
-#include "NameValueLineEdits.h"
+#include <qt/NameValueLineEdits.h>
+
 #include <QPlainTextEdit>
+
 class QFormLayout;
+class WalletModel;
 
 class RegisterUniversityWidget: public QWidget {
 	public:
-		RegisterUniversityWidget();
+        RegisterUniversityWidget(WalletModel* model);
 
 		NameValueLineEdits* _NVPair = 0;
     protected:
@@ -16,4 +19,6 @@ class RegisterUniversityWidget: public QWidget {
 		QLineEdit* _hrefForSite = 0;
 		void recalcValue();
 		QLineEdit* addLineEdit(QFormLayout*form, const QString& name, const QString& text, const QString& tooltip, bool readOnly = false);
+    private:
+        WalletModel* model;
 };

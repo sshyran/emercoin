@@ -529,6 +529,10 @@ public:
         return true;
     }
 
+    virtual std::shared_ptr<CWallet> getWallet() override {
+        return m_wallet;
+    }
+
     std::shared_ptr<CWallet> m_wallet;
 };
 

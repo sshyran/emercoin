@@ -10,11 +10,12 @@
 #include <QLabel>
 #include <QIcon>
 
-RegisterUniversityWidget::RegisterUniversityWidget() {
-	setWindowTitle(tr("Register university"));
+RegisterUniversityWidget::RegisterUniversityWidget(WalletModel* model) : model(model) {
+    assert(model);
+    setWindowTitle(tr("Register university"));
 	setWindowIcon(QIcon(":/icons/Trusted-diploma-16-monochrome.png"));
 	auto lay = new QVBoxLayout(this);
-	_NVPair = new NameValueLineEdits;
+    _NVPair = new NameValueLineEdits(model);
 	_NVPair->setValueMultiline(true);
 
 	auto description = new QLabel(tr("You must first create root record (register university) to sign diplomas"));

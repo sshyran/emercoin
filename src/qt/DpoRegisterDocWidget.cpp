@@ -14,10 +14,10 @@
 #include <QComboBox>
 #include <QCryptographicHash>
 
-DpoRegisterDocWidget::DpoRegisterDocWidget() {
+DpoRegisterDocWidget::DpoRegisterDocWidget(WalletModel* model) : model(model) {
 	setWindowTitle(tr("3) Document registration"));
 
-	_NVPair = new NameValueLineEdits;
+    _NVPair = new NameValueLineEdits(model);
 	_editHash = new QLineEdit;
 	_chooseRoot = new QComboBox;
 	_editFile = new QLineEdit;
@@ -26,7 +26,7 @@ DpoRegisterDocWidget::DpoRegisterDocWidget() {
 
 	auto lay = new QVBoxLayout(this);
 
-	QStringList names = QNameCoin::myNames();
+    QStringList names = QNameCoin::myNames(model);
 	connect(_chooseRoot, &QComboBox::currentTextChanged, this, &DpoRegisterDocWidget::recalcValue);
 	_chooseRoot->addItems(names);
 	if(names.isEmpty()) {

@@ -2,14 +2,15 @@
 #include <QObject>
 class UniValue;
 class RandPayRequest;
+class WalletModel;
 
 //Qt NameCoin interface
 class QNameCoin: public QObject {//for tr()
     public:
-        static bool isMyName(const QString & name);
+        static bool isMyName(const QString & name, WalletModel* model);
         static bool nameActive(const QString & name);
-        static QStringList myNames(bool sortByLessParts = true);
-        static QStringList myNamesStartingWith(const QString & prefix);
+        static QStringList myNames(WalletModel* model, bool sortByLessParts = true);
+        static QStringList myNamesStartingWith(const QString & prefix, WalletModel* model);
 
 		struct SignMessageRet {
 			QString signature;

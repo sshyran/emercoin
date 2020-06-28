@@ -1,7 +1,12 @@
 ﻿//DpoCreateRecordWidget.h by Emercoin developers
 #pragma once
-#include "NameValueLineEdits.h"
+
+#include <qt/NameValueLineEdits.h>
+
 #include <QScrollArea>
+
+class WalletModel;
+
 class QLineEdit;
 class QPlainTextEdit;
 class QFormLayout;
@@ -9,7 +14,7 @@ class QLabel;
 
 class DpoCreateRecordWidget: public QWidget {
 	public:
-		DpoCreateRecordWidget();
+        DpoCreateRecordWidget(WalletModel* model);
 		NameValueLineEdits* _NVPair = 0;
 		void updateSettings(bool save);
     protected:
@@ -22,4 +27,6 @@ class DpoCreateRecordWidget: public QWidget {
 		void recalcValue();
 		QLineEdit* addLineEdit(QFormLayout*form, const QString& name, const QString& text, const QString& tooltip, bool readOnly = false);
 		QLabel* newLabel(const QString & s);
+     private:
+        WalletModel* model;
 };

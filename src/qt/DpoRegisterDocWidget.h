@@ -1,12 +1,15 @@
 ﻿//DpoRegisterDocWidget.h by Emercoin developers
 #pragma once
-#include "NameValueLineEdits.h"
+#include <qt/NameValueLineEdits.h>
+
+class WalletModel;
+
 class QComboBox;
 class QBoxLayout;
 
 class DpoRegisterDocWidget: public QWidget {
 	public:
-		DpoRegisterDocWidget();
+        DpoRegisterDocWidget(WalletModel* model);
 		NameValueLineEdits* _NVPair = 0;
 	protected:
 		void openFileDialog();
@@ -19,4 +22,6 @@ class DpoRegisterDocWidget: public QWidget {
 		QLineEdit* _editHash = 0;
 		SelectableLineEdit* _editSignature = 0;
 		QLineEdit* _editDocName = 0;
+     private:
+        WalletModel* model;
 };

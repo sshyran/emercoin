@@ -9,7 +9,8 @@
 #include <QCommandLinkButton>
 //#include "AboutTrustedDiplomaWidget.h"
 
-DiplomaWidget::DiplomaWidget(QWidget*parent): QDialog(parent) {
+DiplomaWidget::DiplomaWidget(WalletModel* model, QWidget* parent) : model(model), QDialog(parent) {
+    assert(model);
 	setWindowTitle(tr("Trusted diploma"));
 	setWindowIcon(QIcon(":/icons/TrustedDiploma-32.png"));
 
@@ -25,8 +26,8 @@ DiplomaWidget::DiplomaWidget(QWidget*parent): QDialog(parent) {
 	lay->addWidget(_tab);
 	auto addTab = [this](QWidget*w) { _tab->addTab(w, w->windowTitle()); };
 	addTab(_CheckDiplomaWidget = new CheckDiplomaWidget());
-	addTab(_RegisterUniversityWidget = new RegisterUniversityWidget());
-	addTab(_RegisterDiplomaWidget = new RegisterDiplomaWidget());
+    addTab(_RegisterUniversityWidget = new RegisterUniversityWidget(model));
+    addTab(_RegisterDiplomaWidget = new RegisterDiplomaWidget(model));
 
 	QSettings sett;
 	int index = sett.value("DiplomaWidget.tabIndex", 0).toInt();

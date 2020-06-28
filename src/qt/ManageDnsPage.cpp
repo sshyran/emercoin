@@ -11,11 +11,12 @@
 #include <QPushButton>
 #include <QCommandLinkButton>
 
-ManageDnsPage::ManageDnsPage(QWidget*parent): QDialog(parent) {
+ManageDnsPage::ManageDnsPage(WalletModel* model, QWidget*parent): model(model), QDialog(parent) {
+    assert(model);
 	setWindowTitle(tr("DNS names"));
 	setWindowIcon(QIcon(":/icons/EmerDNS-32.png"));
 	auto lay = new QVBoxLayout(this);
-	_NVPair = new NameValueLineEdits;
+    _NVPair = new NameValueLineEdits(model);
 
     auto description = new QLabel(tr(
 		"<a href=\"https://wiki.emercoin.com/en/EMCDNS\">EmerDNS</a> "

@@ -18,8 +18,8 @@ class MintingView : public QWidget
 {
     Q_OBJECT
 public:
-    explicit MintingView(QWidget *parent = 0);
-    void setModel(WalletModel *model);
+    explicit MintingView(QWidget* parent = 0);
+    void setModel(WalletModel* model);
 
     enum MintingEnum
     {
@@ -30,13 +30,13 @@ public:
     };
 
 private:
-    WalletModel *model;
-    QTableView *mintingView;
-    QComboBox *mintingCombo;
-    MintingFilterProxy *mintingProxyModel;
-    QMenu *contextMenu;
+    WalletModel* model;
+    QTableView* mintingView;
+    QComboBox* mintingCombo;
+    MintingFilterProxy* mintingProxyModel;
+    QMenu* contextMenu;
 
-    QPushButton *refreshButton;
+    QPushButton* refreshButton;
 
 private Q_SLOTS:
     void contextualMenu(const QPoint &);

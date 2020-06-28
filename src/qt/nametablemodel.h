@@ -5,7 +5,6 @@
 #include <QStringList>
 
 class NameTablePriv;
-class CWallet;
 class WalletModel;
 
 #include <vector>
@@ -44,7 +43,6 @@ public:
 
 private:
     WalletModel *walletModel;
-    CWallet *wallet;
     QStringList columns;
     NameTablePriv *priv;
     int cachedNumBlocks;

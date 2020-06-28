@@ -178,21 +178,21 @@ ManageNamesPage::~ManageNamesPage()
 }
 
 void ManageNamesPage::onManageDomainsClicked() {
-	ManageDnsPage dlg(this);
+    ManageDnsPage dlg(walletModel, this);
 	if(dlg.exec()==QDialog::Accepted) {
 		setDisplayedName(dlg.name());
 		setDisplayedValue(dlg.value());
 	}
 }
 void ManageNamesPage::onManageDpoClicked() {
-	DocNotarWidget dlg(this);
+    DocNotarWidget dlg(walletModel, this);
 	if(dlg.exec()==QDialog::Accepted) {
 		setDisplayedName(dlg.name());
 		setDisplayedValue(dlg.value());
 	}
 }
 void ManageNamesPage::onTrustedDiplomaClicked() {
-	DiplomaWidget dlg(this);
+    DiplomaWidget dlg(walletModel, this);
 	if(dlg.exec()==QDialog::Accepted) {
 		setDisplayedName(dlg.name());
 		setDisplayedValue(dlg.value());
@@ -359,19 +359,19 @@ void ManageNamesPage::on_submitNameButton_clicked()
         {
             nHeight = NameTableEntry::NAME_NEW;
             status = CT_NEW;
-            res = name_operation(OP_NAME_NEW, name, value, days, newAddress.toStdString(), "");
+            res = name_operation(OP_NAME_NEW, name, value, days, newAddress.toStdString(), "", walletModel->wallet().getWallet().get());
         }
 		else if (txType == STR_NAME_UPDATE)
         {
             nHeight = NameTableEntry::NAME_UPDATE;
             status = CT_UPDATED;
-            res = name_operation(OP_NAME_UPDATE, name, value, days, newAddress.toStdString(), "");
+            res = name_operation(OP_NAME_UPDATE, name, value, days, newAddress.toStdString(), "", walletModel->wallet().getWallet().get());
         }
 		else if (txType == STR_NAME_DELETE)
         {
             nHeight = NameTableEntry::NAME_DELETE;
             status = CT_UPDATED; //we still want to display this name until it is deleted
-            res = name_operation(OP_NAME_DELETE, name, CNameVal(), 0, "", "");
+            res = name_operation(OP_NAME_DELETE, name, CNameVal(), 0, "", "", walletModel->wallet().getWallet().get());
         }
 
         importedAsBinaryFile.clear();
@@ -678,7 +678,7 @@ void ManageNamesPage::showNameAvailable() {
 	QString name = ui->registerName->text();
 	QString text;
 	if(name.isEmpty()) {
-	} else if(QNameCoin::isMyName(name)) {
+    } else if(QNameCoin::isMyName(name, walletModel)) {
 		text = NameCoinStrings::trNameIsMy(name);
 	} else if(QNameCoin::nameActive(name)) {
 		text = NameCoinStrings::trNameAlreadyRegistered(name, false);

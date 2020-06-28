@@ -34,13 +34,14 @@ struct NameTableEntryLessThan
         return a < b.name;
     }
 };
-std::vector<CNameVal> NameCoin_myNames() {
-	CNameVal nameUniq;
+std::vector<CNameVal> NameCoin_myNames(WalletModel* model) {
+    std::vector<CNameVal> ret;
+    if (!model) return ret;
+    CNameVal nameUniq;
 	map<CNameVal, NameTxInfo> mapNames, mapPending;
-	GetNameList(nameUniq, mapNames, mapPending);
+    GetNameList(nameUniq, mapNames, mapPending, model->wallet().getWallet().get());
 	mapNames.insert(mapPending.begin(), mapPending.end());
 
-	std::vector<CNameVal> ret;
 	// add info about existing names
 	for(const auto& it: mapNames) {
 		if (it.second.fIsMine)
@@ -48,10 +49,11 @@ std::vector<CNameVal> NameCoin_myNames() {
 	}
 	return ret;
 }
-bool NameCoin_isMyName(const CNameVal & name) {
+bool NameCoin_isMyName(const CNameVal & name, WalletModel* model) {
+    if (!model) return false;
 	CNameVal nameUniq;
 	map<CNameVal, NameTxInfo> mapNames, mapPending;
-	GetNameList(nameUniq, mapNames, mapPending);
+    GetNameList(nameUniq, mapNames, mapPending, model->wallet().getWallet().get());
 
 	mapNames.insert(mapPending.begin(), mapPending.end());
 	// add info about existing names
@@ -66,12 +68,12 @@ bool NameCoin_isMyName(const CNameVal & name) {
 class NameTablePriv
 {
 public:
-    CWallet *wallet;
     QList<NameTableEntry> cachedNameTable;
-    NameTableModel *parent;
+    NameTableModel* parent;
+    WalletModel* model;
 
-    NameTablePriv(CWallet *wallet, NameTableModel *parent):
-        wallet(wallet), parent(parent) {}
+    NameTablePriv(NameTableModel *parent, WalletModel* model):
+        parent(parent), model(model) {}
 
     void refreshNameTable(bool fMyNames, bool fOtherNames, bool fExpired)
     {
@@ -80,7 +82,7 @@ public:
 
         CNameVal nameUniq;
         map<CNameVal, NameTxInfo> mapNames, mapPending;
-        GetNameList(nameUniq, mapNames, mapPending);
+        GetNameList(nameUniq, mapNames, mapPending, model->wallet().getWallet().get());
 
         // add info about existing names
         for (const auto& item : mapNames)
@@ -211,7 +213,7 @@ NameTableModel::NameTableModel(WalletModel *parent) :
     QAbstractTableModel(parent), walletModel(parent), priv(0), cachedNumBlocks(0)
 {
     columns << tr("Name") << tr("Value") << tr("Address") << tr("Expires in");
-    priv = new NameTablePriv(wallet, this);
+    priv = new NameTablePriv(this, walletModel);
 
     fMyNames = true;
     fOtherNames = false;

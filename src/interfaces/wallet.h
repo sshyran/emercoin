@@ -295,6 +295,7 @@ public:
     // emercoin
     virtual void relockWalletAfterDuration(int nDuration) = 0;
     virtual bool fillComments(const uint256& txid, const std::vector< std::pair<std::string, std::string> >& comments) = 0;
+    virtual std::shared_ptr<CWallet> getWallet() = 0;
 };
 
 //! Information about one wallet address.

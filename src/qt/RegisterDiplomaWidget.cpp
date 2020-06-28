@@ -11,11 +11,12 @@
 #include "YearSpinBox.h"
 #include "NameEqValueTextEdit.h"
 
-RegisterDiplomaWidget::RegisterDiplomaWidget() {
+RegisterDiplomaWidget::RegisterDiplomaWidget(WalletModel* model) : model(model) {
+    assert(model);
 	setWindowTitle(tr("Register diploma"));
 	setWindowIcon(QIcon(":/icons/Trusted-diploma-16-monochrome.png"));
 
-	_NVPair = new NameValueLineEdits;
+    _NVPair = new NameValueLineEdits(model);
 	_NVPair->setValueMultiline(true);
 
 	_chooseRoot = new QComboBox;
@@ -36,7 +37,7 @@ RegisterDiplomaWidget::RegisterDiplomaWidget() {
 	auto lay = new QVBoxLayout(this);
 	auto form = new QFormLayout;
 
-	QStringList names = QNameCoin::myNamesStartingWith("dpo:");
+    QStringList names = QNameCoin::myNamesStartingWith("dpo:", model);
 	connect(_chooseRoot, &QComboBox::currentTextChanged, this, &RegisterDiplomaWidget::recalcValue);
 	_chooseRoot->addItems(names);
 	if(names.isEmpty()) {

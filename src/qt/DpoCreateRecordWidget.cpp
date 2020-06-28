@@ -10,10 +10,10 @@
 #include <QSettings>
 #include <QLabel>
 
-DpoCreateRecordWidget::DpoCreateRecordWidget() {
+DpoCreateRecordWidget::DpoCreateRecordWidget(WalletModel* model) : model(model) {
 	setWindowTitle(tr("2) Register in organization"));
 	auto lay = new QVBoxLayout(this);
-	_NVPair = new NameValueLineEdits;
+    _NVPair = new NameValueLineEdits(model);
 	_NVPair->setValueMultiline(true);
 
 	lay->addWidget(newLabel(

@@ -115,7 +115,7 @@ MintingView::MintingView(QWidget *parent) :
 }
 
 
-void MintingView::setModel(WalletModel *model)
+void MintingView::setModel(WalletModel* model)
 {
     this->model = model;
     if(model)

@@ -10,7 +10,8 @@
 #include <QSettings>
 #include <QLabel>
 
-DocNotarWidget::DocNotarWidget(QWidget*parent): QDialog(parent) {
+DocNotarWidget::DocNotarWidget(WalletModel* model, QWidget*parent) : model(model), QDialog(parent) {
+    assert(model);
 	setWindowTitle(tr("DPO"));
 	setWindowIcon(QIcon(":/icons/DPO-32.png"));
 
@@ -27,9 +28,9 @@ DocNotarWidget::DocNotarWidget(QWidget*parent): QDialog(parent) {
 		_tab->addTab(w, w->windowIcon(), w->windowTitle());
 	};
 	addTab(new DpoUseCaseScheme);
-	addTab(_createRoot = new DpoCreateRootWidget());
-	addTab(_createRecord = new DpoCreateRecordWidget());
-	addTab(_registerDoc = new DpoRegisterDocWidget());
+    addTab(_createRoot = new DpoCreateRootWidget(model));
+    addTab(_createRecord = new DpoCreateRecordWidget(model));
+    addTab(_registerDoc = new DpoRegisterDocWidget(model));
 
 	{
 		auto lay2 = new QHBoxLayout();

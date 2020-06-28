@@ -5,12 +5,13 @@
 #include <QIcon>
 #include <QLabel>
 
-EnumerDialog::EnumerDialog() {
+EnumerDialog::EnumerDialog(WalletModel* model) {
+    assert(model);
 	setWindowTitle(tr("ENUMER"));
 	setWindowIcon(QIcon(":/icons/Enumer-32.png"));
 	
 	auto lay = new QFormLayout(this);
-	_NVEdit = new NameValueLineEdits;
+    _NVEdit = new NameValueLineEdits(model);
 	_NVEdit->setValueMultiline(true);
 	_NVEdit->setValueReadOnly(false);
 	_phone = new PhoneNumberLineEdit;

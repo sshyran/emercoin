@@ -5,17 +5,20 @@
 class DpoCreateRootWidget;
 class DpoCreateRecordWidget;
 class DpoRegisterDocWidget;
+class WalletModel;
 
 class DocNotarWidget: public QDialog {
 	public:
-		DocNotarWidget(QWidget*parent = 0);
+        DocNotarWidget(WalletModel* model, QWidget*parent = nullptr);
 		~DocNotarWidget();
 		QString name()const;
 		QString value()const;
 	protected:
 		QTabWidget* _tab = 0;
 
-		DpoCreateRootWidget* _createRoot = 0;
-		DpoCreateRecordWidget* _createRecord = 0;
-		DpoRegisterDocWidget* _registerDoc = 0;
+        DpoCreateRootWidget* _createRoot = nullptr;
+        DpoCreateRecordWidget* _createRecord = nullptr;
+        DpoRegisterDocWidget* _registerDoc = nullptr;
+    private:
+        WalletModel* model;
 };

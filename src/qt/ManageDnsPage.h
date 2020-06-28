@@ -1,14 +1,17 @@
 ﻿//ManageDnsPage.h by emercoin developers
 #pragma once
+#include <qt/NameValueLineEdits.h>
+
 #include <QDialog>
-#include "NameValueLineEdits.h"
+
 class QLineEdit;
 class QFormLayout;
 class QString;
+class WalletModel;
 
 class ManageDnsPage: public QDialog {
     public:
-	    ManageDnsPage(QWidget*parent=0);
+        ManageDnsPage(WalletModel* model, QWidget*parent=0);
 		QString name()const;
 		QString value()const;
     protected:
@@ -18,4 +21,6 @@ class ManageDnsPage: public QDialog {
 
 		void recalcValue();
 		QLineEdit* addLineEdit(QFormLayout*form, const QString& dnsParam, const QString& text, const QString& tooltip);
+    private:
+        WalletModel* model;
 };

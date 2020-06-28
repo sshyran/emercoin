@@ -2,13 +2,15 @@
 #pragma once
 #include <QTabWidget>
 #include <QDialog>
+
 class CheckDiplomaWidget;
 class RegisterUniversityWidget;
 class RegisterDiplomaWidget;
+class WalletModel;
 
 class DiplomaWidget: public QDialog {
 	public:
-		DiplomaWidget(QWidget*parent = nullptr);
+        DiplomaWidget(WalletModel* model, QWidget*parent = nullptr);
 		~DiplomaWidget();
 		QString name()const;
 		QString value()const;
@@ -17,4 +19,6 @@ class DiplomaWidget: public QDialog {
 		CheckDiplomaWidget* _CheckDiplomaWidget = nullptr;
 		RegisterUniversityWidget* _RegisterUniversityWidget = nullptr;
 		RegisterDiplomaWidget* _RegisterDiplomaWidget = nullptr;
+    private:
+        WalletModel* model;
 };

@@ -5,11 +5,13 @@
 
 #include <QDate>
 
+class WalletModel;
+
 using CNameVal = std::vector<unsigned char>;
-std::vector<CNameVal> NameCoin_myNames();
+std::vector<CNameVal> NameCoin_myNames(WalletModel* model);
 bool NameActive(const CNameVal& name, int currentBlockHeight = -1);
 CNameVal toCNameVal(const std::string & s);
-bool NameCoin_isMyName(const CNameVal & name);
+bool NameCoin_isMyName(const CNameVal & name, WalletModel* model);
 CNameVal toCNameVal(const QString& s) {
 	CNameVal ret;
 	auto arr = s.toUtf8();
@@ -18,8 +20,8 @@ CNameVal toCNameVal(const QString& s) {
 	return ret;
 }
 
-bool QNameCoin::isMyName(const QString & name) {
-	return NameCoin_isMyName(toCNameVal(name));
+bool QNameCoin::isMyName(const QString & name, WalletModel* model) {
+    return NameCoin_isMyName(toCNameVal(name), model);
 }
 bool QNameCoin::nameActive(const QString & name) {
 	return NameActive(toCNameVal(name));
@@ -37,9 +39,10 @@ static bool compareByLessParts(const QString& a, const QString& b) {
 		return false;
 	return a<b;
 }
-QStringList QNameCoin::myNames(bool sortByLessParts) {
-	QStringList ret;
-	std::vector<CNameVal> names = NameCoin_myNames();
+QStringList QNameCoin::myNames(WalletModel* model, bool sortByLessParts) {
+    QStringList ret;
+    if (!model) return ret;
+    std::vector<CNameVal> names = NameCoin_myNames(model);
 	for(const auto & name: names) {
 		ret << toQString(name);
 	}
@@ -48,9 +51,10 @@ QStringList QNameCoin::myNames(bool sortByLessParts) {
 	}
 	return ret;
 }
-QStringList QNameCoin::myNamesStartingWith(const QString & prefix) {
+QStringList QNameCoin::myNamesStartingWith(const QString & prefix, WalletModel* model) {
 	QStringList ret;
-	for(const auto & s: myNames()) {
+    if (!model) return ret;
+    for(const auto & s: myNames(model)) {
 		if(s.startsWith(prefix))
 			ret << s;
 	}

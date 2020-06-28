@@ -1,5 +1,9 @@
 ﻿//NameValueLineEdits.cpp by Emercoin developers
-#include "NameValueLineEdits.h"
+#include <qt/NameValueLineEdits.h>
+#include <qt/SelectableTextEdit.h>
+#include <qt/QNameCoin.h>
+#include <qt/NameCoinStrings.h>
+
 #include <QPlainTextEdit>
 #include <QFormLayout>
 #include <QHBoxLayout>
@@ -10,11 +14,8 @@
 #include <QToolTip>
 #include <QLabel>
 #include <QDebug>
-#include "SelectableTextEdit.h"
-#include "QNameCoin.h"
-#include "NameCoinStrings.h"
 
-NameValueLineEdits::NameValueLineEdits() {
+NameValueLineEdits::NameValueLineEdits(WalletModel* model) : model(model) {
 	_name = new SelectableLineEdit;
 	_value = new SelectableLineEdit;
 	_valueMuti = new SelectableTextEdit;
@@ -102,7 +103,7 @@ void NameValueLineEdits::setName(const QString & name) {
 	}
 	_availability->show();
 	QString text;
-	if(QNameCoin::isMyName(name)) {
+    if(QNameCoin::isMyName(name, model)) {
 	   text = NameCoinStrings::trNameIsMy(name);
 	} else if(QNameCoin::nameActive(name)) {
 		text = NameCoinStrings::trNameAlreadyRegistered(name, false);
