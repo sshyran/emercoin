@@ -257,15 +257,6 @@ QString formatBitcoinURI(const SendCoinsRecipient &info)
     return ret;
 }
 
-bool isDust(interfaces::Node& node, const QString& address, const CAmount& amount)
-{
-//    CTxDestination dest = DecodeDestination(address.toStdString());
-//   CScript script = GetScriptForDestination(dest);
-//    CTxOut txOut(amount, script);
-//    return IsDust(txOut, node.getDustRelayFee());
-    return false; // there is no dust in emercoin
-}
-
 QString HtmlEscape(const QString& str, bool fMultiLine)
 {
     QString escaped = str.toHtmlEscaped();

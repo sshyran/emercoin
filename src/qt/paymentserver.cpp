@@ -632,16 +632,6 @@ bool PaymentServer::processPaymentRequest(const PaymentRequestPlus& request, Sen
             return false;
         }
 
-        // Extract and check amounts
-        CTxOut txOut(sendingTo.second, sendingTo.first);
-        if (IsDust(txOut, optionsModel->node().getDustRelayFee())) {
-            Q_EMIT message(tr("Payment request error"), tr("Requested payment amount of %1 is too small (considered dust).")
-                .arg(BitcoinUnits::formatWithUnit(optionsModel->getDisplayUnit(), sendingTo.second)),
-                CClientUIInterface::MSG_ERROR);
-
-            return false;
-        }
-
         recipient.amount += sendingTo.second;
         // Also verify that the final amount is still in a valid range after adding additional amounts.
         if (!verifyAmount(recipient.amount)) {
