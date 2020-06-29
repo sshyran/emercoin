@@ -122,11 +122,7 @@ const uint256 CTransaction::GetBtcHash() const {
     return SerializeHash(*this, SER_GETHASH, SERIALIZE_TRANSACTION_NO_WITNESS);
 }
 
-
-CAmount CTransaction::GetMinFee() const {
-    // Base fee is either MIN_TX_FEE or MIN_RELAY_TX_FEE
-    size_t nBytes = GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION);
-
+CAmount GetMinFee(const size_t& nBytes) {
     CAmount nBaseFee = MIN_TX_FEE;
     CAmount nMinFee = (1 + nBytes / (10 * 1024)) * nBaseFee; // 1 subcent per 10 kb of data
 
@@ -135,7 +131,13 @@ CAmount CTransaction::GetMinFee() const {
     return nMinFee;
 }
 
+CAmount CTransaction::GetMinFee() const {
+    size_t nBytes = GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION);
+    return ::GetMinFee(nBytes);
+}
+
 CAmount CMutableTransaction::GetMinFee() const {
     CTransaction tmp(*this);
-    return tmp.GetMinFee();
+    size_t nBytes = GetSerializeSize(tmp, SER_NETWORK, PROTOCOL_VERSION);
+    return ::GetMinFee(nBytes);
 }
