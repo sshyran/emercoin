@@ -15,7 +15,6 @@
 #include <node/psbt.h>
 #include <node/transaction.h>
 #include <policy/policy.h>
-#include <policy/rbf.h>
 #include <primitives/transaction.h>
 #include <psbt.h>
 #include <random.h>
@@ -399,8 +398,7 @@ static UniValue createrawtransaction(const JSONRPCRequest& request)
                         },
                         },
                     {"locktime", RPCArg::Type::NUM, /* default */ "0", "Raw locktime. Non-0 value also locktime-activates inputs"},
-                    {"replaceable", RPCArg::Type::BOOL, /* default */ "false", "Marks this transaction as BIP125-replaceable.\n"
-            "                             Allows this transaction to be replaced by a transaction with higher fees. If provided, it is an error if explicit sequence numbers are incompatible."},
+                    {"replaceable", RPCArg::Type::BOOL, /* default */ "false", "Disabled in emercoin.\n"},
                 },
                 RPCResult{
             "\"transaction\"              (string) hex string of the transaction\n"
@@ -421,11 +419,7 @@ static UniValue createrawtransaction(const JSONRPCRequest& request)
         }, true
     );
 
-    bool rbf = false;
-    if (!request.params[3].isNull()) {
-        rbf = request.params[3].isTrue();
-    }
-    CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2], rbf);
+    CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2]);
 
     return EncodeHexTx(CTransaction(rawTx));
 }
@@ -913,8 +907,7 @@ static UniValue testmempoolaccept(const JSONRPCRequest& request)
     bool test_accept_res;
     {
         LOCK(cs_main);
-        test_accept_res = AcceptToMemoryPool(mempool, state, std::move(tx), &missing_inputs,
-            nullptr /* plTxnReplaced */, false /* bypass_limits */, max_raw_tx_fee, /* test_accept */ true);
+        test_accept_res = AcceptToMemoryPool(mempool, state, std::move(tx), &missing_inputs, false /* bypass_limits */, max_raw_tx_fee, /* test_accept */ true);
     }
     result_0.pushKV("allowed", test_accept_res);
     if (!test_accept_res) {
@@ -1379,8 +1372,7 @@ UniValue createpsbt(const JSONRPCRequest& request)
                         },
                         },
                     {"locktime", RPCArg::Type::NUM, /* default */ "0", "Raw locktime. Non-0 value also locktime-activates inputs"},
-                    {"replaceable", RPCArg::Type::BOOL, /* default */ "false", "Marks this transaction as BIP125 replaceable.\n"
-                            "                             Allows this transaction to be replaced by a transaction with higher fees. If provided, it is an error if explicit sequence numbers are incompatible."},
+                    {"replaceable", RPCArg::Type::BOOL, /* default */ "false", "Disabled in emercoin."},
                 },
                 RPCResult{
                             "  \"psbt\"        (string)  The resulting raw transaction (base64-encoded string)\n"
@@ -1399,11 +1391,7 @@ UniValue createpsbt(const JSONRPCRequest& request)
         }, true
     );
 
-    bool rbf = false;
-    if (!request.params[3].isNull()) {
-        rbf = request.params[3].isTrue();
-    }
-    CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2], rbf);
+    CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2]);
 
     // Make a blank psbt
     PartiallySignedTransaction psbtx;

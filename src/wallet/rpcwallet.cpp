@@ -5,6 +5,7 @@
 
 #include <amount.h>
 #include <consensus/validation.h>
+#include <coins.h>
 #include <core_io.h>
 #include <init.h>
 #include <interfaces/chain.h>
@@ -13,7 +14,6 @@
 #include <outputtype.h>
 #include <policy/feerate.h>
 #include <policy/fees.h>
-#include <policy/rbf.h>
 #include <rpc/rawtransaction_util.h>
 #include <rpc/server.h>
 #include <rpc/util.h>
@@ -155,17 +155,6 @@ static void WalletTxToJSON(interfaces::Chain& chain, interfaces::Chain::Lock& lo
     entry.pushKV("walletconflicts", conflicts);
     entry.pushKV("time", (int64_t)wtx.tx->nTime);
     entry.pushKV("timereceived", (int64_t)wtx.nTimeReceived);
-
-    // Add opt-in RBF status
-    std::string rbfStatus = "no";
-    if (confirms <= 0) {
-        RBFTransactionState rbfState = chain.isRBFOptIn(*wtx.tx);
-        if (rbfState == RBFTransactionState::UNKNOWN)
-            rbfStatus = "unknown";
-        else if (rbfState == RBFTransactionState::REPLACEABLE_BIP125)
-            rbfStatus = "yes";
-    }
-    entry.pushKV("bip125-replaceable", rbfStatus);
 
     for (const std::pair<const std::string, std::string>& item : wtx.mapValue)
         entry.pushKV(item.first, item.second);
@@ -376,7 +365,7 @@ static UniValue sendtoaddress(const JSONRPCRequest& request)
             "                             transaction, just kept in your wallet."},
                     {"subtractfeefromamount", RPCArg::Type::BOOL, /* default */ "false", "The fee will be deducted from the amount being sent.\n"
             "                             The recipient will receive less bitcoins than you enter in the amount field."},
-                    {"replaceable", RPCArg::Type::BOOL, /* default */ "wallet default", "Allow this transaction to be replaced by a transaction with higher fees via BIP 125"},
+                    {"replaceable", RPCArg::Type::BOOL, /* default */ "false", "Disabled in emercoin."},
                     {"conf_target", RPCArg::Type::NUM, /* default */ "wallet default", "Confirmation target (in blocks)"},
                     {"estimate_mode", RPCArg::Type::STR, /* default */ "UNSET", "The fee estimate mode, must be one of:\n"
             "       \"UNSET\"\n"
@@ -429,10 +418,6 @@ static UniValue sendtoaddress(const JSONRPCRequest& request)
     }
 
     CCoinControl coin_control;
-    if (!request.params[5].isNull()) {
-        coin_control.m_signal_bip125_rbf = request.params[5].get_bool();
-    }
-
     if (!request.params[6].isNull()) {
         coin_control.m_confirm_target = ParseConfirmTarget(request.params[6], pwallet->chain().estimateMaxBlocks());
     }
@@ -832,7 +817,7 @@ static UniValue sendmany(const JSONRPCRequest& request)
                             {"address", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Subtract fee from this address"},
                         },
                     },
-                    {"replaceable", RPCArg::Type::BOOL, /* default */ "wallet default", "Allow this transaction to be replaced by a transaction with higher fees via BIP 125"},
+                    {"replaceable", RPCArg::Type::BOOL, /* default */ "false", "Disabled in emercoin."},
                     {"conf_target", RPCArg::Type::NUM, /* default */ "wallet default", "Confirmation target (in blocks)"},
                     {"estimate_mode", RPCArg::Type::STR, /* default */ "UNSET", "The fee estimate mode, must be one of:\n"
             "       \"UNSET\"\n"
@@ -876,10 +861,6 @@ static UniValue sendmany(const JSONRPCRequest& request)
         subtractFeeFromAmount = request.params[4].get_array();
 
     CCoinControl coin_control;
-    if (!request.params[5].isNull()) {
-        coin_control.m_signal_bip125_rbf = request.params[5].get_bool();
-    }
-
     if (!request.params[6].isNull()) {
         coin_control.m_confirm_target = ParseConfirmTarget(request.params[6], pwallet->chain().estimateMaxBlocks());
     }
@@ -3084,9 +3065,6 @@ void FundTransaction(CWallet* const pwallet, CMutableTransaction& tx, CAmount& f
         if (options.exists("subtractFeeFromOutputs"))
             subtractFeeFromOutputs = options["subtractFeeFromOutputs"].get_array();
 
-        if (options.exists("replaceable")) {
-            coinControl.m_signal_bip125_rbf = options["replaceable"].get_bool();
-        }
         if (options.exists("conf_target")) {
             if (options.exists("feeRate")) {
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot specify both conf_target and feeRate");
@@ -3172,7 +3150,7 @@ static UniValue fundrawtransaction(const JSONRPCRequest& request)
                                     {"vout_index", RPCArg::Type::NUM, RPCArg::Optional::OMITTED, "The zero-based output index, before a change output is added."},
                                 },
                             },
-                            {"replaceable", RPCArg::Type::BOOL, /* default */ "wallet default", "Marks this transaction as BIP125 replaceable.\n"
+                            {"replaceable", RPCArg::Type::BOOL, /* default */ "false", "Marks this transaction as BIP125 replaceable.\n"
                             "                              Allows this transaction to be replaced by a transaction with higher fees"},
                             {"conf_target", RPCArg::Type::NUM, /* default */ "wallet default", "Confirmation target (in blocks)"},
                             {"estimate_mode", RPCArg::Type::STR, /* default */ "UNSET", "The fee estimate mode, must be one of:\n"
@@ -3348,13 +3326,7 @@ static UniValue bumpfee(const JSONRPCRequest& request)
                             {"fee_rate", RPCArg::Type::NUM, /* default */ "fallback to 'confTarget'", "FeeRate (NOT total fee) to pay, in " + CURRENCY_UNIT + " per kB\n"
             "                         Specify a fee rate instead of relying on the built-in fee estimator.\n"
             "                         Must be at least 0.0001 BTC per kB higher than the current transaction fee rate.\n"},
-                            {"replaceable", RPCArg::Type::BOOL, /* default */ "true", "Whether the new transaction should still be\n"
-            "                         marked bip-125 replaceable. If true, the sequence numbers in the transaction will\n"
-            "                         be left unchanged from the original. If false, any input sequence numbers in the\n"
-            "                         original transaction that were less than 0xfffffffe will be increased to 0xfffffffe\n"
-            "                         so the new transaction will not be explicitly bip-125 replaceable (though it may\n"
-            "                         still be replaceable in practice, for example if it has unconfirmed ancestors which\n"
-            "                         are replaceable)."},
+                            {"replaceable", RPCArg::Type::BOOL, /* default */ "false", "Disabled in emercoin."},
                             {"estimate_mode", RPCArg::Type::STR, /* default */ "UNSET", "The fee estimate mode, must be one of:\n"
             "         \"UNSET\"\n"
             "         \"ECONOMICAL\"\n"
@@ -3382,7 +3354,6 @@ static UniValue bumpfee(const JSONRPCRequest& request)
     // optional parameters
     CAmount totalFee = 0;
     CCoinControl coin_control;
-    coin_control.m_signal_bip125_rbf = true;
     if (!request.params[1].isNull()) {
         UniValue options = request.params[1];
         RPCTypeCheckObj(options,
@@ -3416,9 +3387,6 @@ static UniValue bumpfee(const JSONRPCRequest& request)
             coin_control.m_feerate = fee_rate;
         }
 
-        if (options.exists("replaceable")) {
-            coin_control.m_signal_bip125_rbf = options["replaceable"].get_bool();
-        }
         if (options.exists("estimate_mode")) {
             if (!FeeModeFromString(options["estimate_mode"].get_str(), coin_control.m_fee_mode)) {
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid estimate_mode parameter");
@@ -4131,8 +4099,7 @@ UniValue walletcreatefundedpsbt(const JSONRPCRequest& request)
                                     {"vout_index", RPCArg::Type::NUM, RPCArg::Optional::OMITTED, "The zero-based output index, before a change output is added."},
                                 },
                             },
-                            {"replaceable", RPCArg::Type::BOOL, /* default */ "wallet default", "Marks this transaction as BIP125 replaceable.\n"
-                            "                              Allows this transaction to be replaced by a transaction with higher fees"},
+                            {"replaceable", RPCArg::Type::BOOL, /* default */ "wallet default", "Disabled in emercoin."},
                             {"conf_target", RPCArg::Type::NUM, /* default */ "Fallback to wallet's confirmation target", "Confirmation target (in blocks)"},
                             {"estimate_mode", RPCArg::Type::STR, /* default */ "UNSET", "The fee estimate mode, must be one of:\n"
                             "         \"UNSET\"\n"
@@ -4166,13 +4133,7 @@ UniValue walletcreatefundedpsbt(const JSONRPCRequest& request)
 
     CAmount fee;
     int change_position;
-    bool rbf = pwallet->m_signal_rbf;
-    const UniValue &replaceable_arg = request.params[3]["replaceable"];
-    if (!replaceable_arg.isNull()) {
-        RPCTypeCheckArgument(replaceable_arg, UniValue::VBOOL);
-        rbf = replaceable_arg.isTrue();
-    }
-    CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2], rbf);
+    CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2]);
     FundTransaction(pwallet, rawTx, fee, change_position, request.params[3]);
 
     // Make a blank psbt

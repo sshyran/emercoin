@@ -295,11 +295,9 @@ void UnlinkPrunedFiles(const std::set<int>& setFilesToPrune);
 /** Prune block files up to a given height */
 void PruneBlockFilesManual(int nManualPruneHeight);
 
-/** (try to) add transaction to memory pool
- * plTxnReplaced will be appended to with all transactions replaced from mempool **/
+/** (try to) add transaction to memory pool */
 //emcTODO - check places from where AcceptToMemoryPool should be called with fRandPayCheck = true
-bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransactionRef &tx,
-                        bool* pfMissingInputs, std::list<CTransactionRef>* plTxnReplaced,
+bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransactionRef &tx, bool* pfMissingInputs,
                         bool bypass_limits, const CAmount nAbsurdFee, bool test_accept=false, bool fRandPayCheck=false) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
 /** Apply the effects of this transaction on the UTXO set represented by view */

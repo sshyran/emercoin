@@ -38,7 +38,6 @@
 #include <uint256.h>
 #include <undo.h>
 #include <util/moneystr.h>
-#include <util/rbf.h>
 #include <util/strencodings.h>
 #include <util/system.h>
 #include <util/translation.h>
@@ -387,8 +386,7 @@ static void UpdateMempoolForReorg(DisconnectedBlockTransactions& disconnectpool,
         // ignore validation errors in resurrected transactions
         CValidationState stateDummy;
         if (!fAddToMempool || (*it)->IsCoinBase() ||
-            !AcceptToMemoryPool(mempool, stateDummy, *it, nullptr /* pfMissingInputs */,
-                                nullptr /* plTxnReplaced */, true /* bypass_limits */, 0 /* nAbsurdFee */)) {
+            !AcceptToMemoryPool(mempool, stateDummy, *it, nullptr /* pfMissingInputs */, true /* bypass_limits */, 0 /* nAbsurdFee */)) {
             // If the transaction doesn't make it in to the mempool, remove any
             // transactions that depend on it (which would now be orphans).
             mempool.removeRecursive(**it, MemPoolRemovalReason::REORG);
@@ -465,7 +463,6 @@ public:
         CValidationState &m_state;
         bool* m_missing_inputs;
         const int64_t m_accept_time;
-        std::list<CTransactionRef>* m_replaced_transactions;
         const bool m_bypass_limits;
         const CAmount& m_absurd_fee;
         /*
@@ -488,15 +485,10 @@ private:
     // of checking a given transaction.
     struct Workspace {
         Workspace(const CTransactionRef& ptx) : m_ptx(ptx), m_hash(ptx->GetHash()) {}
-        std::set<uint256> m_conflicts;
-        CTxMemPool::setEntries m_all_conflicting;
         CTxMemPool::setEntries m_ancestors;
         std::unique_ptr<CTxMemPoolEntry> m_entry;
 
-        bool m_replacement_transaction;
         CAmount m_modified_fees;
-        CAmount m_conflicting_fees;
-        size_t m_conflicting_size;
 
         const CTransactionRef& m_ptx;
         const uint256& m_hash;
@@ -567,14 +559,9 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     std::vector<COutPoint>& coins_to_uncache = args.m_coins_to_uncache;
 
     // Alias what we need out of ws
-    std::set<uint256>& setConflicts = ws.m_conflicts;
-    CTxMemPool::setEntries& allConflicting = ws.m_all_conflicting;
     CTxMemPool::setEntries& setAncestors = ws.m_ancestors;
     std::unique_ptr<CTxMemPoolEntry>& entry = ws.m_entry;
-    bool& fReplacementTransaction = ws.m_replacement_transaction;
     CAmount& nModifiedFees = ws.m_modified_fees;
-    CAmount& nConflictingFees = ws.m_conflicting_fees;
-    size_t& nConflictingSize = ws.m_conflicting_size;
 
     if (pfMissingInputs) {
         *pfMissingInputs = false;
@@ -621,37 +608,8 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     // Check for conflicts with in-memory transactions
     for (const CTxIn &txin : tx.vin)
     {
-        const CTransaction* ptxConflicting = m_pool.GetConflictTx(txin.prevout);
-        if (ptxConflicting) {
-            if (!setConflicts.count(ptxConflicting->GetHash()))
-            {
-                // Allow opt-out of transaction replacement by setting
-                // nSequence > MAX_BIP125_RBF_SEQUENCE (SEQUENCE_FINAL-2) on all inputs.
-                //
-                // SEQUENCE_FINAL-1 is picked to still allow use of nLockTime by
-                // non-replaceable transactions. All inputs rather than just one
-                // is for the sake of multi-party protocols, where we don't
-                // want a single party to be able to disable replacement.
-                //
-                // The opt-out ignores descendants as anyone relying on
-                // first-seen mempool behavior should be checking all
-                // unconfirmed ancestors anyway; doing otherwise is hopelessly
-                // insecure.
-                bool fReplacementOptOut = true;
-                for (const CTxIn &_txin : ptxConflicting->vin)
-                {
-                    if (_txin.nSequence <= MAX_BIP125_RBF_SEQUENCE)
-                    {
-                        fReplacementOptOut = false;
-                        break;
-                    }
-                }
-                if (fReplacementOptOut) {
-                    return state.Invalid(ValidationInvalidReason::TX_MEMPOOL_POLICY, false, REJECT_DUPLICATE, "txn-mempool-conflict");
-                }
-
-                setConflicts.insert(ptxConflicting->GetHash());
-            }
+        if (m_pool.GetConflictTx(txin.prevout)) {
+            return state.Invalid(ValidationInvalidReason::TX_MEMPOOL_POLICY, false, REJECT_DUPLICATE, "txn-mempool-conflict");
         }
     }
 
@@ -749,43 +707,6 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
                 REJECT_HIGHFEE, "absurdly-high-fee",
                 strprintf("%d > %d", nFees, nAbsurdFee));
 
-    const CTxMemPool::setEntries setIterConflicting = m_pool.GetIterSet(setConflicts);
-    // Calculate in-mempool ancestors, up to a limit.
-    if (setConflicts.size() == 1) {
-        // In general, when we receive an RBF transaction with mempool conflicts, we want to know whether we
-        // would meet the chain limits after the conflicts have been removed. However, there isn't a practical
-        // way to do this short of calculating the ancestor and descendant sets with an overlay cache of
-        // changed mempool entries. Due to both implementation and runtime complexity concerns, this isn't
-        // very realistic, thus we only ensure a limited set of transactions are RBF'able despite mempool
-        // conflicts here. Importantly, we need to ensure that some transactions which were accepted using
-        // the below carve-out are able to be RBF'ed, without impacting the security the carve-out provides
-        // for off-chain contract systems (see link in the comment below).
-        //
-        // Specifically, the subset of RBF transactions which we allow despite chain limits are those which
-        // conflict directly with exactly one other transaction (but may evict children of said transaction),
-        // and which are not adding any new mempool dependencies. Note that the "no new mempool dependencies"
-        // check is accomplished later, so we don't bother doing anything about it here, but if BIP 125 is
-        // amended, we may need to move that check to here instead of removing it wholesale.
-        //
-        // Such transactions are clearly not merging any existing packages, so we are only concerned with
-        // ensuring that (a) no package is growing past the package size (not count) limits and (b) we are
-        // not allowing something to effectively use the (below) carve-out spot when it shouldn't be allowed
-        // to.
-        //
-        // To check these we first check if we meet the RBF criteria, above, and increment the descendant
-        // limits by the direct conflict and its descendants (as these are recalculated in
-        // CalculateMempoolAncestors by assuming the new transaction being added is a new descendant, with no
-        // removals, of each parent's existing dependant set). The ancestor count limits are unmodified (as
-        // the ancestor limits should be the same for both our new transaction and any conflicts).
-        // We don't bother incrementing m_limit_descendants by the full removal count as that limit never comes
-        // into force here (as we're only adding a single transaction).
-        assert(setIterConflicting.size() == 1);
-        CTxMemPool::txiter conflict = *setIterConflicting.begin();
-
-        m_limit_descendants += 1;
-        m_limit_descendant_size += conflict->GetSizeWithDescendants();
-    }
-
     std::string errString;
     if (!m_pool.CalculateMemPoolAncestors(*entry, setAncestors, m_limit_ancestors, m_limit_ancestor_size, m_limit_descendants, m_limit_descendant_size, errString)) {
         setAncestors.clear();
@@ -808,136 +729,6 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         }
     }
 
-    // A transaction that spends outputs that would be replaced by it is invalid. Now
-    // that we have the set of all ancestors we can detect this
-    // pathological case by making sure setConflicts and setAncestors don't
-    // intersect.
-    for (CTxMemPool::txiter ancestorIt : setAncestors)
-    {
-        const uint256 &hashAncestor = ancestorIt->GetTx().GetHash();
-        if (setConflicts.count(hashAncestor))
-        {
-            return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-txns-spends-conflicting-tx",
-                    strprintf("%s spends conflicting transaction %s",
-                        hash.ToString(),
-                        hashAncestor.ToString()));
-        }
-    }
-
-    // Check if it's economically rational to mine this transaction rather
-    // than the ones it replaces.
-    nConflictingFees = 0;
-    nConflictingSize = 0;
-    uint64_t nConflictingCount = 0;
-
-    // If we don't hold the lock allConflicting might be incomplete; the
-    // subsequent RemoveStaged() and addUnchecked() calls don't guarantee
-    // mempool consistency for us.
-    fReplacementTransaction = setConflicts.size();
-    if (fReplacementTransaction)
-    {
-        CFeeRate newFeeRate(nModifiedFees, nSize);
-        std::set<uint256> setConflictsParents;
-        const int maxDescendantsToVisit = 100;
-        for (const auto& mi : setIterConflicting) {
-            // Don't allow the replacement to reduce the feerate of the
-            // mempool.
-            //
-            // We usually don't want to accept replacements with lower
-            // feerates than what they replaced as that would lower the
-            // feerate of the next block. Requiring that the feerate always
-            // be increased is also an easy-to-reason about way to prevent
-            // DoS attacks via replacements.
-            //
-            // We only consider the feerates of transactions being directly
-            // replaced, not their indirect descendants. While that does
-            // mean high feerate children are ignored when deciding whether
-            // or not to replace, we do require the replacement to pay more
-            // overall fees too, mitigating most cases.
-            CFeeRate oldFeeRate(mi->GetModifiedFee(), mi->GetTxSize());
-            if (newFeeRate <= oldFeeRate)
-            {
-                return state.Invalid(ValidationInvalidReason::TX_MEMPOOL_POLICY, false, REJECT_INSUFFICIENTFEE, "insufficient fee",
-                        strprintf("rejecting replacement %s; new feerate %s <= old feerate %s",
-                            hash.ToString(),
-                            newFeeRate.ToString(),
-                            oldFeeRate.ToString()));
-            }
-
-            for (const CTxIn &txin : mi->GetTx().vin)
-            {
-                setConflictsParents.insert(txin.prevout.hash);
-            }
-
-            nConflictingCount += mi->GetCountWithDescendants();
-        }
-        // This potentially overestimates the number of actual descendants
-        // but we just want to be conservative to avoid doing too much
-        // work.
-        if (nConflictingCount <= maxDescendantsToVisit) {
-            // If not too many to replace, then calculate the set of
-            // transactions that would have to be evicted
-            for (CTxMemPool::txiter it : setIterConflicting) {
-                m_pool.CalculateDescendants(it, allConflicting);
-            }
-            for (CTxMemPool::txiter it : allConflicting) {
-                nConflictingFees += it->GetModifiedFee();
-                nConflictingSize += it->GetTxSize();
-            }
-        } else {
-            return state.Invalid(ValidationInvalidReason::TX_MEMPOOL_POLICY, false, REJECT_NONSTANDARD, "too many potential replacements",
-                    strprintf("rejecting replacement %s; too many potential replacements (%d > %d)\n",
-                        hash.ToString(),
-                        nConflictingCount,
-                        maxDescendantsToVisit));
-        }
-
-        for (unsigned int j = 0; j < tx.vin.size(); j++)
-        {
-            // We don't want to accept replacements that require low
-            // feerate junk to be mined first. Ideally we'd keep track of
-            // the ancestor feerates and make the decision based on that,
-            // but for now requiring all new inputs to be confirmed works.
-            //
-            // Note that if you relax this to make RBF a little more useful,
-            // this may break the CalculateMempoolAncestors RBF relaxation,
-            // above. See the comment above the first CalculateMempoolAncestors
-            // call for more info.
-            if (!setConflictsParents.count(tx.vin[j].prevout.hash))
-            {
-                // Rather than check the UTXO set - potentially expensive -
-                // it's cheaper to just check if the new input refers to a
-                // tx that's in the mempool.
-                if (m_pool.exists(tx.vin[j].prevout.hash)) {
-                    return state.Invalid(ValidationInvalidReason::TX_MEMPOOL_POLICY, false, REJECT_NONSTANDARD, "replacement-adds-unconfirmed",
-                            strprintf("replacement %s adds unconfirmed input, idx %d",
-                                hash.ToString(), j));
-                }
-            }
-        }
-
-        // The replacement must pay greater fees than the transactions it
-        // replaces - if we did the bandwidth used by those conflicting
-        // transactions would not be paid for.
-        if (nModifiedFees < nConflictingFees)
-        {
-            return state.Invalid(ValidationInvalidReason::TX_MEMPOOL_POLICY, false, REJECT_INSUFFICIENTFEE, "insufficient fee",
-                    strprintf("rejecting replacement %s, less fees than conflicting txs; %s < %s",
-                        hash.ToString(), FormatMoney(nModifiedFees), FormatMoney(nConflictingFees)));
-        }
-
-        // Finally in addition to paying more fees than the conflicts the
-        // new transaction must pay for its own bandwidth.
-        CAmount nDeltaFees = nModifiedFees - nConflictingFees;
-        if (nDeltaFees < ::incrementalRelayFee.GetFee(nSize))
-        {
-            return state.Invalid(ValidationInvalidReason::TX_MEMPOOL_POLICY, false, REJECT_INSUFFICIENTFEE, "insufficient fee",
-                    strprintf("rejecting replacement %s, not enough additional fees to relay; %s < %s",
-                        hash.ToString(),
-                        FormatMoney(nDeltaFees),
-                        FormatMoney(::incrementalRelayFee.GetFee(nSize))));
-        }
-    }
     return true;
     //emcTODO - add code somewhere that deals with fRandPayCheck
     //emcTODO - add code somewhere that adds to AddToPendingNames
@@ -1010,33 +801,14 @@ bool MemPoolAccept::Finalize(ATMPArgs& args, Workspace& ws)
     CValidationState &state = args.m_state;
     const bool bypass_limits = args.m_bypass_limits;
 
-    CTxMemPool::setEntries& allConflicting = ws.m_all_conflicting;
     CTxMemPool::setEntries& setAncestors = ws.m_ancestors;
-    const CAmount& nModifiedFees = ws.m_modified_fees;
-    const CAmount& nConflictingFees = ws.m_conflicting_fees;
-    const size_t& nConflictingSize = ws.m_conflicting_size;
-    const bool fReplacementTransaction = ws.m_replacement_transaction;
     std::unique_ptr<CTxMemPoolEntry>& entry = ws.m_entry;
 
-    // Remove conflicting transactions from the mempool
-    for (CTxMemPool::txiter it : allConflicting)
-    {
-        LogPrint(BCLog::MEMPOOL, "replacing tx %s with %s for %s BTC additional fees, %d delta bytes\n",
-                it->GetTx().GetHash().ToString(),
-                hash.ToString(),
-                FormatMoney(nModifiedFees - nConflictingFees),
-                (int)entry->GetTxSize() - (int)nConflictingSize);
-        if (args.m_replaced_transactions)
-            args.m_replaced_transactions->push_back(it->GetSharedTx());
-    }
-    m_pool.RemoveStaged(allConflicting, false, MemPoolRemovalReason::REPLACED);
-
     // This transaction should only count for fee estimation if:
-    // - it isn't a BIP 125 replacement transaction (may not be widely supported)
     // - it's not being re-added during a reorg which bypasses typical mempool fee limits
     // - the node is not behind
     // - the transaction is not dependent on any other transactions in the mempool
-    bool validForFeeEstimation = !fReplacementTransaction && !bypass_limits && IsCurrentForFeeEstimation() && m_pool.HasNoInputsOf(tx);
+    bool validForFeeEstimation = !bypass_limits && IsCurrentForFeeEstimation() && m_pool.HasNoInputsOf(tx);
 
     // Store transaction in memory
     m_pool.addUnchecked(*entry, setAncestors, validForFeeEstimation);
@@ -1084,11 +856,10 @@ bool MemPoolAccept::AcceptSingleTransaction(const CTransactionRef& ptx, ATMPArgs
 
 /** (try to) add transaction to memory pool with a specified acceptance time **/
 static bool AcceptToMemoryPoolWithTime(const CChainParams& chainparams, CTxMemPool& pool, CValidationState &state, const CTransactionRef &tx,
-                        bool* pfMissingInputs, int64_t nAcceptTime, std::list<CTransactionRef>* plTxnReplaced,
-                        bool bypass_limits, const CAmount nAbsurdFee, bool test_accept, bool fRandPayCheck=false) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+                        bool* pfMissingInputs, int64_t nAcceptTime, bool bypass_limits, const CAmount nAbsurdFee, bool test_accept, bool fRandPayCheck=false) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
     std::vector<COutPoint> coins_to_uncache;
-    MemPoolAccept::ATMPArgs args { chainparams, state, pfMissingInputs, nAcceptTime, plTxnReplaced, bypass_limits, nAbsurdFee, coins_to_uncache, test_accept, fRandPayCheck };
+    MemPoolAccept::ATMPArgs args { chainparams, state, pfMissingInputs, nAcceptTime, bypass_limits, nAbsurdFee, coins_to_uncache, test_accept, fRandPayCheck };
     bool res = MemPoolAccept(pool).AcceptSingleTransaction(tx, args);
     if (!res) {
         // Remove coins that were not present in the coins cache before calling ATMPW;
@@ -1105,12 +876,11 @@ static bool AcceptToMemoryPoolWithTime(const CChainParams& chainparams, CTxMemPo
     return res;
 }
 
-bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransactionRef &tx,
-                        bool* pfMissingInputs, std::list<CTransactionRef>* plTxnReplaced,
+bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransactionRef &tx, bool* pfMissingInputs,
                         bool bypass_limits, const CAmount nAbsurdFee, bool test_accept, bool fRandPayCheck)
 {
     const CChainParams& chainparams = Params();
-    return AcceptToMemoryPoolWithTime(chainparams, pool, state, tx, pfMissingInputs, GetTime(), plTxnReplaced, bypass_limits, nAbsurdFee, test_accept, fRandPayCheck);
+    return AcceptToMemoryPoolWithTime(chainparams, pool, state, tx, pfMissingInputs, GetTime(), bypass_limits, nAbsurdFee, test_accept, fRandPayCheck);
 }
 
 /**
@@ -5340,8 +5110,7 @@ bool LoadMempool(CTxMemPool& pool)
             if (nTime + nExpiryTimeout > nNow) {
                 LOCK(cs_main);
                 AcceptToMemoryPoolWithTime(chainparams, pool, state, tx, nullptr /* pfMissingInputs */, nTime,
-                                           nullptr /* plTxnReplaced */, false /* bypass_limits */, 0 /* nAbsurdFee */,
-                                           false /* test_accept */); //emcTODO - is randpay check needed here?
+                                           false /* bypass_limits */, 0 /* nAbsurdFee */, false /* test_accept */); //emcTODO - is randpay check needed here?
                 if (state.IsValid()) {
                     ++count;
                 } else {

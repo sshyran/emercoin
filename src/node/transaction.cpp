@@ -39,8 +39,7 @@ TransactionError BroadcastTransaction(const CTransactionRef tx, std::string& err
         // Transaction is not already in the mempool. Submit it.
         CValidationState state;
         bool fMissingInputs;
-        if (!AcceptToMemoryPool(mempool, state, std::move(tx), &fMissingInputs,
-                nullptr /* plTxnReplaced */, false /* bypass_limits */, max_tx_fee)) {
+        if (!AcceptToMemoryPool(mempool, state, std::move(tx), &fMissingInputs, false /* bypass_limits */, max_tx_fee)) {
             if (state.IsInvalid()) {
                 err_string = FormatStateMessage(state);
                 return TransactionError::MEMPOOL_REJECTED;
