@@ -103,7 +103,8 @@ bool WriteSyncCheckpoint(const uint256& hashCheckpoint)
     if (checkpointNew && checkpointNew->nStatus & BLOCK_HAVE_DATA) {
         if (!pblocktree->WriteSyncCheckpoint(hashCheckpoint))
             return error("WriteSyncCheckpoint(): failed to write to txdb sync checkpoint %s", hashCheckpoint.ToString());
-        ::ChainstateActive().ForceFlushStateToDisk();
+        if (::ChainstateActive().CanFlushToDisk())
+            ::ChainstateActive().ForceFlushStateToDisk();
     }
     hashSyncCheckpoint = hashCheckpoint;
     return true;
