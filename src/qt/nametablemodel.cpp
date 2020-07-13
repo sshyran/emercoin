@@ -80,9 +80,10 @@ public:
         parent->beginResetModel();
         cachedNameTable.clear();
 
-        CNameVal nameUniq;
+        //emcTODO - fix and reenable GetNameList
+        //CNameVal nameUniq;
         map<CNameVal, NameTxInfo> mapNames, mapPending;
-        GetNameList(nameUniq, mapNames, mapPending, model->wallet().getWallet().get());
+        //GetNameList(nameUniq, mapNames, mapPending, model->wallet().getWallet().get());
 
         // add info about existing names
         for (const auto& item : mapNames)
