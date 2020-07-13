@@ -1915,6 +1915,14 @@ bool AppInitMain(InitInterfaces& interfaces)
     SetRPCWarmupFinished();
     uiInterface.InitMessage(_("Done loading").translated);
 
+    for (const auto& client : interfaces.chain_clients) {
+        client->start(scheduler);
+    }
+
+    scheduler.scheduleEvery([]{
+        g_banman->DumpBanlist();
+    }, DUMP_BANS_INTERVAL * 1000);
+
     // Generate coins in the background
     if (GetWallets()[0] && gArgs.GetBoolArg("-stakegen", true))
         threadGroup.create_thread(std::bind(&ThreadStakeMinter, GetWallets()[0]));
@@ -1942,14 +1950,6 @@ bool AppInitMain(InitInterfaces& interfaces)
         enums.c_str(), tf.c_str(), verbose);
         LogPrintf("DNS server started\n");
     }
-
-    for (const auto& client : interfaces.chain_clients) {
-        client->start(scheduler);
-    }
-
-    scheduler.scheduleEvery([]{
-        g_banman->DumpBanlist();
-    }, DUMP_BANS_INTERVAL * 1000);
 
     return true;
 }

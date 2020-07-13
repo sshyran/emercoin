@@ -592,6 +592,7 @@ void PoSMiner(std::shared_ptr<CWallet> pwallet)
     {
         std::vector<COutput> vCoins;
         CCoinControl coincontrol;
+        LOCK2(cs_main, pwallet->cs_wallet);  //emercoin: cs_main is used to avoid potential deadlock issue
         pwallet->AvailableCoins(*pwallet->chain().lock(), vCoins, false, &coincontrol);
         pos_timio = gArgs.GetArg("-staketimio", 500) + 30 * sqrt(vCoins.size());
         LogPrintf("Set proof-of-stake timeout: %ums for %u UTXOs\n", pos_timio, vCoins.size());
