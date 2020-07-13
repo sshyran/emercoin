@@ -1708,11 +1708,28 @@ bool AppInitMain(InitInterfaces& interfaces)
         return false;
     }
 
+    fs::path est_path = GetDataDir() / FEE_ESTIMATES_FILENAME;
+    CAutoFile est_filein(fsbridge::fopen(est_path, "rb"), SER_DISK, CLIENT_VERSION);
+    // Allowed to fail as this file IS missing on first startup.
+    if (!est_filein.IsNull())
+        ::feeEstimator.Read(est_filein);
+    fFeeEstimatesInitialized = true;
+
+    // ********************************************************* Step 8: start indexers
+    if (gArgs.GetBoolArg("-txindex", DEFAULT_TXINDEX)) {
+        g_txindex = MakeUnique<TxIndex>(nTxIndexCache, false, fReindex);
+        g_txindex->Start();
+    }
+
+    for (const auto& filter_type : g_enabled_filter_types) {
+        InitBlockFilterIndex(filter_type, filter_index_cache, false, fReindex);
+        GetBlockFilterIndex(filter_type)->Start();
+    }
+
+    // emercoin: check if indexes need to be created or recreated
     if (!boost::filesystem::exists(GetDataDir() / "nameindex"))
         boost::filesystem::create_directory(GetDataDir() / "nameindex");
 
-    // emercoin: check if indexes need to be created or recreated
-    // we should have block index fully loaded by now
     boost::filesystem::path pathNameIndex = GetDataDir() / "nameindex" / "nameindexV2.dat";
     boost::filesystem::path pathNameAddress = GetDataDir() / "nameindex" / "nameaddress.dat";
     extern bool createNameIndexes();
@@ -1741,24 +1758,6 @@ bool AppInitMain(InitInterfaces& interfaces)
     {
         LogPrintf("Fatal error: Failed to create secondary index nameaddress.dat.\n");
         return false;
-    }
-
-    fs::path est_path = GetDataDir() / FEE_ESTIMATES_FILENAME;
-    CAutoFile est_filein(fsbridge::fopen(est_path, "rb"), SER_DISK, CLIENT_VERSION);
-    // Allowed to fail as this file IS missing on first startup.
-    if (!est_filein.IsNull())
-        ::feeEstimator.Read(est_filein);
-    fFeeEstimatesInitialized = true;
-
-    // ********************************************************* Step 8: start indexers
-    if (gArgs.GetBoolArg("-txindex", DEFAULT_TXINDEX)) {
-        g_txindex = MakeUnique<TxIndex>(nTxIndexCache, false, fReindex);
-        g_txindex->Start();
-    }
-
-    for (const auto& filter_type : g_enabled_filter_types) {
-        InitBlockFilterIndex(filter_type, filter_index_cache, false, fReindex);
-        GetBlockFilterIndex(filter_type)->Start();
     }
 
     // ********************************************************* Step 9: load wallet
