@@ -1827,7 +1827,7 @@ bool static ProcessHeadersMessage(CNode *pfrom, CConnman *connman, const std::ve
     return true;
 }
 
-void static ProcessOrphanTx(CConnman* connman, std::set<uint256>& orphan_work_set, std::list<CTransactionRef>& removed_txn) EXCLUSIVE_LOCKS_REQUIRED(cs_main, g_cs_orphans)
+void static ProcessOrphanTx(CConnman* connman, std::set<uint256>& orphan_work_set) EXCLUSIVE_LOCKS_REQUIRED(cs_main, g_cs_orphans)
 {
     AssertLockHeld(cs_main);
     AssertLockHeld(g_cs_orphans);
@@ -1850,7 +1850,8 @@ void static ProcessOrphanTx(CConnman* connman, std::set<uint256>& orphan_work_se
         CValidationState orphan_state;
 
         if (setMisbehaving.count(fromPeer)) continue;
-        if (AcceptToMemoryPool(mempool, orphan_state, porphanTx, &fMissingInputs2, &removed_txn, false /* bypass_limits */, 0 /* nAbsurdFee */)) {
+
+        if (AcceptToMemoryPool(mempool, orphan_state, porphanTx, &fMissingInputs2, false /* bypass_limits */, 0 /* nAbsurdFee */)) {
             LogPrint(BCLog::MEMPOOL, "   accepted orphan tx %s\n", orphanHash.ToString());
             RelayTransaction(orphanHash, *connman);
             for (unsigned int i = 0; i < orphanTx.vout.size(); i++) {
@@ -2576,10 +2577,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         nodestate->m_tx_download.m_tx_in_flight.erase(inv.hash);
         EraseTxRequest(inv.hash);
 
-        std::list<CTransactionRef> lRemovedTxn;
-
         if (!AlreadyHave(inv) &&
-            AcceptToMemoryPool(mempool, state, ptx, &fMissingInputs, &lRemovedTxn, false /* bypass_limits */, 0 /* nAbsurdFee */)) {
+            AcceptToMemoryPool(mempool, state, ptx, &fMissingInputs, false /* bypass_limits */, 0 /* nAbsurdFee */)) {
             // emercoin: raise temerature for this peer
             pfrom->temperature  += (int32_t)::GetVirtualTransactionSize(*ptx);
             mempool.check(&::ChainstateActive().CoinsTip());
@@ -2599,7 +2598,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 mempool.size(), mempool.DynamicMemoryUsage() / 1000);
 
             // Recursively process any orphan transactions that depended on this one
-            ProcessOrphanTx(connman, pfrom->orphan_work_set, lRemovedTxn);
+            ProcessOrphanTx(connman, pfrom->orphan_work_set);
         }
         else if (fMissingInputs)
         {
@@ -2664,9 +2663,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 }
             }
         }
-
-        for (const CTransactionRef& removedTx : lRemovedTxn)
-            AddToCompactExtraTransactions(removedTx);
 
         // If a tx has been detected by recentRejects, we will have reached
         // this point and the tx will have been ignored. Because we haven't run
@@ -3521,12 +3517,8 @@ bool PeerLogicValidation::ProcessMessages(CNode* pfrom, std::atomic<bool>& inter
         ProcessGetData(pfrom, chainparams, connman, interruptMsgProc);
 
     if (!pfrom->orphan_work_set.empty()) {
-        std::list<CTransactionRef> removed_txn;
         LOCK2(cs_main, g_cs_orphans);
-        ProcessOrphanTx(connman, pfrom->orphan_work_set, removed_txn);
-        for (const CTransactionRef& removedTx : removed_txn) {
-            AddToCompactExtraTransactions(removedTx);
-        }
+        ProcessOrphanTx(connman, pfrom->orphan_work_set);
     }
 
     if (pfrom->fDisconnect)
