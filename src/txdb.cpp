@@ -277,7 +277,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts(const Consensus::Params& consensusParams, 
 {
     std::unique_ptr<CDBIterator> pcursor(NewIterator());
 
-    pcursor->Seek(std::make_pair(std::make_pair(DB_BLOCK_INDEX, uint256()), 'a')); // 'a' signifies the first part
+    pcursor->Seek(std::make_pair(DB_BLOCK_INDEX, uint256()));
 
     // Load m_block_index
     while (pcursor->Valid()) {
@@ -287,17 +287,19 @@ bool CBlockTreeDB::LoadBlockIndexGuts(const Consensus::Params& consensusParams, 
         if (pcursor->GetKey(key) && key.first == DB_BLOCK_INDEX) {
             CDiskBlockIndex diskindex;
             if (pcursor->GetValue(diskindex)) {
-                // Construct immutable parts of block index object
+                // Construct block index object
                 CBlockIndex* pindexNew = insertBlockIndex(diskindex.GetBlockHash());
-                assert(diskindex.GetBlockHash() == *pindexNew->phashBlock); // paranoia check
-
                 pindexNew->pprev          = insertBlockIndex(diskindex.hashPrev);
                 pindexNew->nHeight        = diskindex.nHeight;
+                pindexNew->nFile          = diskindex.nFile;
+                pindexNew->nDataPos       = diskindex.nDataPos;
+                pindexNew->nUndoPos       = diskindex.nUndoPos;
                 pindexNew->nVersion       = diskindex.nVersion;
                 pindexNew->hashMerkleRoot = diskindex.hashMerkleRoot;
                 pindexNew->nTime          = diskindex.nTime;
                 pindexNew->nBits          = diskindex.nBits;
                 pindexNew->nNonce         = diskindex.nNonce;
+                pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
 
                 // ppcoin related block index fields
@@ -308,13 +310,6 @@ bool CBlockTreeDB::LoadBlockIndexGuts(const Consensus::Params& consensusParams, 
                 pindexNew->prevoutStake   = diskindex.prevoutStake;
                 pindexNew->nStakeTime     = diskindex.nStakeTime;
                 pindexNew->hashProofOfStake = diskindex.hashProofOfStake;
-
-                pcursor->Next(); // now we should be on the 'b' subkey
-                assert(pcursor->Valid());
-
-                //emcTODO fix serialization errors
-//                if (!pcursor->GetValue(*pindexNew)) // read all mutable data
-//                    return error("LoadBlockIndex() : failed to read value");
 
                 CBlockHeader tmp = pindexNew->GetBlockHeader();
                 if (pindexNew->IsProofOfWork() && !CheckBlockProofOfWork(&tmp, consensusParams))

@@ -371,7 +371,7 @@ public:
         assert(!(nUpTo & ~BLOCK_VALID_MASK)); // Only validity flags allowed.
         if (nStatus & BLOCK_FAILED_MASK)
             return false;
-        return ((nStatus & BLOCK_VALID_MASK) >= (unsigned)nUpTo);
+        return ((nStatus & BLOCK_VALID_MASK) >= nUpTo);
     }
 
     //! Raise the validity level of this block index entry.
@@ -381,7 +381,7 @@ public:
         assert(!(nUpTo & ~BLOCK_VALID_MASK)); // Only validity flags allowed.
         if (nStatus & BLOCK_FAILED_MASK)
             return false;
-        if ((nStatus & BLOCK_VALID_MASK) < (unsigned)nUpTo) {
+        if ((nStatus & BLOCK_VALID_MASK) < nUpTo) {
             nStatus = (nStatus & ~BLOCK_VALID_MASK) | nUpTo;
             return true;
         }
@@ -436,8 +436,14 @@ public:
         READWRITE(VARINT(nHeight, VarIntMode::NONNEGATIVE_SIGNED));
         READWRITE(VARINT(nStatus));
         READWRITE(VARINT(nTx));
+        if (nStatus & (BLOCK_HAVE_DATA | BLOCK_HAVE_UNDO))
+            READWRITE(VARINT(nFile, VarIntMode::NONNEGATIVE_SIGNED));
+        if (nStatus & BLOCK_HAVE_DATA)
+            READWRITE(VARINT(nDataPos));
+        if (nStatus & BLOCK_HAVE_UNDO)
+            READWRITE(VARINT(nUndoPos));
 
-//emcTODO - check if our code needs VarIntMode settings
+        //emcTODO - check if our code needs VarIntMode settings
         READWRITE(nMint);
         READWRITE(nMoneySupply);
         READWRITE(nFlags);
@@ -454,13 +460,6 @@ public:
             const_cast<CDiskBlockIndex*>(this)->nStakeTime = 0;
             const_cast<CDiskBlockIndex*>(this)->hashProofOfStake = uint256();
         }
-        
-        if (nStatus & (BLOCK_HAVE_DATA | BLOCK_HAVE_UNDO))
-            READWRITE(VARINT(nFile, VarIntMode::NONNEGATIVE_SIGNED));
-        if (nStatus & BLOCK_HAVE_DATA)
-            READWRITE(VARINT(nDataPos));
-        if (nStatus & BLOCK_HAVE_UNDO)
-            READWRITE(VARINT(nUndoPos));
 
         // block header
         READWRITE(this->nVersion);
