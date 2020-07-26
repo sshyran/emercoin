@@ -1274,7 +1274,7 @@ bool createNameIndexes()
     //emcTODO check if you need to create db here
 //    CNameDB dbName("cr+");
 //    CNameAddressDB dbNameAddress("cr+");
-    int maxHeight = ::ChainActive().Height() + 1;
+    int maxHeight = std::max(::ChainActive().Height(), 1);
     int reportDone = 0;
     for (int nHeight=0; nHeight<=maxHeight; nHeight++) {
         int percentageDone = (100*nHeight / maxHeight);

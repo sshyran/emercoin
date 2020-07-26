@@ -69,6 +69,7 @@
 #include <emcdns.h>
 #include <wallet/wallet.h>
 #include <checkpoints.h>
+#include <namecoin.h>
 
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/replace.hpp>
@@ -1727,38 +1728,26 @@ bool AppInitMain(InitInterfaces& interfaces)
     }
 
     // emercoin: check if indexes need to be created or recreated
-    if (!boost::filesystem::exists(GetDataDir() / "nameindex"))
-        boost::filesystem::create_directory(GetDataDir() / "nameindex");
-
-    boost::filesystem::path pathNameIndex = GetDataDir() / "nameindex" / "nameindexV2.dat";
-    boost::filesystem::path pathNameAddress = GetDataDir() / "nameindex" / "nameaddress.dat";
-    extern bool createNameIndexes();
-    if (!boost::filesystem::exists(pathNameIndex))
-    {
+    boost::filesystem::path pathNameIndex = GetDataDir() / "nameindex" / "nameindexV3";
+    boost::filesystem::path pathNameAddress = GetDataDir() / "nameindex" / "nameaddressV3";
+    if (!boost::filesystem::exists(pathNameIndex)) {
         // emercoin: remove secondary index if we are re-creating first one (both will be re-created)
         if (boost::filesystem::exists(pathNameAddress))
             boost::filesystem::remove(pathNameAddress);
-
-        uiInterface.InitMessage("Creating nameindex (do not close app!)...");
-        if (!createNameIndexes())
-        {
-            LogPrintf("Fatal error: Failed to create name indexes.\n");
-            return false;
-        }
     }
 
-    // emercoin: recreate secondary (address -> name) index if it was enabled, remove otherwise
-    // it should only be created if primary index already exists
-    fNameAddressIndex = gArgs.GetBoolArg("-nameaddress", false);
-    if (!fNameAddressIndex && boost::filesystem::exists(pathNameAddress))
-        boost::filesystem::remove(pathNameAddress);
+    pNameDB = MakeUnique<CNameDB>(nTxIndexCache, false, fReindex);
 
-    extern bool createNameAddressFile();
-    if (fNameAddressIndex && !boost::filesystem::exists(GetDataDir() / "nameindex" / "nameaddress.dat") && !createNameAddressFile())
-    {
-        LogPrintf("Fatal error: Failed to create secondary index nameaddress.dat.\n");
-        return false;
+    if (gArgs.GetBoolArg("-nameaddress", false)) {
+        pNameAddressDB = MakeUnique<CNameAddressDB>(nTxIndexCache, false, fReindex);
+    } else {
+        if (boost::filesystem::exists(pathNameAddress))
+            boost::filesystem::remove(pathNameAddress);
     }
+
+
+    if (!boost::filesystem::exists(GetDataDir() / "nameindex"))
+        boost::filesystem::create_directory(GetDataDir() / "nameindex");
 
     // ********************************************************* Step 9: load wallet
     for (const auto& client : interfaces.chain_clients) {
