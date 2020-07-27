@@ -119,7 +119,7 @@ std::string CTransaction::ToString() const
 }
 
 const uint256 CTransaction::GetBtcHash() const {
-    return SerializeHash(*this, SER_GETHASH, SERIALIZE_TRANSACTION_NO_WITNESS);
+    return SerializeHash(*this, SER_GETHASH | SER_BTC_TX, SERIALIZE_TRANSACTION_NO_WITNESS);
 }
 
 CAmount GetMinFee(const size_t& nBytes) {
