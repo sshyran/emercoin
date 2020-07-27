@@ -154,7 +154,7 @@ CAmount GetNameOpFee(const CBlockIndex* pindex, const int nRentalDays, int op, c
     return txMinFee;
 }
 
-// scans nameindex.dat and return names with their last CNameIndex
+// scans nameindexV3 and return names with their last CNameIndex
 // if nMax == 0 - it will scan all names
 bool CNameDB::ScanNames(const CNameVal& name, unsigned int nMax,
         vector<
@@ -1341,11 +1341,11 @@ bool createNameAddressFile()
 
         CTransactionRef tx;
         if (!g_txindex || !g_txindex->FindTx(txpos, tx))
-            return error("createNameAddressFile() : could not read tx from disk - your blockchain or nameindex.dat are probably corrupt");
+            return error("createNameAddressFile() : could not read tx from disk - your blockchain or nameindexV3 are probably corrupt");
 
         NameTxInfo nti;
         if (!DecodeNameTx(tx, nti, true))
-            return error("createNameAddressFile() : failed to decode name - your blockchain or nameindex.dat are probably corrupt");
+            return error("createNameAddressFile() : failed to decode name - your blockchain or nameindexV3 are probably corrupt");
 
         if (nti.strAddress != "" && nti.op != OP_NAME_DELETE)
             pNameAddressDB->WriteSingleName(nti.strAddress, name);
@@ -1471,7 +1471,7 @@ bool CNamecoinHooks::CheckInputs(const CTransactionRef& tx, const CBlockIndex* p
             return error("CheckInputsHook() : failed to read from name DB for %s", info);
         uint256 lasthash = lastKnownNameTx->GetHash();
         if (!DecodeNameTx(lastKnownNameTx, prev_nti, true))
-            return error("CheckInputsHook() : Failed to decode existing previous name tx for %s. Your blockchain or nameindex.dat may be corrupt.", info);
+            return error("CheckInputsHook() : Failed to decode existing previous name tx for %s. Your blockchain or nameindexV3 may be corrupt.", info);
 
         for (unsigned int i = 0; i < tx->vin.size(); i++) { //this scans all scripts of tx.vin
             if (tx->vin[i].prevout.hash != lasthash)
@@ -1534,7 +1534,7 @@ bool CNamecoinHooks::CheckInputs(const CTransactionRef& tx, const CBlockIndex* p
             return error("CheckInputsHook() : unknown name operation for %s", info);
     }
 
-    // all checks passed - record tx information to vName. It will be sorted by nTime and writen to nameindex.dat at the end of ConnectBlock
+    // all checks passed - record tx information to vName. It will be sorted by nTime and writen to nameindexV3 at the end of ConnectBlock
     CNameIndex txPos2;
     txPos2.nHeight = pindexBlock->nHeight;
     txPos2.value = nti.value;
@@ -1663,14 +1663,14 @@ bool CNamecoinHooks::ExtractAddress(const CScript& script, string& address)
     return true;
 }
 
-// Executes name operations in vName and writes result to nameindex.dat.
+// Executes name operations in vName and writes result to nameindexV3.
 // NOTE: the block should already be written to blockchain by now - otherwise this may fail.
 bool CNamecoinHooks::ConnectBlock(CBlockIndex* pindex, const vector<nameTempProxy> &vName)
 {
     if (vName.empty())
         return true;
 
-    // All of these name ops should succed. If there is an error - nameindex.dat is probably corrupt.
+    // All of these name ops should succed. If there is an error - nameindexV3 is probably corrupt.
     set<CNameVal> sNameNew;
 
     for (const auto& i : vName)
@@ -1724,7 +1724,7 @@ bool CNamecoinHooks::ConnectBlock(CBlockIndex* pindex, const vector<nameTempProx
             return error("ConnectBlockHook() : failed to write to name DB");
         if (i.op == OP_NAME_NEW)
             sNameNew.insert(i.name);
-        LogPrintf("ConnectBlockHook(): writing %s %s in block %d to nameindexV2.dat\n", stringFromOp(i.op), stringFromNameVal(i.name), pindex->nHeight);
+        LogPrintf("ConnectBlockHook(): writing %s %s in block %d to indexes/nameindexV3\n", stringFromOp(i.op), stringFromNameVal(i.name), pindex->nHeight);
 
 
         // update (address->name) index

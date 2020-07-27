@@ -2156,7 +2156,7 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
     // add this block to the view's block chain
     view.SetBestBlock(pindex->GetBlockHash());
 
-    // emercoin: add names to nameindex.dat
+    // emercoin: add names to nameindexV3
     if (fWriteNames && !vName.empty())
         hooks->ConnectBlock(pindex, vName);
 

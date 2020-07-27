@@ -1538,8 +1538,8 @@ bool AppInitMain(InitInterfaces& interfaces)
 
                 if (fReindex) {
                     boost::system::error_code err;
-                    boost::filesystem::remove(GetDataDir() / "nameindex/nameindexV2.dat", err);
-                    boost::filesystem::remove(GetDataDir() / "nameindex/nameaddress.dat", err);
+                    boost::filesystem::remove(GetDataDir() / "indexes/nameindexV3", err);
+                    boost::filesystem::remove(GetDataDir() / "indexes/nameaddressV3", err);
                 }
 
                 // new CBlockTreeDB tries to delete the existing file, which
@@ -1728,8 +1728,8 @@ bool AppInitMain(InitInterfaces& interfaces)
     }
 
     // emercoin: check if indexes need to be created or recreated
-    boost::filesystem::path pathNameIndex = GetDataDir() / "nameindex" / "nameindexV3";
-    boost::filesystem::path pathNameAddress = GetDataDir() / "nameindex" / "nameaddressV3";
+    boost::filesystem::path pathNameIndex = GetDataDir() / "indexes" / "nameindexV3";
+    boost::filesystem::path pathNameAddress = GetDataDir() / "indexes" / "nameaddressV3";
     if (!boost::filesystem::exists(pathNameIndex)) {
         // emercoin: remove secondary index if we are re-creating first one (both will be re-created)
         if (boost::filesystem::exists(pathNameAddress))
@@ -1744,10 +1744,6 @@ bool AppInitMain(InitInterfaces& interfaces)
         if (boost::filesystem::exists(pathNameAddress))
             boost::filesystem::remove(pathNameAddress);
     }
-
-
-    if (!boost::filesystem::exists(GetDataDir() / "nameindex"))
-        boost::filesystem::create_directory(GetDataDir() / "nameindex");
 
     // ********************************************************* Step 9: load wallet
     for (const auto& client : interfaces.chain_clients) {

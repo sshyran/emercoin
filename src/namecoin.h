@@ -39,7 +39,7 @@ public:
     }
 };
 
-// CNameRecord is all the data that is saved (in nameindex.dat) with associated name
+// CNameRecord is all the data that is saved (in nameindexV3) with associated name
 class CNameRecord
 {
 public:
