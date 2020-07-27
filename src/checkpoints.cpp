@@ -116,7 +116,7 @@ bool AcceptPendingSyncCheckpoint()
 
     LOCK(cs_main);
     CBlockIndex* pendingCheckpoint = LookupBlockIndex(hashPendingCheckpoint);
-    if (pendingCheckpoint)
+    if (!pendingCheckpoint)
         return false;
 
     // emercoin: checkpoint needs to be a block with 32 confirmation (rolled back to 3)
