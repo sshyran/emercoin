@@ -520,7 +520,8 @@ unsigned int GetStakeModifierChecksum(const CBlockIndex* pindex)
     CDataStream ss(SER_GETHASH, 0);
     if (pindex->pprev)
         ss << pindex->pprev->nStakeModifierChecksum;
-    ss << pindex->nFlags << pindex->hashProofOfStake << pindex->nStakeModifier;
+    unsigned int nFlags = pindex->nFlags & ~HEADER_CHECKPOINT_VALIDATED;  // emc - remove HEADER_CHECKPOINT_VALIDATED flag from checksum
+    ss << nFlags << pindex->hashProofOfStake << pindex->nStakeModifier;
     arith_uint256 hashChecksum = UintToArith256(Hash(ss.begin(), ss.end()));
     hashChecksum >>= (256 - 32);
     return hashChecksum.GetLow64();
