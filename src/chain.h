@@ -413,16 +413,13 @@ class CDiskBlockIndex : public CBlockIndex
 {
 public:
     uint256 hashPrev;
-    // if this is an aux work block
-    std::shared_ptr<CAuxPow> auxpow;
 
     CDiskBlockIndex() {
         hashPrev = uint256();
     }
 
-    explicit CDiskBlockIndex(const CBlockIndex* pindex, const std::shared_ptr<CAuxPow>& auxpow) : CBlockIndex(*pindex) {
+    explicit CDiskBlockIndex(const CBlockIndex* pindex) : CBlockIndex(*pindex) {
         hashPrev = (pprev ? pprev->GetBlockHash() : uint256());
-        this->auxpow = auxpow;
     }
 
     ADD_SERIALIZE_METHODS;
@@ -468,13 +465,6 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
-
-        // read auxpow
-        //emcTODO fix serialization errors
-//        if (this->nVersion & BLOCK_VERSION_AUXPOW)
-//            READWRITE(auxpow);
-//        else
-//            auxpow.reset();
     }
 
     uint256 GetBlockHash() const

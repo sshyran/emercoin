@@ -143,7 +143,6 @@ CScript COINBASE_FLAGS;
 // emercoin stuff
 bool fAlerts = DEFAULT_ALERTS;
 CHooks* hooks = InitHook(); //this adds namecoin hooks which allow splicing of code inside standart emercoin functions.
-std::map<uint256, std::shared_ptr<CAuxPow>> mapDirtyAuxPow;
 std::map<uint256, recentPoSHeadersValue> recentPoSHeaders;
 uint256 vStakeSeen[1024];
 bool fNameAddressIndex = false;
@@ -1638,10 +1637,6 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
         }
     }
 
-    // emercoin: needed for FlushStateToDisk()
-    if (block.nVersion & BLOCK_VERSION_AUXPOW)
-        mapDirtyAuxPow.insert(std::make_pair(block.GetHash(), block.auxpow));
-
     // emercoin: undo name transactions in reverse order
     if (fWriteNames)
         for (int i = block.vtx.size() - 1; i >= 0; i--)
@@ -2160,9 +2155,6 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
     if (fWriteNames && !vName.empty())
         hooks->ConnectBlock(pindex, vName);
 
-    if (block.nVersion & BLOCK_VERSION_AUXPOW)
-        mapDirtyAuxPow.insert(std::make_pair(block.GetHash(), block.auxpow));
-
     int64_t nTime5 = GetTimeMicros(); nTimeIndex += nTime5 - nTime4;
     LogPrint(BCLog::BENCH, "    - Index writing: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * (nTime5 - nTime4), nTimeIndex * MICRO, nTimeIndex * MILLI / nBlocksTotal);
 
@@ -2248,11 +2240,8 @@ bool CChainState::FlushStateToDisk(
                     vBlocks.push_back(*it);
                     setDirtyBlockIndex.erase(it++);
                 }
-                if (!pblocktree->WriteBatchSync(vFiles, nLastBlockFile, vBlocks, mapDirtyAuxPow)) {
+                if (!pblocktree->WriteBatchSync(vFiles, nLastBlockFile, vBlocks)) {
                     return AbortNode(state, "Failed to write to block index database");
-                }
-                for (std::vector<const CBlockIndex*>::const_iterator it = vBlocks.begin(); it != vBlocks.end(); it++) {
-                    mapDirtyAuxPow.erase((*it)->GetBlockHash());
                 }
             }
             // Finally remove any pruned files
@@ -3087,9 +3076,6 @@ CBlockIndex* BlockManager::AddToBlockIndex(const CBlockHeader& block, bool bSetA
     if (pindexBestHeader == nullptr || pindexBestHeader->nChainTrust < pindexNew->nChainTrust)
         pindexBestHeader = pindexNew;
 
-    if (block.nVersion & BLOCK_VERSION_AUXPOW)
-        mapDirtyAuxPow.insert(std::make_pair(block.GetHash(), block.auxpow));
-
     return pindexNew;
 }
 
@@ -3107,8 +3093,6 @@ void CChainState::ReceivedBlockTransactions(const CBlock& block, CBlockIndex* pi
     }
     pindexNew->RaiseValidity(BLOCK_VALID_TRANSACTIONS);
     setDirtyBlockIndex.insert(pindexNew);
-    if (block.nVersion & BLOCK_VERSION_AUXPOW)
-        mapDirtyAuxPow.insert(std::make_pair(block.GetHash(), block.auxpow));
 
     if (pindexNew->pprev == nullptr || pindexNew->pprev->HaveTxsDownloaded()) {
         // If pindexNew is the genesis block or all parents are BLOCK_VALID_TRANSACTIONS.
@@ -4507,11 +4491,6 @@ void CChainState::EraseBlockData(CBlockIndex* index)
     index->nSequenceId = 0;
     // Make sure it gets written.
     setDirtyBlockIndex.insert(index);
-    if (index->nVersion & BLOCK_VERSION_AUXPOW) {
-        CDiskBlockIndex diskblockindex;
-        pblocktree->ReadDiskBlockIndex(index->GetBlockHash(), diskblockindex);
-        mapDirtyAuxPow.insert(std::make_pair(index->GetBlockHash(), diskblockindex.auxpow));
-    }
     // Update indexes
     setBlockIndexCandidates.erase(index);
     auto ret = m_blockman.m_blocks_unlinked.equal_range(index->pprev);

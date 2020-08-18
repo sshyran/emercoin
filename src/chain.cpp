@@ -4,8 +4,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chain.h>
-#include <auxpow.h>
 #include <validation.h>
+#include <chainparams.h>
 
 /**
  * CChain implementation
@@ -175,10 +175,7 @@ const CBlockIndex* LastCommonAncestor(const CBlockIndex* pa, const CBlockIndex* 
 std::string CDiskBlockIndex::ToString() const {
     std::string str = "CDiskBlockIndex(";
     str += CBlockIndex::ToString();
-    str += strprintf("\n                hashBlock=%s, hashPrev=%s, hashParentBlock=%s)",
-        GetBlockHash().ToString(),
-        hashPrev.ToString(),
-        (auxpow.get() != NULL) ? auxpow->GetParentBlockHash().ToString() : "-");
+    str += strprintf("\n                hashBlock=%s, hashPrev=%s, hashParentBlock=%s)", GetBlockHash().ToString(), hashPrev.ToString());
     return str;
 }
 
@@ -187,20 +184,11 @@ CBlockHeader CBlockIndex::GetBlockHeader() const {
 
     if (nVersion & BLOCK_VERSION_AUXPOW) {
         LOCK(cs_main);
-        bool foundInDirty = false;
-        std::map<uint256, std::shared_ptr<CAuxPow> >::const_iterator it = mapDirtyAuxPow.find(*phashBlock);
-        if (it != mapDirtyAuxPow.end()) {
-            block.auxpow = it->second;
-            foundInDirty = true;
-        }
-        if (!foundInDirty) {
-            CDiskBlockIndex diskblockindex;
-            // auxpow is not in memory, load CDiskBlockHeader
-            // from database to get it
-
-            pblocktree->ReadDiskBlockIndex(*phashBlock, diskblockindex);
-            block.auxpow = diskblockindex.auxpow;
-        }
+        CBlock tmp;
+        if (ReadBlockFromDisk(tmp, this, Params().GetConsensus()))
+            block.auxpow = tmp.auxpow;
+        else
+            error("GetBlockHeader() - unable to read block from disk");
     }
 
     block.nVersion       = nVersion;
