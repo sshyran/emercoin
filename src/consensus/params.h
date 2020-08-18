@@ -38,8 +38,6 @@ struct Params {
     int MinBIP9WarningHeight;
     /** Block height at which merged mining becomes active */
     int MMHeight;
-    /** Block height at which V7 rules becomes active */
-    int V7Height;
     /**
      * Minimum blocks including miner confirmation of the total of 2016 blocks in a retargeting period,
      * (nPowTargetTimespan / nPowTargetSpacing) which is also used for BIP9 deployments.

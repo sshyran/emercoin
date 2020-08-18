@@ -3417,7 +3417,7 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, bool fProofOfS
        (block.GetBlockVersion() < 3 && nHeight >= consensusParams.BIP66Height) ||
        (block.GetBlockVersion() < 4 && nHeight >= consensusParams.BIP65Height) ||
        (block.GetBlockVersion() < 5 && nHeight >= consensusParams.MMHeight) ||
-       (block.GetBlockVersion() < 7 && nHeight >= consensusParams.V7Height))
+       (block.GetBlockVersion() < 7 && nHeight >= consensusParams.SegwitHeight))
             return state.Invalid(ValidationInvalidReason::BLOCK_INVALID_HEADER, false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion),
                                  strprintf("rejected nVersion=0x%08x block", block.nVersion));
 

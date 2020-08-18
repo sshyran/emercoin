@@ -153,12 +153,11 @@ public:
         consensus.BIP34Hash = uint256S("0x00000000000000172a635091de597ef16848e9e6b7d3f3471c8724bc3fcc003d");
         consensus.BIP65Height = 212920;
         consensus.BIP66Height = 212806;
+        //emcTODO - set CSVHeight
         consensus.CSVHeight = 419328; // 000000000000000004a1b34462cb8aeebd5799177f7a29cf28f2d1961716b5b5
-        consensus.SegwitHeight = 481824; // 0000000000000000001c8018d9cb3b742ef25114f27563e3fc4a1902167f9893
+        consensus.SegwitHeight = 311210;
         consensus.MinBIP9WarningHeight = 483840; // segwit activation height + miner confirmation window
         consensus.MMHeight = 219809;
-        //emcTODO - maybe replace V7Height with SegwitHeight?
-        consensus.V7Height = 311210;
         consensus.powLimit = uint256S("00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~arith_uint256(0) >> 32;
         consensus.bnInitialHashTarget = uint256S("00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~arith_uint256(0) >> 32;
         consensus.nTargetTimespan = 7 * 24 * 60 * 60; // one week
@@ -261,11 +260,11 @@ public:
         consensus.BIP34Hash = uint256S("0x00000000097af4fce19ca3c9aa688a81a5440f054243112e7d348e8350697827");
         consensus.BIP65Height = 0;
         consensus.BIP66Height = 0;
+        //emcTODO - set CSVHeight
         consensus.CSVHeight = 770112; // 00000000025e930139bac5c6c31a403776da130831ab85be56578f3fa75369bb
-        consensus.SegwitHeight = 834624; // 00000000002b980fcd729daaa248fd9316a5200e9b367f4ff2c42453e84201ca
+        consensus.SegwitHeight = 457;
         consensus.MinBIP9WarningHeight = 836640; // segwit activation height + miner confirmation window
         consensus.MMHeight = 0;
-        consensus.V7Height = 457;
         consensus.powLimit = uint256S("0000000fffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~arith_uint256(0) >> 28;
         consensus.bnInitialHashTarget = uint256S("00000007ffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); //~uint256(0) >> 29;
         consensus.nTargetTimespan = 7 * 24 * 60 * 60; // two week
@@ -352,11 +351,11 @@ public:
         consensus.BIP34Hash = uint256();
         consensus.BIP65Height = 0; // BIP65 activated on regtest (Used in rpc activation tests)
         consensus.BIP66Height = 0; // BIP66 activated on regtest (Used in rpc activation tests)
+        //emcTODO - set CSVHeight
         consensus.CSVHeight = 432; // CSV activated on regtest (Used in rpc activation tests)
         consensus.SegwitHeight = 0; // SEGWIT is always activated on regtest unless overridden
         consensus.MinBIP9WarningHeight = 0;
         consensus.MMHeight = 0;
-        consensus.V7Height = 457;
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.bnInitialHashTarget = uint256S("00000007ffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); //~uint256(0) >> 29;
         consensus.nTargetTimespan = 7 * 24 * 60 * 60; // one week
