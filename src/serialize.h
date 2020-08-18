@@ -928,11 +928,11 @@ class CSizeComputer
 {
 protected:
     size_t nSize;
-
-    const int nType;
     const int nVersion;
+    const int nType;
 public:
-    explicit CSizeComputer(int nTypeIn, int nVersionIn) : nSize(0), nType(nTypeIn), nVersion(nVersionIn) {}
+    explicit CSizeComputer(int nVersionIn) : nSize(0), nVersion(nVersionIn), nType(0) {}
+    explicit CSizeComputer(int nVersionIn, int nTypeIn) : nSize(0), nVersion(nVersionIn), nType(nTypeIn) {}
 
     void write(const char *psz, size_t _nSize)
     {
@@ -1008,9 +1008,9 @@ inline void WriteCompactSize(CSizeComputer &s, uint64_t nSize)
 }
 
 template <typename T>
-size_t GetSerializeSize(const T& t, int nType, int nVersion = 0)
+size_t GetSerializeSize(const T& t, int nVersion = 0, int nType = 0)
 {
-    return (CSizeComputer(nType, nVersion) << t).size();
+    return (CSizeComputer(nVersion, nType) << t).size();
 }
 
 template <typename... T>
