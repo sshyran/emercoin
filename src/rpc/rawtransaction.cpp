@@ -668,13 +668,17 @@ static UniValue combinerawtransaction(const JSONRPCRequest& request)
         }
         SignatureData sigdata;
 
+        const CScript& prevPubKey = txin.prevout.hash != randpaytx ?
+            coin.out.scriptPubKey :
+            GenerateScriptForRandPay(mergedTx.vout[0].scriptPubKey);
+
         // ... and merge in other signatures:
         for (const CMutableTransaction& txv : txVariants) {
             if (txv.vin.size() > i) {
                 sigdata.MergeSignatureData(DataFromTransaction(txv, i, coin.out));
             }
         }
-        ProduceSignature(DUMMY_SIGNING_PROVIDER, MutableTransactionSignatureCreator(&mergedTx, i, coin.out.nValue, 1), coin.out.scriptPubKey, sigdata);
+        ProduceSignature(DUMMY_SIGNING_PROVIDER, MutableTransactionSignatureCreator(&mergedTx, i, coin.out.nValue, 1), prevPubKey, sigdata);
 
         UpdateInput(txin, sigdata);
     }

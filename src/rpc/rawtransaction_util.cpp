@@ -281,7 +281,10 @@ UniValue SignTransaction(CMutableTransaction& mtx, const SigningProvider* keysto
             TxInErrorToJSON(txin, vErrors, "Input not found or already spent");
             continue;
         }
-        const CScript& prevPubKey = coin->second.out.scriptPubKey;
+
+        const CScript& prevPubKey = txin.prevout.hash != randpaytx ?
+            coin->second.out.scriptPubKey :
+            GenerateScriptForRandPay(mtx.vout[0].scriptPubKey);
         const CAmount& amount = coin->second.out.nValue;
 
         SignatureData sigdata = DataFromTransaction(mtx, i, coin->second.out);

@@ -622,11 +622,9 @@ static void MutateTxSign(CMutableTransaction& tx, const std::string& flagStr)
         if (coin.IsSpent()) {
             continue;
         }
-//emcTODO         const CScript& prevPubKey = txin.prevout.hash != randpaytx ?
-//                  coins->vout[txin.prevout.n].scriptPubKey :
-//                  GenerateScriptForRandPay(mergedTx.vout[0].scriptPubKey);
-//emcTODO : also pass version to script verify function, if it still exists
-        const CScript& prevPubKey = coin.out.scriptPubKey;
+        const CScript& prevPubKey = txin.prevout.hash != randpaytx ?
+            coin.out.scriptPubKey :
+            GenerateScriptForRandPay(mergedTx.vout[0].scriptPubKey);
         const CAmount& amount = coin.out.nValue;
 
         SignatureData sigdata = DataFromTransaction(mergedTx, i, coin.out);
