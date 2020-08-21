@@ -595,7 +595,7 @@ static void MutateTxSign(CMutableTransaction& tx, const std::string& flagStr)
                     newcoin.out.nValue = AmountFromValue(prevOut["amount"]);
                 }
                 newcoin.nHeight = 1;
-                //emcTODO - set nTime?
+                newcoin.nTime = GetTime();
                 view.AddCoin(out, std::move(newcoin), true);
             }
 
