@@ -21,8 +21,8 @@ void ExchBox::Reset(const string &retAddr) {
   for(size_t i = 0; i < m_v_exch.size(); i++)
     delete m_v_exch[i];
   m_v_exch.clear();
-  // out of service m_v_exch.push_back(new ExchCoinReform(retAddr));
-  m_v_exch.push_back(new ExchEasyRabbit(retAddr));
+  // out of service: m_v_exch.push_back(new ExchCoinReform(retAddr));
+  // out of service: m_v_exch.push_back(new ExchEasyRabbit(retAddr));
   m_v_exch.push_back(new ExchCoinSwitch(retAddr));
 } // ExchBox::Reset
 

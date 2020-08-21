@@ -21,7 +21,7 @@ CXXFLAGS=$CPPFLAGS
 
 export LDFLAGS CPPFLAGS CFLAGS CXXFLAGS
 
-./configure --disable-tests --disable-util-tx
+./configure --disable-tests --enable-debug  --disable-util-tx
 #./configure --disable-tests --disable-dependency-tracking
 #./configure --enable-debug --disable-dependency-tracking
 #./configure --enable-debug --with-libs 
