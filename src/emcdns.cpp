@@ -1268,9 +1268,6 @@ bool EmcDns::CheckEnumSig(const char *q_str, char *sig_str) {
         CTxDestination dest = DecodeDestination(nti.strAddress);
         if (!IsValidDestination(dest))
             break; // Invalid address
-        //emcTODO - is this still needed?
-//        if(!addr.GetKeyID(ver.keyID))
-//          break; // Address does not refer to key
 
 	// Verifier has been read successfully, configure SRL if exist
 	char valbuf[VAL_SIZE], *str_val = valbuf;

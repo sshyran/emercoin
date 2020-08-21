@@ -40,10 +40,10 @@ public:
     uint32_t nHeight : 31;
 
     // ppcoin: whether transaction is a coinstake
-    unsigned int fCoinStake : 1;  //emcTODO - is this still needed?
+    unsigned int fCoinStake : 1;
 
     // ppcoin: transaction timestamp
-    unsigned int nTime;    //emcTODO - is this still needed?
+    unsigned int nTime;
 
     //! construct a Coin from a CTxOut and height/coinbase information.
     Coin(CTxOut&& outIn, int nHeightIn, bool fCoinBaseIn, bool fCoinStakeIn, unsigned int nTimeIn) : out(std::move(outIn)), fCoinBase(fCoinBaseIn), nHeight(nHeightIn), fCoinStake(fCoinStakeIn), nTime(nTimeIn) {}
