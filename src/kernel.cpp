@@ -622,10 +622,7 @@ bool CreateCoinStake(const CWallet* pwallet, unsigned int nBits, int64_t nSearch
 
     for (const auto& pcoin : setCoins)
     {
-        //emcTODO - is this correct? does it refer to tx hash where coin was located?
         uint256 tx_hash = pcoin.outpoint.hash;
-        //uint256 tx_hash = pcoin.first->GetHash();
-
         pbo = CacheBlockOffset.Search(tx_hash);
         // Try Load, if missing or temporary removed
         if (pbo == NULL || pbo->value.first == NULL) {

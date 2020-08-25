@@ -137,7 +137,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
                 // make sure coinstake would meet timestamp protocol
                 if (txCoinStake.nTime >= std::max(pindexPrev->GetMedianTimePast()+1, pindexPrev->GetBlockTime() - nMaxClockDrift)) {
                     // as it would be the same as the block timestamp
-                    coinbaseTx.vout[0].SetEmpty();
+                    coinbaseTx.vout[0].nValue = 0;
                     coinbaseTx.nTime = txCoinStake.nTime;
                     pblock->vtx.push_back(MakeTransactionRef(CTransaction(txCoinStake)));
                     *pfPoSCancel = false;

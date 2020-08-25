@@ -177,13 +177,6 @@ public:
         return !(a == b);
     }
 
-    //emcTODO - can this call be replaced with SetNull/IsNull?
-    void SetEmpty()
-    {
-        nValue = 0;
-        scriptPubKey.clear();
-    }
-
     bool IsEmpty() const
     {
         return (nValue == 0 && scriptPubKey.empty());
