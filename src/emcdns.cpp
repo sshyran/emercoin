@@ -44,6 +44,8 @@
 #include <key_io.h>
 #include <util/validation.h>
 
+#define IPV46 // Dual IPv4+IPv6 stack; comment it for IPv4 only build
+
 /*---------------------------------------------------*/
 /*
  * m_verbose legend:
@@ -132,7 +134,9 @@ EmcDns::EmcDns(const char *bind_ip, uint16_t port_no,
     memset(&m_hdr, 0, &m_verbose - (uint8_t *)&m_hdr); // Clear previous state
     m_verbose = verbose;
 
-    // Create and socket
+
+#ifdef IPV46 // Dual port IPv4 and IPv6
+    // Create and bind socket
     int ret = socket(PF_INET6, SOCK_DGRAM, 0);
     if(ret < 0) 
       throw runtime_error("EmcDns::EmcDns: Cannot create socket");
@@ -159,9 +163,34 @@ EmcDns::EmcDns(const char *bind_ip, uint16_t port_no,
 
     if(::bind(m_sockfd, (struct sockaddr *)&sin6, sin6len) < 0) {
       char buf[80];
-      sprintf(buf, "EmcDns::EmcDns: Cannot bind to port %u", port_no);
+      sprintf(buf, "EmcDns::EmcDns: Cannot bind to ipv46 port %u", port_no);
       throw runtime_error(buf);
     }
+
+#else
+    // Create and bind socket - IPv4 Only
+    int ret = socket(PF_INET, SOCK_DGRAM, 0);
+    if(ret < 0) 
+      throw runtime_error("EmcDns::EmcDns: Cannot create socket");
+    m_sockfd = ret;
+
+    struct sockaddr_in sin;
+    const int sinlen = sizeof(struct sockaddr_in);
+    memset(&sin, 0, sinlen);
+    sin.sin_port = htons(port_no);
+    sin.sin_family = AF_INET;
+
+    if(*bind_ip == 0 || inet_pton(AF_INET, bind_ip, &sin.sin_addr) != 1) {
+      sin.sin_addr.s_addr = INADDR_ANY;
+      bind_ip = NULL;
+    }
+
+    if(::bind(m_sockfd, (struct sockaddr *)&sin, sinlen) < 0) {
+      char buf[80];
+      sprintf(buf, "EmcDns::EmcDns: Cannot bind to ipv4 port %u", port_no);
+      throw runtime_error(buf);
+    }
+#endif // IPV46
 
     // Upload Local DNS entries
     // Create temporary local buf on stack
