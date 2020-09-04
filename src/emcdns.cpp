@@ -44,8 +44,6 @@
 #include <key_io.h>
 #include <util/validation.h>
 
-#define IPV46 // Dual IPv4+IPv6 stack; comment it for IPv4 only build
-
 /*---------------------------------------------------*/
 /*
  * m_verbose legend:
@@ -134,63 +132,59 @@ EmcDns::EmcDns(const char *bind_ip, uint16_t port_no,
     memset(&m_hdr, 0, &m_verbose - (uint8_t *)&m_hdr); // Clear previous state
     m_verbose = verbose;
 
-
-#ifdef IPV46 // Dual port IPv4 and IPv6
-    // Create and bind socket
+    // Create and bind socket IPv6, if possible
     int ret = socket(PF_INET6, SOCK_DGRAM, 0);
-    if(ret < 0) 
-      throw runtime_error("EmcDns::EmcDns: Cannot create socket");
-    m_sockfd = ret;
+    if(ret < 0) {
+        // Cannot create IPv46 - try IPv4
+        // Create and bind socket - IPv4 Only
+        ret = socket(PF_INET, SOCK_DGRAM, 0);
+        if(ret < 0) 
+            throw runtime_error("EmcDns::EmcDns: Cannot create ipv4 socket");
+        m_sockfd = ret;
 
-    struct sockaddr_in6 sin6;
-    const int sin6len = sizeof(struct sockaddr_in6);
-    memset(&sin6, 0, sin6len);
-    sin6.sin6_port = htons(port_no);
-    sin6.sin6_family = AF_INET6;
+        struct sockaddr_in sin;
+        const int sinlen = sizeof(struct sockaddr_in);
+        memset(&sin, 0, sinlen);
+        sin.sin_port = htons(port_no);
+        sin.sin_family = AF_INET;
 
-    if(*bind_ip == 0 || inet_pton(AF_INET6, bind_ip, &sin6.sin6_addr) != 1) {
-      sin6.sin6_addr = in6addr_any;
-      bind_ip = NULL;
-    }
+        if(*bind_ip == 0 || inet_pton(AF_INET, bind_ip, &sin.sin_addr) != 1) {
+            sin.sin_addr.s_addr = INADDR_ANY;
+            bind_ip = NULL;
+        }
 
-    int no = 0;
+        if(::bind(m_sockfd, (struct sockaddr *)&sin, sinlen) < 0) {
+            char buf[80];
+            sprintf(buf, "EmcDns::EmcDns: Cannot bind to IPv4 port %u", port_no);
+            throw runtime_error(buf);
+        }
+    } else {
+        // Setup IPv46 socket
+        m_sockfd = ret;
+        struct sockaddr_in6 sin6;
+        const int sin6len = sizeof(struct sockaddr_in6);
+        memset(&sin6, 0, sin6len);
+        sin6.sin6_port = htons(port_no);
+        sin6.sin6_family = AF_INET6;
+
+        if(*bind_ip == 0 || inet_pton(AF_INET6, bind_ip, &sin6.sin6_addr) != 1) {
+            sin6.sin6_addr = in6addr_any;
+            bind_ip = NULL;
+        }
+        int no = 0;
 #ifdef WIN32
-    if(setsockopt(m_sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (char *)&no, sizeof(no)) < 0)
+        if(setsockopt(m_sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (char *)&no, sizeof(no)) < 0)
 #else
-    if(setsockopt(m_sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&no, sizeof(no)) < 0)
+        if(setsockopt(m_sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&no, sizeof(no)) < 0)
 #endif
-      throw runtime_error("EmcDns::EmcDns: Cannot switch socket to IPV4 compatibility mode");
+            throw runtime_error("EmcDns::EmcDns: Cannot switch socket to IPV4 compatibility mode");
 
-    if(::bind(m_sockfd, (struct sockaddr *)&sin6, sin6len) < 0) {
-      char buf[80];
-      sprintf(buf, "EmcDns::EmcDns: Cannot bind to ipv46 port %u", port_no);
-      throw runtime_error(buf);
-    }
-
-#else
-    // Create and bind socket - IPv4 Only
-    int ret = socket(PF_INET, SOCK_DGRAM, 0);
-    if(ret < 0) 
-      throw runtime_error("EmcDns::EmcDns: Cannot create socket");
-    m_sockfd = ret;
-
-    struct sockaddr_in sin;
-    const int sinlen = sizeof(struct sockaddr_in);
-    memset(&sin, 0, sinlen);
-    sin.sin_port = htons(port_no);
-    sin.sin_family = AF_INET;
-
-    if(*bind_ip == 0 || inet_pton(AF_INET, bind_ip, &sin.sin_addr) != 1) {
-      sin.sin_addr.s_addr = INADDR_ANY;
-      bind_ip = NULL;
-    }
-
-    if(::bind(m_sockfd, (struct sockaddr *)&sin, sinlen) < 0) {
-      char buf[80];
-      sprintf(buf, "EmcDns::EmcDns: Cannot bind to ipv4 port %u", port_no);
-      throw runtime_error(buf);
-    }
-#endif // IPV46
+        if(::bind(m_sockfd, (struct sockaddr *)&sin6, sin6len) < 0) {
+            char buf[80];
+            sprintf(buf, "EmcDns::EmcDns: Cannot bind to IPv46 port %u", port_no);
+            throw runtime_error(buf);
+        }
+    } // IPv46
 
     // Upload Local DNS entries
     // Create temporary local buf on stack
