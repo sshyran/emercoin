@@ -4030,22 +4030,27 @@ UniValue makekeypair(const JSONRPCRequest& request)
 // ppcoin: reserve balance from being staked for network protection
 UniValue reservebalance(const JSONRPCRequest& request)
 {
-    //emcTODO - fill this
-    RPCHelpMan{"reservebalance [<reserve> [amount]]",
-        "<reserve> is true or false to turn balance reserve on or off.\n"
-        "<amount> is a real and rounded to cent.\n"
-        "Set reserve amount not participating in network protection.\n"
+    RPCHelpMan{"reservebalance",
+        "\nSet reserve amount not participating in network protection.\n"
         "If no parameters provided current setting is printed.\n",
-        {},
-        RPCResult{""},
-        RPCExamples{""},
+        {
+            {"reserve", RPCArg::Type::BOOL, /* default */ "last set value", "turn balance reserve on or off."},
+            {"amount", RPCArg::Type::NUM, /* default */ "last set value", "is a real and rounded to cent."},
+        },
+        RPCResult{
+            "{\n"
+            "  \"reserve\"     (numeric) on/off state of reserve balance\n"
+            "  \"amount\"      (numeric) amount of " + CURRENCY_UNIT + " to reserve during proof-of-stake minting\n"
+            "}\n"
+        },
+        RPCExamples{ HelpExampleCli("reservebalance", "true 1000") +
+                     HelpExampleRpc("reservebalance", "true 1000")},
+
     }.Check(request);
 
-    if (request.params.size() > 0)
-    {
+    if (request.params.size() > 0) {
         bool fReserve = request.params[0].get_bool();
-        if (fReserve)
-        {
+        if (fReserve) {
             if (request.params.size() == 1)
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "must provide amount to reserve balance.\n");
             CAmount nAmount = AmountFromValue(request.params[1]);
@@ -4053,9 +4058,7 @@ UniValue reservebalance(const JSONRPCRequest& request)
             if (nAmount < 0)
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "amount cannot be negative.\n");
             gArgs.ForceSetArg("-reservebalance", FormatMoney(nAmount));
-        }
-        else
-        {
+        } else {
             if (request.params.size() > 1)
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "cannot specify amount to turn off reserve.\n");
             gArgs.ForceSetArg("-reservebalance", "0");
