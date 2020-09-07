@@ -58,8 +58,8 @@ public:
     {
         BTC,
         mBTC,
-        uBTC,
-        SAT
+        uBTC
+        //SAT
     };
 
     enum SeparatorStyle
