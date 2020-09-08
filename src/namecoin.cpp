@@ -293,7 +293,7 @@ UniValue sendtoname(const JSONRPCRequest& request)
 //    CTransactionRef tx = SendMoney(*locked_chain, pwallet, dest, nAmount, fSubtractFeeFromAmount, coin_control, std::move(mapValue));
 
     UniValue res(UniValue::VOBJ);
-//    res.pushKV("sending to", dest.ToString());
+    res.pushKV("sending to", EncodeDestination(dest));
 //    res.pushKV("transaction", tx->GetHash().GetHex());
     return res;
 }

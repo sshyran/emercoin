@@ -727,9 +727,8 @@ UniValue getauxblock(const JSONRPCRequest& request)
         {}, //args
         RPCResult{ ""
         },
-        RPCExamples{
-            HelpExampleCli("getauxblock", "")
-    + HelpExampleRpc("getauxblock", "")
+        RPCExamples{HelpExampleCli("getauxblock", "") +
+                    HelpExampleRpc("getauxblock", "")
         },
     }.Check(request);
 

@@ -4002,7 +4002,8 @@ UniValue makekeypair(const JSONRPCRequest& request)
         "[prefix] is optional preferred prefix for the public key.\n",
         {},
         RPCResult{""},
-        RPCExamples{""},
+        RPCExamples{ HelpExampleCli("makekeypair", "") +
+                     HelpExampleRpc("makekeypair", "")},
     }.Check(request);
 
     std::string strPrefix = "";
