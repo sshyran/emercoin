@@ -18,6 +18,7 @@
 #include <namecoin.h>
 #include <key_io.h>
 #include <qt/bitcoinunits.h>
+#include <wallet/wallet.h>
 
 #include <QApplication>
 #include <QClipboard>
@@ -108,18 +109,20 @@ void SendCoinsEntry::setModel(WalletModel *_model)
 #if 1
     // emercoin: initialize exchange box
     // initialize with refund address:
-    std::string sAddress;
-    if (this->model)
-    {
-        //emcTODO redo this later
-//        if (this->model->getAddressForChange(sAddress))
-//            this->eBox.Reset(sAddress);
-//        else
-//        {
-//            ui->checkBoxExch->setDisabled(true);
-//            ui->exchWidget->setVisible(false);
-//            ui->exchWidget->setDisabled(true);
-//        }
+    if (this->model) {
+        auto pwallet = this->model->wallet().getWallet();
+        OutputType output_type = pwallet->m_default_change_type != OutputType::CHANGE_AUTO ? pwallet->m_default_change_type : pwallet->m_default_address_type;
+        CTxDestination dest;
+        std::string error;
+
+        if (pwallet->GetNewChangeDestination(output_type, dest, error))
+            this->eBox.Reset(EncodeDestination(dest));
+        else
+        {
+            ui->checkBoxExch->setDisabled(true);
+            ui->exchWidget->setVisible(false);
+            ui->exchWidget->setDisabled(true);
+        }
     }
 #else
     // emercoin: disabled in this version

@@ -577,20 +577,3 @@ bool WalletModel::isMultiwallet()
 {
     return m_node.getWallets().size() > 1;
 }
-
-// emercoin: get existing address from keypool without removing it from keypool
-//emcTODO redo this later
-//bool WalletModel::getAddressForChange(std::string &sAddress)
-//{
-//    if (!m_wallet->isLocked())
-//        m_wallet->TopUpKeyPool();
-
-//    CReserveKey reservekey(wallet);
-//    CPubKey vchPubKey;
-//    if (!reservekey.GetReservedKey(vchPubKey))
-//        return false;
-//    CKeyID keyID = vchPubKey.GetID();
-
-//    sAddress = CBitcoinAddress(keyID).ToString();
-//    return true;
-//}

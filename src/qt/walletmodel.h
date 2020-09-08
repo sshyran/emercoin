@@ -237,8 +237,6 @@ public:
 
     AddressTableModel* getAddressTableModel() const { return addressTableModel; }
 
-    // emercoin:
-    //bool getAddressForChange(std::string &sAddress);
 private:
     std::unique_ptr<interfaces::Wallet> m_wallet;
     std::unique_ptr<interfaces::Handler> m_handler_unload;

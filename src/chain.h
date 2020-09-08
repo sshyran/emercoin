@@ -440,7 +440,6 @@ public:
         if (nStatus & BLOCK_HAVE_UNDO)
             READWRITE(VARINT(nUndoPos));
 
-        //emcTODO - check if our code needs VarIntMode settings
         READWRITE(nMint);
         READWRITE(nMoneySupply);
         READWRITE(nFlags);
