@@ -72,18 +72,15 @@ public:
     CNameDB(size_t nCacheSize, bool fMemory = false, bool fWipe = false) : CDBWrapper(GetDataDir() / "indexes" / "nameindexV3", nCacheSize, fMemory, fWipe) {
     }
 
-    bool WriteName(const CNameVal& name, const CNameRecord& rec) {
-        return Write(make_pair(std::string("namei"), name), rec);
-    }
+    bool ReadName(const CNameVal& name, CNameRecord& rec) {
+        bool ret = Read(name, rec);
+        int s = rec.vtxPos.size();
 
-    bool ReadName(const CNameVal& name, CNameRecord& rec);
-
-    bool ExistsName(const CNameVal& name) {
-        return Exists(make_pair(std::string("namei"), name));
-    }
-
-    bool EraseName(const CNameVal& name) {
-        return Erase(make_pair(std::string("namei"), name));
+         // check if array index is out of array bounds
+        if (s > 0 && rec.nLastActiveChainIndex >= s) {
+            LogPrintf("Nameindex is corrupt!");
+        }
+        return ret;
     }
 
     bool ScanNames(const CNameVal& name, unsigned int nMax,

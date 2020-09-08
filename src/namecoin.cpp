@@ -164,62 +164,25 @@ bool CNameDB::ScanNames(const CNameVal& name, unsigned int nMax,
             >
         > &nameScan)
 {
-    //emcTODO - redo this
-//    std::unique_ptr<CDBIterator> pcursor(NewIterator());
-//    if (!pcursor)
-//        return false;
+    std::unique_ptr<CDBIterator> pcursor(NewIterator());
+    pcursor->Seek(name);
+    while (pcursor->Valid()) {
+        CNameVal key;
+        if (!pcursor->GetKey(key))
+            return error("%s: failed to read key", __func__);
 
-//    bool fRange = true;
-//    while (true)
-//    {
-//        // Read next record
-//        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-//        if (fRange)
-//            ssKey << make_pair(string("namei"), name);
-//        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-//        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fRange);
-//        fRange = false;
-//        if (ret == DB_NOTFOUND)
-//            break;
-//        else if (ret != 0)
-//            return false;
+        CNameRecord value;
+        if (!pcursor->GetValue(value))
+            return error("%s: failed to read value", __func__);
 
-//        // Unserialize
-//        string strType;
-//        ssKey >> strType;
-//        if (strType == "namei")
-//        {
-//            CNameVal name2;
-//            ssKey >> name2;
-//            CNameRecord val;
-//            ssValue >> val;
-//            if (val.deleted() || val.vtxPos.empty())
-//                continue;
-//            nameScan.push_back(make_pair(name2, make_pair(val.vtxPos.back(), val.nExpiresAt)));
-//        }
+        if (value.deleted() || value.vtxPos.empty())
+            continue;
+        nameScan.push_back(make_pair(key, make_pair(value.vtxPos.back(), value.nExpiresAt)));
 
-//        if (nMax > 0 && nameScan.size() >= nMax)
-//            break;
-//    }
-//    pcursor->close();
-    return true;
-}
-
-bool CNameDB::ReadName(const CNameVal& name, CNameRecord& rec)
-{
-    bool ret = Read(make_pair(std::string("namei"), name), rec);
-    int s = rec.vtxPos.size();
-
-     // check if array index is out of array bounds
-    if (s > 0 && rec.nLastActiveChainIndex >= s) {
-        //emcTODO redo this
-//        // delete nameindex and kill the application. nameindex should be recreated on next start
-//        boost::system::error_code err;
-//        boost::filesystem::remove(GetDataDir() / this->strFile, err);
-//        LogPrintf("Nameindex is corrupt! It will be recreated on next start.");
-//        assert(rec.nLastActiveChainIndex < s);
+        pcursor->Next();
     }
-    return ret;
+
+    return true;
 }
 
 CHooks* InitHook()
@@ -337,7 +300,7 @@ UniValue sendtoname(const JSONRPCRequest& request)
 
 bool GetNameCurrentAddress(const CNameVal& name, CTxDestination& dest, string& error)
 {
-    if (!pNameDB->ExistsName(name)) {
+    if (!pNameDB->Exists(name)) {
         error = "Name not found";
         return false;
     }
@@ -437,7 +400,7 @@ void GetNameList(const CNameVal& nameUniq, std::map<CNameVal, NameTxInfo> &mapNa
         if (nameUniq.size() > 0 && nameUniq != nti.name)
             continue;
 
-        if (!pNameDB->ExistsName(nti.name))
+        if (!pNameDB->Exists(nti.name))
             continue;
 
         nti.nExpiresAt = nameRec.nExpiresAt;
@@ -1460,7 +1423,7 @@ bool CNamecoinHooks::CheckInputs(const CTransactionRef& tx, const CBlockIndex* p
 
 //check if last known tx on this name matches any of inputs of this tx
     CNameRecord nameRec;
-    if (pNameDB->ExistsName(name) && !pNameDB->ReadName(name, nameRec))
+    if (pNameDB->Exists(name) && !pNameDB->ReadName(name, nameRec))
         return error("CheckInputsHook() : failed to read from name DB for %s", info);
 
     bool found = false;
@@ -1574,7 +1537,7 @@ bool CNamecoinHooks::DisconnectInputs(const CTransactionRef& tx)
     // vtxPos might be empty if we pruned expired transactions.  However, it should normally still not
     // be empty, since a reorg cannot go that far back.  Be safe anyway and do not try to pop if empty.
     if (nameRec.vtxPos.empty())
-        return pNameDB->EraseName(nti.name); // delete empty record
+        return pNameDB->Erase(nti.name); // delete empty record
 
     CDiskTxPos postx;
     if (!g_txindex || !g_txindex->FindTxPosition(tx->GetHash(), postx))
@@ -1599,7 +1562,7 @@ bool CNamecoinHooks::DisconnectInputs(const CTransactionRef& tx)
     // remove tx
     nameRec.vtxPos.pop_back();
 
-    if (nameRec.vtxPos.size() == 0 && !pNameDB->EraseName(nti.name)) // delete empty record
+    if (nameRec.vtxPos.size() == 0 && !pNameDB->Erase(nti.name)) // delete empty record
         return error("DisconnectInputs() : failed to erase from name DB");
     else {
         // if we have deleted name_new - recalculate Last Active Chain Index
@@ -1612,7 +1575,7 @@ bool CNamecoinHooks::DisconnectInputs(const CTransactionRef& tx)
 
         if (!CalculateExpiresAt(nameRec))
             return error("DisconnectInputs() : failed to calculate expiration time before writing to name DB");
-        if (!pNameDB->WriteName(nti.name, nameRec))
+        if (!pNameDB->Write(nti.name, nameRec))
             return error("DisconnectInputs() : failed to write to name DB");
     }
 
@@ -1688,7 +1651,7 @@ bool CNamecoinHooks::ConnectBlock(CBlockIndex* pindex, const vector<nameTempProx
         }
 
         CNameRecord nameRec;
-        if (pNameDB->ExistsName(i.name) && !pNameDB->ReadName(i.name, nameRec))
+        if (pNameDB->Exists(i.name) && !pNameDB->ReadName(i.name, nameRec))
             return error("ConnectBlockHook() : failed to read from name DB");
 
         // only first name_new for same name in same block will get written
@@ -1720,7 +1683,7 @@ bool CNamecoinHooks::ConnectBlock(CBlockIndex* pindex, const vector<nameTempProx
 
         if (!CalculateExpiresAt(nameRec))
             return error("ConnectBlockHook() : failed to calculate expiration time before writing to name DB for %s", i.hash.GetHex());
-        if (!pNameDB->WriteName(i.name, nameRec))
+        if (!pNameDB->Write(i.name, nameRec))
             return error("ConnectBlockHook() : failed to write to name DB");
         if (i.op == OP_NAME_NEW)
             sNameNew.insert(i.name);
@@ -1741,7 +1704,7 @@ bool CNamecoinHooks::ConnectBlock(CBlockIndex* pindex, const vector<nameTempProx
 bool CNamecoinHooks::getNameValue(const string& sName, string& sValue)
 {
     CNameVal name = nameValFromString(sName);
-    if (!pNameDB->ExistsName(name))
+    if (!pNameDB->Exists(name))
         return false;
 
     CTransactionRef tx;
