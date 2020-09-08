@@ -17,6 +17,12 @@
 
 #include <net.h>
 #include <alert.h>
+#include <wallet/rpcwallet.h>
+#include <wallet/wallet.h>
+#include <netbase.h>
+#include <core_io.h>
+#include <validation.h>
+#include <warnings.h>
 
 #include <stdint.h>
 #include <tuple>
@@ -625,10 +631,104 @@ UniValue sendalert(const JSONRPCRequest& request)
     return result;
 }
 
+/**
+ * @note Do not add or change anything in the information returned by this
+ * method. `getinfo` exists for backwards-compatibility only. It combines
+ * information from wildly different sources in the program, which is a mess,
+ * and is thus planned to be deprecated eventually.
+ *
+ * Based on the source of the information, new information should be added to:
+ * - `getblockchaininfo`,
+ * - `getnetworkinfo` or
+ * - `getwalletinfo`
+ *
+ * Or alternatively, create a specific query method for the information.
+ **/
+UniValue getinfo(const JSONRPCRequest& request)
+{
+    if (request.fHelp)
+        throw std::runtime_error(
+            RPCHelpMan{"getinfo",
+                "\nDEPRECATED. Returns an object containing various state info.\n",
+                {},
+                RPCResult{
+                    "{\n"
+                    "  \"deprecation-warning\": \"...\" (string) warning that the getinfo command is deprecated and will be removed in .16\n"
+                    "  \"version\": xxxxx,           (numeric) the server version\n"
+                    "  \"protocolversion\": xxxxx,   (numeric) the protocol version\n"
+                    "  \"walletversion\": xxxxx,     (numeric) the wallet version\n"
+                    "  \"balance\": xxxxxxx,         (numeric) the total bitcoin balance of the wallet\n"
+                    "  \"blocks\": xxxxxx,           (numeric) the current number of blocks processed in the server\n"
+                    "  \"timeoffset\": xxxxx,        (numeric) the time offset\n"
+                    "  \"connections\": xxxxx,       (numeric) the number of connections\n"
+                    "  \"proxy\": \"host:port\",       (string, optional) the proxy used by the server\n"
+                    "  \"difficulty\": xxxxxx,       (numeric) the current difficulty\n"
+                    "  \"testnet\": true|false,      (boolean) if the server is using testnet or not\n"
+                    "  \"keypoololdest\": xxxxxx,    (numeric) the timestamp (seconds since Unix epoch) of the oldest pre-generated key n the key pool\n"
+                    "  \"keypoolsize\": xxxx,        (numeric) how many new keys are pre-generated\n"
+                    "  \"unlocked_until\": ttt,      (numeric) the timestamp in seconds since epoch (midnight Jan 1 1970 GMT) that the allet is unlocked for transfers, or 0 if the wallet is locked\n"
+                    "  \"paytxfee\": x.xxxx,         (numeric) the transaction fee set in " + CURRENCY_UNIT + "/kB\n"
+                    "  \"relayfee\": x.xxxx,         (numeric) minimum relay fee for transactions in " + CURRENCY_UNIT + "/kB\n"
+                    "  \"errors\": \"...\"             (string) any error messages\n"
+                    "}\n"
+                },
+                RPCExamples{HelpExampleCli("getinfo", "") +
+                            HelpExampleRpc("getinfo", "")},
+            }.ToString()
+        );
+
+#ifdef ENABLE_WALLET
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+
+    LOCK2(cs_main, wallet ? &wallet->cs_wallet : nullptr);
+#else
+    LOCK(cs_main);
+#endif
+
+    proxyType proxy;
+    GetProxy(NET_IPV4, proxy);
+
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("deprecation-warning", "WARNING: getinfo is deprecated and will be fully removed in 0.16."
+        " Projects should transition to using getblockchaininfo, getnetworkinfo, and getwalletinfo before upgrading to 0.16");
+    obj.pushKV("version", CLIENT_VERSION);
+    obj.pushKV("protocolversion", PROTOCOL_VERSION);
+#ifdef ENABLE_WALLET
+    if (wallet) {
+        obj.pushKV("walletversion", wallet->GetVersion());
+        const auto bal = wallet->GetBalance();
+        obj.pushKV("balance",   ValueFromAmount(bal.m_mine_trusted));
+        obj.pushKV("newmint",   ValueFromAmount(bal.m_mine_immature));
+        obj.pushKV("stake",     ValueFromAmount(bal.m_stake));
+    }
+#endif
+    obj.pushKV("blocks",        (int)::ChainActive().Height());
+    obj.pushKV("timeoffset",    GetTimeOffset());
+    if(g_connman)
+        obj.pushKV("connections",   (int)g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL));
+    obj.pushKV("proxy",         (proxy.IsValid() ? proxy.proxy.ToStringIPPort() : std::string()));
+    obj.pushKV("difficulty",    (double)GetDifficulty(::ChainActive().Tip()));
+    obj.pushKV("testnet",       Params().NetworkIDString() == CBaseChainParams::TESTNET);
+#ifdef ENABLE_WALLET
+    if (wallet) {
+        obj.pushKV("keypoololdest", wallet->GetOldestKeyPoolTime());
+        obj.pushKV("keypoolsize",   (int)wallet->GetKeyPoolSize());
+    }
+    if (wallet && wallet->IsCrypted()) {
+        obj.pushKV("unlocked_until", wallet->nRelockTime);
+    }
+    obj.pushKV("paytxfee",      ValueFromAmount(wallet->m_pay_tx_fee.GetFeePerK()));
+#endif
+    obj.pushKV("relayfee",      ValueFromAmount(::minRelayTxFee.GetFeePerK()));
+    obj.pushKV("errors",        GetWarnings("statusbar"));
+    return obj;
+}
+
 // clang-format off
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         argNames
   //  --------------------- ------------------------  -----------------------  ----------
+    { "control",            "getinfo",                &getinfo,                {} }, /* uses wallet if enabled */
     { "control",            "getmemoryinfo",          &getmemoryinfo,          {"mode"} },
     { "control",            "logging",                &logging,                {"include", "exclude"}},
     { "util",               "validateaddress",        &validateaddress,        {"address"} },

@@ -2465,6 +2465,9 @@ CWallet::Balance CWallet::GetBalance(const int min_depth, bool avoid_reuse) cons
             }
             ret.m_mine_immature += wtx.GetImmatureCredit(*locked_chain);
             ret.m_watchonly_immature += wtx.GetImmatureWatchOnlyCredit(*locked_chain);
+
+            if (wtx.IsCoinStake() && wtx.GetBlocksToMaturity(*locked_chain) > 0 && wtx.GetDepthInMainChain() > 0)
+                ret.m_stake += wtx.GetAvailableCredit(*locked_chain, /* fUseCache */ true, ISMINE_ALL);
         }
     }
     return ret;
