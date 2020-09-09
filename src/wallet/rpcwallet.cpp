@@ -4033,11 +4033,13 @@ UniValue walletcreatefundedpsbt(const JSONRPCRequest& request)
 UniValue makekeypair(const JSONRPCRequest& request)
 {
     //emcTODO - fill this
-    RPCHelpMan{"makekeypair [prefix]",
-        "Make a public/private key pair.\n"
-        "[prefix] is optional preferred prefix for the public key.\n",
-        {},
-        RPCResult{""},
+    RPCHelpMan{"makekeypair",
+        "\nMake a public/private key pair.\n",
+        {{"prefix", RPCArg::Type::AMOUNT, RPCArg::Optional::OMITTED, "preferred prefix for the public key"},},
+        RPCResult{"{\n"
+                  "  \"PrivateKey\": \"value\",        (string)  Hex string of private key\n"
+                  "  \"PublicKey\":  \"value\",        (string)  Hex string of public key\n"
+                  "}\n"},
         RPCExamples{ HelpExampleCli("makekeypair", "") +
                      HelpExampleRpc("makekeypair", "")},
     }.Check(request);
