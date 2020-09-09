@@ -65,7 +65,7 @@ public:
     }
 };
 
-
+// key = CNameVal, value = CNameRecord
 class CNameDB : public CDBWrapper
 {
 public:
@@ -95,7 +95,8 @@ public:
 };
 
 
-// secondary index for (address -> name) pairs
+
+// key = string, value = std::set<CNameVal>
 // names listed here maybe expired
 // names that have OP_NAME_DELETE as their last operation are not listed here
 
@@ -105,34 +106,18 @@ public:
     CNameAddressDB(size_t nCacheSize, bool fMemory = false, bool fWipe = false) : CDBWrapper(GetDataDir() / "indexes" / "nameaddressV3", nCacheSize, fMemory, fWipe) {
     }
 
-    bool WriteAddress(const std::string& address, const std::set<CNameVal>& names) {
-        return Write(make_pair(std::string("addressi"), address), names);
-    }
-
-    bool ReadAddress(const std::string& address, std::set<CNameVal>& names) {
-        return Read(make_pair(std::string("addressi"), address), names);
-    }
-
-    bool ExistsAddress(const std::string& address) {
-        return Exists(make_pair(std::string("addressi"), address));
-    }
-
-    bool EraseAddress(const std::string& address) {
-        return Erase(make_pair(std::string("addressi"), address));
-    }
-
     // this will fail if you try to add a name that already exist
     bool WriteSingleName(const std::string& address, const CNameVal& name) {
         std::set<CNameVal> names;
-        ReadAddress(address, names); // note: address will not exist if this is the first time we are writting it
-        return names.insert(name).second && Write(make_pair(std::string("addressi"), address), names);
+        Read(address, names); // note: address will not exist if this is the first time we are writting it
+        return names.insert(name).second && Write(address, names);
     }
 
     // this will fail if you try to erase a name that does not exist
     bool EraseSingleName(const std::string& address, const CNameVal& name) {
         std::set<CNameVal> names;
-        if (ReadAddress(address, names)) // note: address should always exist, because we are trying to erase name from existing record
-            return names.erase(name) && Write(make_pair(std::string("addressi"), address), names);
+        if (Read(address, names)) // note: address should always exist, because we are trying to erase name from existing record
+            return names.erase(name) && Write(address, names);
         return false;
     }
 
