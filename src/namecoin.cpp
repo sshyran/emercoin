@@ -1843,46 +1843,28 @@ bool CNameDB::GetNameIndexStats(NameIndexStats &stats)
 //! Calculate statistics about name index
 bool CNameAddressDB::GetNameAddressIndexStats(NameIndexStats &stats)
 {
-    //emcTODO redo this
-//    Dbc* pcursor = GetCursor();
-//    if (!pcursor)
-//        return false;
+    std::unique_ptr<CDBIterator> pcursor(NewIterator());
+    pcursor->Seek("");
+    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    while (pcursor->Valid()) {
+        std::string key;
+        if (!pcursor->GetKey(key))
+            return error("%s: failed to read key", __func__);
 
-//    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-//    std::string address;
-//    bool fRange = true;
-//    while (true)
-//    {
-//        // Read next record
-//        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-//        if (fRange)
-//            ssKey << make_pair(string("addressi"), address);
-//        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-//        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fRange);
-//        fRange = false;
-//        if (ret == DB_NOTFOUND)
-//            break;
-//        else if (ret != 0)
-//            return false;
+        std::set<CNameVal> value;
+        if (!pcursor->GetValue(value))
+            return error("%s: failed to read value", __func__);
 
-//        // Unserialize
-//        string strType;
-//        ssKey >> strType;
-//        if (strType == "addressi")
-//        {
-//            std::string address2;
-//            CNameVal name;
-//            ssKey >> address2;
-//            ssValue >> name;
-//            ss << address2;
-//            ss << name;
-//            stats.nRecordsAddress += 1;
-//            stats.nSerializedSizeAddress += ::GetSerializeSize(address2, SER_NETWORK, PROTOCOL_VERSION);
-//            stats.nSerializedSizeAddress += ::GetSerializeSize(name, SER_NETWORK, PROTOCOL_VERSION);
-//        }
-//    }
-//    pcursor->close();
-//    stats.hashSerializedAddress = ss.GetHash();
+        ss << key;
+        ss << value;
+        stats.nRecordsAddress += 1;
+        stats.nSerializedSizeAddress += ::GetSerializeSize(key, SER_NETWORK, PROTOCOL_VERSION);
+        stats.nSerializedSizeAddress += ::GetSerializeSize(value, SER_NETWORK, PROTOCOL_VERSION);
+
+        pcursor->Next();
+    }
+
+    stats.hashSerializedAddress = ss.GetHash();
     return true;
 }
 
