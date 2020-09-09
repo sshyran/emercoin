@@ -1745,58 +1745,39 @@ bool GetNameValue(const CNameVal& name, CNameVal& value)
 
 bool CNameDB::DumpToTextFile()
 {
-    //emcTODO redo this
-//    ofstream myfile((GetDataDir() / "name_dump.txt").string().c_str());
-//    if (!myfile.is_open())
-//        return false;
+    ofstream myfile((GetDataDir() / "name_dump.txt").string().c_str());
+    if (!myfile.is_open())
+        return false;
 
-//    Dbc* pcursor = GetCursor();
-//    if (!pcursor)
-//        return false;
+    std::unique_ptr<CDBIterator> pcursor(NewIterator());
+    pcursor->Seek(CNameVal());
+    while (pcursor->Valid()) {
+        CNameVal key;
+        if (!pcursor->GetKey(key))
+            return error("%s: failed to read key", __func__);
 
-//    CNameVal name;
-//    bool fRange = true;
-//    while (true)
-//    {
-//        // Read next record
-//        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-//        if (fRange)
-//            ssKey << make_pair(string("namei"), name);
-//        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-//        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fRange);
-//        fRange = false;
-//        if (ret == DB_NOTFOUND)
-//            break;
-//        else if (ret != 0)
-//            return false;
+        CNameRecord value;
+        if (!pcursor->GetValue(value))
+            return error("%s: failed to read value", __func__);
 
-//        // Unserialize
-//        string strType;
-//        ssKey >> strType;
-//        if (strType == "namei")
-//        {
-//            CNameVal name2;
-//            ssKey >> name2;
-//            CNameRecord val;
-//            ssValue >> val;
-//            if (val.vtxPos.empty())
-//                continue;
+        if (value.vtxPos.empty())
+            continue;
 
-//            myfile << "name =  " << stringFromNameVal(name2) << "\n";
-//            myfile << "nExpiresAt " << val.nExpiresAt << "\n";
-//            myfile << "nLastActiveChainIndex " << val.nLastActiveChainIndex << "\n";
-//            myfile << "vtxPos:\n";
-//            for (unsigned int i = 0; i < val.vtxPos.size(); i++)
-//            {
-//                myfile << "    nHeight = " << val.vtxPos[i].nHeight << "\n";
-//                myfile << "    op = " << val.vtxPos[i].op << "\n";
-//                myfile << "    value = " << stringFromNameVal(val.vtxPos[i].value) << "\n";
-//            }
-//            myfile << "\n\n";
-//        }
-//    }
-//    pcursor->close();
-//    myfile.close();
+        myfile << "name =  " << stringFromNameVal(key) << "\n";
+        myfile << "nExpiresAt " << value.nExpiresAt << "\n";
+        myfile << "nLastActiveChainIndex " << value.nLastActiveChainIndex << "\n";
+        myfile << "vtxPos:\n";
+        for (unsigned int i = 0; i < value.vtxPos.size(); i++) {
+            myfile << "    nHeight = " << value.vtxPos[i].nHeight << "\n";
+            myfile << "    op = " << value.vtxPos[i].op << "\n";
+            myfile << "    value = " << stringFromNameVal(value.vtxPos[i].value) << "\n";
+        }
+        myfile << "\n\n";
+
+        pcursor->Next();
+    }
+
+    myfile.close();
     return true;
 }
 
@@ -1828,53 +1809,34 @@ struct NameIndexStats
 //! Calculate statistics about name index
 bool CNameDB::GetNameIndexStats(NameIndexStats &stats)
 {
-    //emcTODO redo this
-//    Dbc* pcursor = GetCursor();
-//    if (!pcursor)
-//        return false;
+    std::unique_ptr<CDBIterator> pcursor(NewIterator());
+    pcursor->Seek(CNameVal());
+    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    while (pcursor->Valid()) {
+        CNameVal key;
+        if (!pcursor->GetKey(key))
+            return error("%s: failed to read key", __func__);
 
-//    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-//    CNameVal name;
-//    bool fRange = true;
-//    while (true)
-//    {
-//        // Read next record
-//        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-//        if (fRange)
-//            ssKey << make_pair(string("namei"), name);
-//        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-//        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fRange);
-//        fRange = false;
-//        if (ret == DB_NOTFOUND)
-//            break;
-//        else if (ret != 0)
-//            return false;
+        CNameRecord value;
+        if (!pcursor->GetValue(value))
+            return error("%s: failed to read value", __func__);
 
-//        // Unserialize
-//        string strType;
-//        ssKey >> strType;
-//        if (strType == "namei")
-//        {
-//            CNameVal name2;
-//            CNameRecord val;
-//            ssKey >> name2;
-//            ssValue >> val;
-//            ss << name2;
-//            ss << val.nExpiresAt;
-//            ss << val.nLastActiveChainIndex;
-//            for (unsigned int i = 0; i < val.vtxPos.size(); i++)
-//            {
-//                ss << val.vtxPos[i].nHeight;
-//                ss << val.vtxPos[i].op;
-//                ss << val.vtxPos[i].value;
-//            }
-//            stats.nRecordsName += 1;
-//            stats.nSerializedSizeName += ::GetSerializeSize(name2, SER_NETWORK, PROTOCOL_VERSION);
-//            stats.nSerializedSizeName += ::GetSerializeSize(val, SER_NETWORK, PROTOCOL_VERSION);
-//        }
-//    }
-//    pcursor->close();
-//    stats.hashSerializedName = ss.GetHash();
+        ss << key;
+        ss << value.nExpiresAt;
+        ss << value.nLastActiveChainIndex;
+        for (unsigned int i = 0; i < value.vtxPos.size(); i++) {
+            ss << value.vtxPos[i].nHeight;
+            ss << value.vtxPos[i].op;
+            ss << value.vtxPos[i].value;
+        }
+        stats.nRecordsName += 1;
+        stats.nSerializedSizeName += ::GetSerializeSize(key, SER_NETWORK, PROTOCOL_VERSION);
+        stats.nSerializedSizeName += ::GetSerializeSize(value, SER_NETWORK, PROTOCOL_VERSION);
+
+        pcursor->Next();
+    }
+
+    stats.hashSerializedName = ss.GetHash();
     return true;
 }
 
