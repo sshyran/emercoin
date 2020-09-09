@@ -746,6 +746,8 @@ static UniValue signrawtransactionwithkey(const JSONRPCRequest& request)
                 },
             }.Check(request);
 
+    ObserveSafeMode();
+
     RPCTypeCheck(request.params, {UniValue::VSTR, UniValue::VARR, UniValue::VARR, UniValue::VSTR}, true);
 
     CMutableTransaction mtx;
@@ -805,6 +807,8 @@ static UniValue sendrawtransaction(const JSONRPCRequest& request)
             + HelpExampleRpc("sendrawtransaction", "\"signedhex\"")
                 },
     }.Check(request);
+
+    ObserveSafeMode();
 
     RPCTypeCheck(request.params, {
         UniValue::VSTR,

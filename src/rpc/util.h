@@ -265,4 +265,6 @@ private:
     const RPCExamples m_examples;
 };
 
+void ObserveSafeMode();
+
 #endif // BITCOIN_RPC_UTIL_H

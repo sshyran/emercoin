@@ -52,6 +52,7 @@
 #include <key.h>
 #include <wallet/wallet.h>
 #include <namecoin.h>
+#include <alert.h>
 
 #include <future>
 #include <sstream>
@@ -1225,6 +1226,32 @@ static void CheckForkWarningConditions() EXCLUSIVE_LOCKS_REQUIRED(cs_main)
         SetfLargeWorkForkFound(false);
         SetfLargeWorkInvalidChainFound(false);
     }
+
+    // emercoin:
+    if (CheckpointsSync::IsSyncCheckpointTooOld(60 * 60 * 24 * 10))
+        SetfCheckpointIsTooOld(true);
+    else
+        SetfCheckpointIsTooOld(false);
+
+    if (CheckpointsSync::hashInvalidCheckpoint != uint256())
+        SetfhashInvalidCheckpoint(true);
+    else
+        SetfhashInvalidCheckpoint(false);
+
+    int nPriority = 0;
+    CAlert highestPriorityAlert;
+    {
+        LOCK(cs_mapAlerts);
+        for (const auto& item : mapAlerts) {
+            const CAlert& alert = item.second;
+            if (alert.AppliesToMe() && alert.nPriority > nPriority) {
+                nPriority = alert.nPriority;
+                highestPriorityAlert = alert;
+            }
+        }
+    }
+    if (highestPriorityAlert.strStatusBar != "")
+        SetAlertWarning(std::make_pair(highestPriorityAlert.strStatusBar, highestPriorityAlert.nPriority));
 }
 
 static void CheckForkWarningConditionsOnNewFork(CBlockIndex* pindexNewForkTip) EXCLUSIVE_LOCKS_REQUIRED(cs_main)

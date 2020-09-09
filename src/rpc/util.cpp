@@ -11,6 +11,9 @@
 #include <util/strencodings.h>
 #include <util/string.h>
 
+#include <warnings.h>
+#include <util/system.h>
+
 #include <tuple>
 
 InitInterfaces* g_rpc_interfaces = nullptr;
@@ -750,4 +753,13 @@ UniValue GetServicesNames(ServiceFlags services)
         servicesNames.push_back("NETWORK_LIMITED");
 
     return servicesNames;
+}
+
+static const bool DEFAULT_DISABLE_SAFEMODE = false;
+void ObserveSafeMode()
+{
+    std::string warning = GetWarnings("rpc");
+    if (warning != "" && !gArgs.GetBoolArg("-disablesafemode", DEFAULT_DISABLE_SAFEMODE)) {
+        throw JSONRPCError(RPC_FORBIDDEN_BY_SAFE_MODE, std::string("Safe mode: ") + warning);
+    }
 }

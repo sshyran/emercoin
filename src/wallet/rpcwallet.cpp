@@ -32,8 +32,6 @@
 #include <wallet/walletdb.h>
 #include <wallet/walletutil.h>
 
-#include "warnings.h"
-
 #include <stdint.h>
 
 #include <univalue.h>
@@ -384,6 +382,8 @@ static UniValue sendtoaddress(const JSONRPCRequest& request)
                 },
             }.Check(request);
 
+    ObserveSafeMode();
+
     // Make sure the results are valid at least up to the most recent block
     // the user could have gotten from another RPC command prior to now
     pwallet->BlockUntilSyncedToCurrentChain();
@@ -469,6 +469,8 @@ static UniValue listaddressgroupings(const JSONRPCRequest& request)
             + HelpExampleRpc("listaddressgroupings", "")
                 },
             }.Check(request);
+
+    ObserveSafeMode();
 
     // Make sure the results are valid at least up to the most recent block
     // the user could have gotten from another RPC command prior to now
@@ -594,6 +596,8 @@ static UniValue getreceivedbyaddress(const JSONRPCRequest& request)
                 },
             }.Check(request);
 
+    ObserveSafeMode();
+
     // Make sure the results are valid at least up to the most recent block
     // the user could have gotten from another RPC command prior to now
     pwallet->BlockUntilSyncedToCurrentChain();
@@ -663,6 +667,8 @@ static UniValue getreceivedbylabel(const JSONRPCRequest& request)
             + HelpExampleRpc("getreceivedbylabel", "\"tabby\", 6")
                 },
             }.Check(request);
+
+    ObserveSafeMode();
 
     // Make sure the results are valid at least up to the most recent block
     // the user could have gotten from another RPC command prior to now
@@ -734,6 +740,8 @@ static UniValue getbalance(const JSONRPCRequest& request)
                 },
             }.Check(request);
 
+    ObserveSafeMode();
+
     // Make sure the results are valid at least up to the most recent block
     // the user could have gotten from another RPC command prior to now
     pwallet->BlockUntilSyncedToCurrentChain();
@@ -775,6 +783,8 @@ static UniValue getunconfirmedbalance(const JSONRPCRequest &request)
                 RPCResults{},
                 RPCExamples{""},
             }.Check(request);
+
+    ObserveSafeMode();
 
     // Make sure the results are valid at least up to the most recent block
     // the user could have gotten from another RPC command prior to now
@@ -838,6 +848,8 @@ static UniValue sendmany(const JSONRPCRequest& request)
             + HelpExampleRpc("sendmany", "\"\", {\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\":0.01,\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\":0.02}, 6, \"testing\"")
                 },
     }.Check(request);
+
+    ObserveSafeMode();
 
     // Make sure the results are valid at least up to the most recent block
     // the user could have gotten from another RPC command prior to now
@@ -1199,6 +1211,8 @@ static UniValue listreceivedbyaddress(const JSONRPCRequest& request)
                 },
             }.Check(request);
 
+    ObserveSafeMode();
+
     // Make sure the results are valid at least up to the most recent block
     // the user could have gotten from another RPC command prior to now
     pwallet->BlockUntilSyncedToCurrentChain();
@@ -1242,6 +1256,8 @@ static UniValue listreceivedbylabel(const JSONRPCRequest& request)
             + HelpExampleRpc("listreceivedbylabel", "6, true, true")
                 },
             }.Check(request);
+
+    ObserveSafeMode();
 
     // Make sure the results are valid at least up to the most recent block
     // the user could have gotten from another RPC command prior to now
@@ -1418,6 +1434,8 @@ UniValue listtransactions(const JSONRPCRequest& request)
                 },
             }.Check(request);
 
+    ObserveSafeMode();
+
     // Make sure the results are valid at least up to the most recent block
     // the user could have gotten from another RPC command prior to now
     pwallet->BlockUntilSyncedToCurrentChain();
@@ -1551,6 +1569,8 @@ static UniValue listsinceblock(const JSONRPCRequest& request)
             + HelpExampleRpc("listsinceblock", "\"000000000000000bacf66f7497b7dc45ef753ee9a7d38571037cdb1a57f663ad\", 6")
                 },
             }.Check(request);
+
+    ObserveSafeMode();
 
     // Make sure the results are valid at least up to the most recent block
     // the user could have gotten from another RPC command prior to now
@@ -1696,6 +1716,8 @@ static UniValue gettransaction(const JSONRPCRequest& request)
                 },
             }.Check(request);
 
+    ObserveSafeMode();
+
     // Make sure the results are valid at least up to the most recent block
     // the user could have gotten from another RPC command prior to now
     pwallet->BlockUntilSyncedToCurrentChain();
@@ -1771,6 +1793,8 @@ static UniValue abandontransaction(const JSONRPCRequest& request)
             + HelpExampleRpc("abandontransaction", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\"")
                 },
             }.Check(request);
+
+    ObserveSafeMode();
 
     // Make sure the results are valid at least up to the most recent block
     // the user could have gotten from another RPC command prior to now
@@ -2283,6 +2307,8 @@ static UniValue listlockunspent(const JSONRPCRequest& request)
                 },
             }.Check(request);
 
+    ObserveSafeMode();
+
     auto locked_chain = pwallet->chain().lock();
     LOCK(pwallet->cs_wallet);
 
@@ -2448,6 +2474,8 @@ static UniValue getwalletinfo(const JSONRPCRequest& request)
             + HelpExampleRpc("getwalletinfo", "")
                 },
     }.Check(request);
+
+    ObserveSafeMode();
 
     // Make sure the results are valid at least up to the most recent block
     // the user could have gotten from another RPC command prior to now
@@ -2849,6 +2877,8 @@ static UniValue listunspent(const JSONRPCRequest& request)
                 },
             }.Check(request);
 
+    ObserveSafeMode();
+
     int nMinDepth = 1;
     if (!request.params[0].isNull()) {
         RPCTypeCheckArgument(request.params[0], UniValue::VNUM);
@@ -3185,6 +3215,8 @@ static UniValue fundrawtransaction(const JSONRPCRequest& request)
                                 },
     }.Check(request);
 
+    ObserveSafeMode();
+
     RPCTypeCheck(request.params, {UniValue::VSTR, UniValueType(), UniValue::VBOOL});
 
     // parse hex string from parameter
@@ -3266,6 +3298,8 @@ UniValue signrawtransactionwithwallet(const JSONRPCRequest& request)
             + HelpExampleRpc("signrawtransactionwithwallet", "\"myhex\"")
                 },
             }.Check(request);
+
+    ObserveSafeMode();
 
     RPCTypeCheck(request.params, {UniValue::VSTR, UniValue::VARR, UniValue::VSTR}, true);
 
@@ -3709,6 +3743,8 @@ static UniValue listlabels(const JSONRPCRequest& request)
             + HelpExampleRpc("listlabels", "receive")
                 },
             }.Check(request);
+
+    ObserveSafeMode();
 
     LOCK(pwallet->cs_wallet);
 

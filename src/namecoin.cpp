@@ -269,6 +269,8 @@ UniValue sendtoname(const JSONRPCRequest& request)
         },
     }.Check(request);
 
+    ObserveSafeMode();
+
     if (::ChainstateActive().IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Emercoin is downloading blocks...");
 
@@ -970,6 +972,8 @@ UniValue name_new(const JSONRPCRequest& request)
         },
     }.Check(request);
 
+    ObserveSafeMode();
+
     CNameVal name = nameValFromValue(request.params[0]);
     CNameVal value = nameValFromValue(request.params[1]);
     int nRentalDays = request.params[2].get_int();
@@ -1011,6 +1015,8 @@ UniValue name_update(const JSONRPCRequest& request)
         },
     }.Check(request);
 
+    ObserveSafeMode();
+
     CNameVal name = nameValFromValue(request.params[0]);
     CNameVal value = nameValFromValue(request.params[1]);
     int nRentalDays = request.params[2].get_int();
@@ -1042,6 +1048,8 @@ UniValue name_delete(const JSONRPCRequest& request)
     + HelpExampleRpc("name_update", "")
         },
     }.Check(request);
+
+    ObserveSafeMode();
 
     CNameVal name = nameValFromValue(request.params[0]);
 

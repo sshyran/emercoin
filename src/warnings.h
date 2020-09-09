@@ -23,4 +23,9 @@ void SetfLargeWorkInvalidChainFound(bool flag);
  */
 std::string GetWarnings(const std::string& strFor);
 
+// emercoin:
+void SetfCheckpointIsTooOld(bool flag);
+void SetfhashInvalidCheckpoint(bool flag);
+void SetAlertWarning(std::pair<std::string, int> alert);
+
 #endif //  BITCOIN_WARNINGS_H

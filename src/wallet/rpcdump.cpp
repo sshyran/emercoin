@@ -229,6 +229,8 @@ UniValue abortrescan(const JSONRPCRequest& request)
                 },
             }.Check(request);
 
+    ObserveSafeMode();
+
     if (!pwallet->IsScanning() || pwallet->IsAbortingRescan()) return false;
     pwallet->AbortRescan();
     return true;
