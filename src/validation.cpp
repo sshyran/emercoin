@@ -3640,9 +3640,9 @@ bool BlockManager::AcceptBlockHeader(const CBlockHeader& block, bool fProofOfSta
         value.pindex = pindex;
         recentPoSHeaders[pindex->GetBlockHash()] = value;
     } else {
-        // PoW header: clear all PoS parrents from recentPoSHeaders, so that memory is freed ASAP
+        // PoW header: clear all PoS parents from recentPoSHeaders, so that memory is freed ASAP
         CBlockIndex *pindexTmp = pindex->pprev;
-        while (recentPoSHeaders.erase(pindexTmp->GetBlockHash()))
+        while (pindexTmp != NULL && recentPoSHeaders.erase(pindexTmp->GetBlockHash()))
             pindexTmp = pindexTmp->pprev;
     }
 
