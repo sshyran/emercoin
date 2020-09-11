@@ -589,9 +589,11 @@ static struct StunSrv StunSrvList[] = {
   {"stun4.l.google.com",	19302},
   {"stun4.l.google.com",	19305},
   {"stun-eu.3cx.com",	3478},
-  {"stun2.3cx.com",	3478},
+  {"stun-us.3cx.com",	3478},
+  {"stun1.3cx.com",	3478},
   {"stun3.3cx.com",	3478},
-  {"stun-us.3cx.com",	3478}
+  {"stun2.3cx.com",	3478},
+  {"stun4.3cx.com",	3478}
 };
 
 static const int StunSrvListQty = sizeof(StunSrvList) / sizeof(StunSrv);
@@ -812,17 +814,17 @@ static int StunRequest(const char *host, uint16_t port, struct sockaddr_in *mapp
 // Negative return - unable to figure out IP address
 int GetExternalIPbySTUN(uint64_t rnd, struct sockaddr_in *mapped, const char **srv, uint16_t src_port) {
   randfiller    = rnd;
-  uint16_t pos  = rnd;
-  uint16_t step, a, b; 
+  uint16_t pos  = rnd >> 16;
+  uint16_t step, a, b, t; 
   // Select step relative prime to StunSrvListQty using Euclid algorithm
   do {
-      a = StunSrvListQty;
-      b = step = (++rnd) % StunSrvListQty;
-      while(b != 0) {
-          uint16_t t = b;
+      a = step = ++rnd;
+      b = StunSrvListQty;
+      do {
+          t = b;
           b = a % b;
           a = t;
-      }
+      } while(b != 0);
   } while(a != 1);
 
   int attempt; // runs in 8 birs offset, for keep flags in low byte 
