@@ -45,7 +45,7 @@
 #include <time.h>
 #include <errno.h>
 
-
+#include "random.h"
 #include "ministun.h"
 
 /*---------------------------------------------------------------------*/
@@ -59,6 +59,8 @@ struct StunSrv {
 // STUN server list from 2020-09-10
 static struct StunSrv StunSrvList[] = {
   {"iphone-stun.strato-iphone.de",	3478},
+  {"stun-eu.3cx.com",	3478},
+  {"stun-us.3cx.com",	3478},
   {"stun.1-voip.com",	3478},
   {"stun.12connect.com",	3478},
   {"stun.12voip.com",	3478},
@@ -98,6 +100,7 @@ static struct StunSrv StunSrvList[] = {
   {"stun.bandyer.com",	3478},
   {"stun.barbaratabita.it",	3478},
   {"stun.bau-ha.us",	3478},
+  {"stun.bcs2005.net",	3478},
   {"stun.bearstech.com",	3478},
   {"stun.beebeetle.com",	3478},
   {"stun.bergophor.de",	3478},
@@ -122,15 +125,12 @@ static struct StunSrv StunSrvList[] = {
   {"stun.cibercloud.com.br",	3478},
   {"stun.clickphone.ro",	3478},
   {"stun.cloopen.com",	3478},
-  {"stun.cnj.gov.br",	3478},
-  {"stun.cnj.jus.br",	3478},
   {"stun.coffee-sen.com",	3478},
   {"stun.comrex.com",	3478},
   {"stun.comtube.com",	3478},
   {"stun.comtube.ru",	3478},
   {"stun.connecteddata.com",	3478},
   {"stun.cope.es",	3478},
-  {"stun.counterpath.com",	3478},
   {"stun.counterpath.net",	3478},
   {"stun.cozy.org",	3478},
   {"stun.createweb.de",	3478},
@@ -181,7 +181,6 @@ static struct StunSrv StunSrvList[] = {
   {"stun.fmo.de",	3478},
   {"stun.foad.me.uk",	3478},
   {"stun.fondazioneroccochinnici.it",	3478},
-  {"stun.framasoft.org",	3478},
   {"stun.freecall.com",	3478},
   {"stun.freeswitch.org",	3478},
   {"stun.freevoipdeal.com",	3478},
@@ -579,21 +578,21 @@ static struct StunSrv StunSrvList[] = {
   {"stun.zombiegrinder.com",	3478},
   {"stun.zottel.net",	3478},
   {"stun.zuckschwerdt.org",	3478},
+  {"stun1.3cx.com",	3478},
   {"stun1.faktortel.com.au",	3478},
   {"stun1.l.google.com",	19302},
   {"stun1.l.google.com",	19305},
+  {"stun2.3cx.com",	3478},
   {"stun2.l.google.com",	19302},
   {"stun2.l.google.com",	19305},
+  {"stun3.3cx.com",	3478},
   {"stun3.l.google.com",	19302},
   {"stun3.l.google.com",	19305},
+  {"stun4.3cx.com",	3478},
   {"stun4.l.google.com",	19302},
   {"stun4.l.google.com",	19305},
-  {"stun-eu.3cx.com",	3478},
-  {"stun-us.3cx.com",	3478},
-  {"stun1.3cx.com",	3478},
-  {"stun3.3cx.com",	3478},
-  {"stun2.3cx.com",	3478},
-  {"stun4.3cx.com",	3478}
+  {"stun.counterpath.com",	3478},
+  {"stun.framasoft.org",	3478}
 };
 
 static const int StunSrvListQty = sizeof(StunSrvList) / sizeof(StunSrv);
@@ -812,8 +811,9 @@ static int StunRequest(const char *host, uint16_t port, struct sockaddr_in *mapp
 // Retval:
 // bits 0-7 = STUN tokens set, 8-32 = attempt number
 // Negative return - unable to figure out IP address
-int GetExternalIPbySTUN(uint64_t rnd, struct sockaddr_in *mapped, const char **srv, uint16_t src_port) {
-  randfiller    = rnd;
+int GetExternalIPbySTUN(struct sockaddr_in *mapped, const char **srv, uint16_t src_port) {
+  GetRandBytes((uint8_t *)&randfiller, sizeof(randfiller));
+  uint32_t rnd = (uint32_t)randfiller;
   uint16_t pos  = rnd >> 16;
   uint16_t step, a, b, t; 
   // Select step relative prime to StunSrvListQty using Euclid algorithm

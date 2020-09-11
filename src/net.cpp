@@ -2154,7 +2154,7 @@ void Discover()
 
 /*--------------------------------------------------------------------------*/
 // from file stun.cpp
-int GetExternalIPbySTUN(uint64_t rnd, struct sockaddr_in *mapped, const char **srv, uint16_t src_port);
+int GetExternalIPbySTUN(struct sockaddr_in *mapped, const char **srv, uint16_t src_port);
 
 /*--------------------------------------------------------------------------*/
 static const char *stun_rc_txt[] = {
@@ -2167,10 +2167,9 @@ static const char *stun_rc_txt[] = {
 
 void ThreadGetMyExternalIP_STUN() {
   struct sockaddr_in mapped;
-  uint64_t rnd = GetRand(~0LL);
   const char *srv;
   int src_port = gArgs.GetArg("-stunsrcport", 0);
-  int rc = GetExternalIPbySTUN(rnd, &mapped, &srv, src_port);
+  int rc = GetExternalIPbySTUN(&mapped, &srv, src_port);
   if(rc > 0) {
     CNetAddr ipRet(mapped.sin_addr);
     AddLocal(ipRet, LOCAL_STUN);
