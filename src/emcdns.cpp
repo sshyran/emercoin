@@ -121,6 +121,23 @@ char *strsep(char **s, const char *ct)
 #endif
 
 /*---------------------------------------------------*/
+const static char *decodeQtype(uint8_t x) {
+  switch(x) {
+      case 1: return "A";
+      case 2: return "NS";
+      case 5: return "CNAME";
+      case 6:    return "-SOA";
+      case 12: return "PTR";
+      case 15: return "MX";
+      case 16 :return "TXT";
+      case 28: return "AAAA";
+      case 33:   return "-SRV";
+      case 35:   return "-NAPTR";
+      case 0xff: return "-ALL";
+      default:   return "-?";
+  }
+};
+/*---------------------------------------------------*/
 
 EmcDns::EmcDns(const char *bind_ip, uint16_t port_no,
 	  const char *gw_suffix, const char *allowed_suff, const char *local_fname, 
@@ -591,11 +608,11 @@ uint16_t EmcDns::HandleQuery() {
   uint16_t qtype  = *m_rcv++; qtype  = (qtype  << 8) + *m_rcv++; 
   uint16_t qclass = *m_rcv++; qclass = (qclass << 8) + *m_rcv++;
 
-  if(m_verbose > 2) 
-    LogPrintf("EmcDns::HandleQuery: Key=%s QType=0x%x QClass=0x%x mintemp=%u\n", key, qtype, qclass, m_mintemp);
-
   if(qclass != 1)
     return 4; // Not implemented - support INET only
+
+  if(m_verbose > 2) 
+    LogPrintf("EmcDns::HandleQuery: Key=%s QType=0x%x[%s] mintemp=%u\n", key, qtype, decodeQtype(qtype), m_mintemp);
 
   // If thid is public gateway, gw-suffix can be specified, like 
   // emcdnssuffix=.xyz.com
@@ -831,20 +848,11 @@ int EmcDns::Tokenize(const char *key, const char *sep2, char **tokens, char *buf
 /*---------------------------------------------------*/
 
 void EmcDns::Answer_ALL(uint16_t qtype, char *buf) {
-  const char *key;
   uint16_t needed_addl = qtype & 0x80;
   qtype ^= needed_addl;
-
-  switch(qtype) {
-      case  1 : key = "A";      break;
-      case  2 : key = "NS";     break;
-      case  5 : key = "CNAME";  break;
-      case 12 : key = "PTR";    break;
-      case 15 : key = "MX";     break;
-      case 16 : key = "TXT";    break;
-      case 28 : key = "AAAA";   break;
-      default: return;
-  } // switch
+  const char *key = decodeQtype(qtype);
+  if(key[0] == '-')
+      return; // Do not handle special or undef keys
 
   //uint16_t addl_refs[MAX_TOK];
   char *tokens[MAX_TOK];
