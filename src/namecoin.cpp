@@ -262,11 +262,11 @@ UniValue sendtoname(const JSONRPCRequest& request)
     RPCHelpMan{"sendtoname <name> <amount> [comment] [comment-to]",
         "\n<amount> is a real and is rounded to the nearest 0.01.\n",
         {},
-        RPCResult{""},
-        RPCExamples{
-            HelpExampleCli("sendtoname", "")
-    + HelpExampleRpc("sendtoname", "")
-        },
+        RPCResult{"{\n"
+                  "  \"sending to\": \"value\",        (string)  Emercoin address coins was sent to\n"
+                  "  \"transaction\":  \"value\",        (string)  Hex string of created transaction\n"
+                  "}\n"},
+        RPCExamples{HelpExampleCli("sendtoname", "myname 10") + HelpExampleRpc("sendtoname", "myname 10s")},
     }.Check(request);
 
     ObserveSafeMode();
