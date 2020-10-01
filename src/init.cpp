@@ -1740,7 +1740,7 @@ bool AppInitMain(InitInterfaces& interfaces)
         fReindexName = true;
         // emercoin: remove secondary index if we are re-creating first one (both will be re-created)
         if (boost::filesystem::exists(pathNameAddress)) {
-            boost::filesystem::remove(pathNameAddress);
+            boost::filesystem::remove_all(pathNameAddress);
             fReindexNameAddress = true;
         }
     }
@@ -1757,7 +1757,7 @@ bool AppInitMain(InitInterfaces& interfaces)
             reindexNameAddressIndex();
     } else {
         if (boost::filesystem::exists(pathNameAddress))
-            boost::filesystem::remove(pathNameAddress);
+            boost::filesystem::remove_all(pathNameAddress);
     }
 
     // ********************************************************* Step 9: load wallet
