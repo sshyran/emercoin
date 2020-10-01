@@ -175,11 +175,11 @@ bool CNameDB::ScanNames(const CNameVal& name, unsigned int nMax,
         if (!pcursor->GetValue(value))
             return error("%s: failed to read value", __func__);
 
+        pcursor->Next();
+
         if (value.deleted() || value.vtxPos.empty())
             continue;
         nameScan.push_back(make_pair(key, make_pair(value.vtxPos.back(), value.nExpiresAt)));
-
-        pcursor->Next();
     }
 
     return true;
@@ -1769,7 +1769,9 @@ bool CNameDB::DumpToTextFile()
         if (!pcursor->GetValue(value))
             return error("%s: failed to read value", __func__);
 
-        if (value.vtxPos.empty())
+        pcursor->Next();
+
+        if (!value.vtxPos.empty())
             continue;
 
         myfile << "name =  " << stringFromNameVal(key) << "\n";
@@ -1782,8 +1784,6 @@ bool CNameDB::DumpToTextFile()
             myfile << "    value = " << stringFromNameVal(value.vtxPos[i].value) << "\n";
         }
         myfile << "\n\n";
-
-        pcursor->Next();
     }
 
     myfile.close();
