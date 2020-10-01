@@ -1235,17 +1235,16 @@ NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, 
     return ret;
 }
 
-bool createNameIndexes()
+bool reindexNameIndex()
 {
     if (!g_txindex)
         return error("createNameIndexes() : transaction index not available");
 
     LogPrintf("Scanning blockchain for names to create fast index...\n");
     LOCK(cs_main);
-    //emcTODO check if you need to create db here
-//    CNameDB dbName("cr+");
-//    CNameAddressDB dbNameAddress("cr+");
-    int maxHeight = std::max(::ChainActive().Height(), 1);
+    int maxHeight = ::ChainActive().Height();
+    if (maxHeight <= 0)
+        return true;
     int reportDone = 0;
     for (int nHeight=0; nHeight<=maxHeight; nHeight++) {
         int percentageDone = (100*nHeight / maxHeight);
@@ -1254,8 +1253,7 @@ bool createNameIndexes()
             LogPrintf("[%d%%]...", percentageDone);
             reportDone = percentageDone/10;
         }
-        //emcTODO - redo this
-        //uiInterface.ShowProgress("Creating nameindex (do not close app!)...", percentageDone);
+        uiInterface.ShowProgress("Creating name index (do not close app!)...", percentageDone, false);
 
         CBlockIndex* pindex = ::ChainActive()[nHeight];
         CBlock block;
@@ -1295,20 +1293,31 @@ bool createNameIndexes()
     return true;
 }
 
-bool createNameAddressFile()
+bool reindexNameAddressIndex()
 {
     LogPrintf("Scanning blockchain for names to create secondary (address->name) index...\n");
     LOCK(cs_main);
-    //emcTODO - check if we need recreate db here
-    //CNameAddressDB dbNameAddress("cr+");
 
     vector<pair<CNameVal, pair<CNameIndex,int> > > nameScan;
     if (!pNameDB->ScanNames(CNameVal(), 0, nameScan))
         return error("createNameAddressFile() : scan failed");
 
-    for (const auto& pair : nameScan) {
-        const CNameVal&   name  = pair.first;
-        const CDiskTxPos& txpos = pair.second.first.txPos;
+    int maxHeight = nameScan.size()-1;
+    if (maxHeight <= 0)
+        return true;
+    int reportDone = 0;
+    for (int nHeight=0; nHeight<=maxHeight; nHeight++) {
+        int percentageDone = (100*nHeight / maxHeight);
+        if (reportDone < percentageDone/10) {
+            // report every 10% step
+            LogPrintf("[%d%%]...", percentageDone);
+            reportDone = percentageDone/10;
+        }
+        uiInterface.ShowProgress("Creating nameadress index (do not close app!)...", percentageDone, false);
+
+
+        const CNameVal&   name  = nameScan[nHeight].first;
+        const CDiskTxPos& txpos = nameScan[nHeight].second.first.txPos;
 
         CTransactionRef tx;
         if (!g_txindex || !g_txindex->FindTx(txpos, tx))

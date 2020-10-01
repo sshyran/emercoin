@@ -572,6 +572,8 @@ void SetupServerArgs()
     gArgs.AddArg("-genproclimit=<n>", strprintf(_("Set the number of threads for coin generation if enabled (-1 = all cores, default: %d)"), DEFAULT_GENERATE_THREADS);
 #endif
 
+    gArgs.AddArg("-nameaddress", "enable address->names index (default: false)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+
     // Add the hidden options
     gArgs.AddHiddenArgs(hidden_args);
 }
@@ -1728,18 +1730,31 @@ bool AppInitMain(InitInterfaces& interfaces)
     }
 
     // emercoin: check if indexes need to be created or recreated
+    extern bool reindexNameIndex();
+    extern bool reindexNameAddressIndex();
     boost::filesystem::path pathNameIndex = GetDataDir() / "indexes" / "nameindexV3";
     boost::filesystem::path pathNameAddress = GetDataDir() / "indexes" / "nameaddressV3";
+    bool fReindexName = false;
+    bool fReindexNameAddress = false;
     if (!boost::filesystem::exists(pathNameIndex)) {
+        fReindexName = true;
         // emercoin: remove secondary index if we are re-creating first one (both will be re-created)
-        if (boost::filesystem::exists(pathNameAddress))
+        if (boost::filesystem::exists(pathNameAddress)) {
             boost::filesystem::remove(pathNameAddress);
+            fReindexNameAddress = true;
+        }
     }
 
-    pNameDB = MakeUnique<CNameDB>(nTxIndexCache, false, fReindex);
+    pNameDB = MakeUnique<CNameDB>(nTxIndexCache, false, fReindexName);
+    if (fReindexName)
+        reindexNameIndex();
 
     if (gArgs.GetBoolArg("-nameaddress", false)) {
-        pNameAddressDB = MakeUnique<CNameAddressDB>(nTxIndexCache, false, fReindex);
+        if (!boost::filesystem::exists(pathNameAddress))
+            fReindexNameAddress = true;
+        pNameAddressDB = MakeUnique<CNameAddressDB>(nTxIndexCache, false, fReindexNameAddress);
+        if (fReindexNameAddress)
+            reindexNameAddressIndex();
     } else {
         if (boost::filesystem::exists(pathNameAddress))
             boost::filesystem::remove(pathNameAddress);
