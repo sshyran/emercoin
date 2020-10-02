@@ -735,15 +735,23 @@ static UniValue getnodeaddresses(const JSONRPCRequest& request)
 // ppcoin: get information of sync-checkpoint
 UniValue getcheckpoint(const JSONRPCRequest& request)
 {
-    //emcTODO fill this
     RPCHelpMan{"getcheckpoint",
-        "\nShow info of synchronized checkpoint.\n",
-        {},
-        RPCResult{""},
-        RPCExamples{
-            HelpExampleCli("getcheckpoint", "")
-    + HelpExampleRpc("getcheckpoint", "")
-        },
+    "\nShow info of synchronized checkpoint.\n",
+    {},
+    RPCResult{
+        "{\n"
+        "  \"synccheckpoint\"           (string) Sync checkpoint hash\n"
+        "  \"height\"                   (numeric) Sync checkpoint height\n"
+        "  \"timestamp\"                (string) Sync checkpoint date\n"
+        "  \"pendingsynccheckpoint\"    (string, optional) Pending sync checkpoint hash\n"
+        "  \"pendingheight\"            (numeric, optional) Pending sync checkpoint height\n"
+        "  \"pendingtimestamp\"         (numeric, optional) Pending sync checkpoint date\n"
+        "  \"checkpointkey\"            (string, optional) Checkpoint master key\n"
+        "}\n"
+    },
+    RPCExamples{
+        HelpExampleCli("getcheckpoint", "") + HelpExampleRpc("getcheckpoint", "")
+    },
     }.Check(request);
 
 

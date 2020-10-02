@@ -580,12 +580,13 @@ UniValue sendalert(const JSONRPCRequest& request)
     },
     RPCResult{
         "{\n"
-        "  \"strStatusBar\": \"xxxx\", (string) Alert text message\n"
-        "  \"nVersion\": nnn,          (numeric) Internal client version\n"
-        "  \"nMinVer\": nnn,           (numeric) Minimum applicable internal client version\n"
-        "  \"nMaxVer\": xxx.xxxxx      (numeric) Maximum applicable internal client version\n"
-        "  \"nPriority\": nnn,         (numeric) Alert priority\n"
-        "  \"nID\": nnn                (numeric) Alert id\n"
+        "  \"strStatusBar\"    (string) Alert text message\n"
+        "  \"nVersion\"        (numeric) Internal client version\n"
+        "  \"nMinVer\"         (numeric) Minimum applicable internal client version\n"
+        "  \"nMaxVer\"         (numeric) Maximum applicable internal client version\n"
+        "  \"nPriority\"       (numeric) Alert priority\n"
+        "  \"nID\"             (numeric) Alert id\n"
+        "  \"nCancel\"         (numeric) Cancels all alert id's up to this number\n"
         "}\n"
     },
     RPCExamples{""},
@@ -632,8 +633,7 @@ UniValue sendalert(const JSONRPCRequest& request)
     result.pushKV("nMaxVer", alert.nMaxVer);
     result.pushKV("nPriority", alert.nPriority);
     result.pushKV("nID", alert.nID);
-    if (alert.nCancel > 0)
-        result.pushKV("nCancel", alert.nCancel);
+    result.pushKV("nCancel", alert.nCancel);
     return result;
 }
 
