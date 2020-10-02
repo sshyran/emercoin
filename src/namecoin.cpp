@@ -960,26 +960,27 @@ UniValue name_new(const JSONRPCRequest& request)
         return NullUniValue;
     }
 
-    //emcTODO fill this
-    RPCHelpMan{"name_new <name> <value> <days> [toaddress] [valuetype]\n",
-        "Creates new key->value pair which expires after specified number of days.\n"
-        "Cost is square root of (1% of last PoW + 1% per year of last PoW)."
-        "\nArguments:\n"
-        "1. name      (string, required) Name to create.\n"
-        "2. value     (string, required) Value to write.\n"
-        "3. days      (number, required) How many days this name will be active (1 day~=175 blocks).\n"
-        "4. toaddress (string, optional) Address of recipient. Empty string = transaction to yourself.\n"
-        "5. valuetype (string, optional) Interpretation of value string. Can be \"hex\", \"base64\" or filepath.\n"
-        "   not specified or empty - Write value as a unicode string.\n"
-        "   \"hex\" or \"base64\" - Decode value string as a binary data in hex or base64 string format.\n"
-        "   otherwise - Decode value string as a filepath from which to read the data.\n",
-        {}, //args
-        RPCResult{ ""
-        },
-        RPCExamples{
-            HelpExampleCli("name_new", "")
-    + HelpExampleRpc("name_new", "")
-        },
+    RPCHelpMan{"name_new",
+    "\nCreates new key->value pair which expires after specified number of days.\n"
+    "Cost is square root of (1% of last PoW + 1% per year of last PoW).\n",
+    {
+        {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "Name to create\n"},
+        {"value", RPCArg::Type::STR, RPCArg::Optional::NO, "Value to write inside name\n"},
+        {"days", RPCArg::Type::NUM, RPCArg::Optional::NO, "How many days this name will be active (1 day~=175 blocks)\n"},
+        {"toaddress", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Address of recipient. Empty string = transaction to yourself\n"},
+        {"valuetype", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Interpretation of value string. Can be \"hex\", \"base64\" or filepath.\n"
+            "       not specified or empty - Write value as a unicode string.\n"
+            "       \"hex\" or \"base64\" - Decode value string as a binary data in hex or base64 string format.\n"
+            "       otherwise - Decode value string as a filepath from which to read the data.\n"
+        }
+    },
+    RPCResult{
+        "{\n"
+        "  (string)    Hex of created transaction\n"
+        "}\n"
+    },
+    RPCExamples{
+        HelpExampleCli("name_new", "myname abc 30") + HelpExampleRpc("name_new", "myname abc 30")},
     }.Check(request);
 
     ObserveSafeMode();
@@ -1004,25 +1005,26 @@ UniValue name_update(const JSONRPCRequest& request)
         return NullUniValue;
     }
 
-    //emcTODO fill this
-    RPCHelpMan{"name_update <name> <value> <days> [toaddress] [valuetype]\n",
-        "Update name value, add days to expiration time and possibly transfer a name to diffrent address.\n"
-        "\nArguments:\n"
-        "1. name      (string, required) Name to update.\n"
-        "2. value     (string, required) Value to write. Empty string = use previous value.\n"
-        "3. days      (number, required) How many days to add to this name (1 day~=175 blocks).\n"
-        "4. toaddress (string, optional) Address of recipient. Empty string = transaction to yourself.\n"
-        "5. valuetype (string, optional) Interpretation of value string. Can be \"hex\", \"base64\" or filepath.\n"
-        "   not specified or empty - Write value as a unicode string.\n"
-        "   \"hex\" or \"base64\" - Decode value string as a binary data in hex or base64 string format.\n"
-        "   otherwise - Decode value string as a filepath from which to read the data.\n",
-        {}, //args
-        RPCResult{ ""
-        },
-        RPCExamples{
-            HelpExampleCli("name_update", "")
-    + HelpExampleRpc("name_update", "")
-        },
+    RPCHelpMan{"name_update",
+    "\nUpdate name value, add days to expiration time and possibly transfer a name to diffrent address.\n",
+    {
+        {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "Name to create\n"},
+        {"value", RPCArg::Type::STR, RPCArg::Optional::NO, "Value to write inside name\n"},
+        {"days", RPCArg::Type::NUM, RPCArg::Optional::NO, "How many days this name will be active (1 day~=175 blocks)\n"},
+        {"toaddress", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Address of recipient. Empty string = transaction to yourself\n"},
+        {"valuetype", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Interpretation of value string. Can be \"hex\", \"base64\" or filepath.\n"
+            "       not specified or empty - Write value as a unicode string.\n"
+            "       \"hex\" or \"base64\" - Decode value string as a binary data in hex or base64 string format.\n"
+            "       otherwise - Decode value string as a filepath from which to read the data.\n"
+        }
+    },
+    RPCResult{
+        "{\n"
+        "  (string)    Hex of created transaction\n"
+        "}\n"
+    },
+    RPCExamples{
+        HelpExampleCli("name_update", "myname abc 30") + HelpExampleRpc("name_update", "myname abc 30")},
     }.Check(request);
 
     ObserveSafeMode();
@@ -1047,16 +1049,18 @@ UniValue name_delete(const JSONRPCRequest& request)
         return NullUniValue;
     }
 
-    //emcTODO fill this
-    RPCHelpMan{"name_delete <name>\nDelete a name if you own it. Others may do name_new after this command.",
-        "",
-        {}, //args
-        RPCResult{ ""
-        },
-        RPCExamples{
-            HelpExampleCli("name_update", "")
-    + HelpExampleRpc("name_update", "")
-        },
+    RPCHelpMan{"name_delete",
+    "\nDelete a name if you own it. Others may do name_new after this command.\n",
+    {
+        {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "Name to create\n"},
+    },
+    RPCResult{
+        "{\n"
+        "  (string)    Hex of created transaction\n"
+        "}\n"
+    },
+    RPCExamples{
+        HelpExampleCli("name_delete", "myname") + HelpExampleRpc("name_delete", "myname")},
     }.Check(request);
 
     ObserveSafeMode();
