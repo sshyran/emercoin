@@ -717,20 +717,30 @@ UniValue getauxblock(const JSONRPCRequest& request)
         return NullUniValue;
     }
 
-    //emcTODO fill this
     RPCHelpMan{"getauxblock",
-       "getauxblock [<hash> <auxpow>]\n"
-       " create a new block"
-       "If <hash>, <auxpow> is not specified, returns a new block hash.\n"
-       "If <hash>, <auxpow> is specified, tries to solve the block based on "
-       "the aux proof of work and returns true if it was successful.",
-        {}, //args
-        RPCResult{ ""
-        },
-        RPCExamples{HelpExampleCli("getauxblock", "") +
-                    HelpExampleRpc("getauxblock", "")
-        },
+    "\nCreate a new auxpow block.\n"
+    "If hash and auxpow is not specified, returns a new block hash.\n"
+    "If hash and auxpow is specified, tries to solve the block based on "
+    "the aux proof of work and returns true if it was successful.",
+    {
+        {"hash", RPCArg::Type::STR, /* default */ "ignored", "Hash"},
+        {"auxpow", RPCArg::Type::STR, /* default */ "ignored", "Auxpow"},
+    },
+    RPCResult{
+       "{\n"
+       "  \"target\"     (string) Target in hex form\n"
+       "  \"hash\"       (string) Hash\n"
+       "  \"chainid\"    (numeric) Blockchain id\n"
+       "  \"bits\"       (numeric) nBits of block\n"
+       "or \n"
+       "(bool or string) BIP22ValidationResult\n"
+       "}\n"
+    },
+    RPCExamples{HelpExampleCli("getauxblock", "") +
+                HelpExampleRpc("getauxblock", "")
+    },
     }.Check(request);
+
 
     if (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0)
         throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "Emercoin is not connected!");
