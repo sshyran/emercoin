@@ -4032,16 +4032,19 @@ UniValue walletcreatefundedpsbt(const JSONRPCRequest& request)
 // ppcoin: make a public-private key pair
 UniValue makekeypair(const JSONRPCRequest& request)
 {
-    //emcTODO - fill this
     RPCHelpMan{"makekeypair",
-        "\nMake a public/private key pair.\n",
-        {{"prefix", RPCArg::Type::AMOUNT, RPCArg::Optional::OMITTED, "preferred prefix for the public key"},},
-        RPCResult{"{\n"
-                  "  \"PrivateKey\": \"value\",        (string)  Hex string of private key\n"
-                  "  \"PublicKey\":  \"value\",        (string)  Hex string of public key\n"
-                  "}\n"},
-        RPCExamples{ HelpExampleCli("makekeypair", "") +
-                     HelpExampleRpc("makekeypair", "")},
+    "\nMake a public/private key pair.\n",
+    {
+        {"prefix", RPCArg::Type::AMOUNT, RPCArg::Optional::OMITTED, "preferred prefix for the public key"},
+    },
+    RPCResult{
+        "{\n"
+        "  \"PrivateKey\"    (string)  Hex string of private key\n"
+        "  \"PublicKey\"     (string)  Hex string of public key\n"
+        "}\n"
+    },
+    RPCExamples{ HelpExampleCli("makekeypair", "") +
+                 HelpExampleRpc("makekeypair", "")},
     }.Check(request);
 
     std::string strPrefix = "";

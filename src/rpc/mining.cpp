@@ -723,8 +723,8 @@ UniValue getauxblock(const JSONRPCRequest& request)
     "If hash and auxpow is specified, tries to solve the block based on "
     "the aux proof of work and returns true if it was successful.",
     {
-        {"hash", RPCArg::Type::STR, /* default */ "ignored", "Hash"},
-        {"auxpow", RPCArg::Type::STR, /* default */ "ignored", "Auxpow"},
+        {"hash", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Hash"},
+        {"auxpow", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Auxpow"},
     },
     RPCResult{
        "{\n"
