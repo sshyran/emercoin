@@ -576,7 +576,6 @@ UniValue sendalert(const JSONRPCRequest& request)
         {"maxver", RPCArg::Type::NUM, RPCArg::Optional::NO, "Maximum applicable internal client version"},
         {"id", RPCArg::Type::NUM, RPCArg::Optional::NO, "Alert id"},
         {"cancelupto", RPCArg::Type::NUM, /* default */ "0", "Cancels all alert id's up to this number"},
-
     },
     RPCResult{
         "{\n"

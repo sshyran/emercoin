@@ -258,15 +258,25 @@ UniValue sendtoname(const JSONRPCRequest& request)
         return NullUniValue;
     }
 
-    //emcTODO fill this
-    RPCHelpMan{"sendtoname <name> <amount> [comment] [comment-to]",
-        "\n<amount> is a real and is rounded to the nearest 0.01.\n",
-        {},
-        RPCResult{"{\n"
-                  "  \"sending to\": \"value\",        (string)  Emercoin address coins was sent to\n"
-                  "  \"transaction\":  \"value\",        (string)  Hex string of created transaction\n"
-                  "}\n"},
-        RPCExamples{HelpExampleCli("sendtoname", "myname 10") + HelpExampleRpc("sendtoname", "myname 10s")},
+    RPCHelpMan{"sendtoname",
+    "\nSend emercoins to current owner of specified name.\n",
+    {
+        {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "Name to send emercoin to\n"},
+        {"amount", RPCArg::Type::NUM, RPCArg::Optional::NO, "Amount of emercoin to send\n"},
+        {"comment", RPCArg::Type::STR, RPCArg::Optional::OMITTED_NAMED_ARG, "A comment used to store what the transaction is for.\n"
+        "                             This is not part of the transaction, just kept in your wallet."},
+        {"comment_to", RPCArg::Type::STR, RPCArg::Optional::OMITTED_NAMED_ARG, "A comment to store the name of the person or organization\n"
+        "                             to which you're sending the transaction. This is not part of the \n"
+        "                             transaction, just kept in your wallet."},
+    },
+    RPCResult{
+        "{\n"
+        "  \"sending to\": \"value\",        (string)  Emercoin address coins was sent to\n"
+        "  \"transaction\":  \"value\",        (string)  Hex string of created transaction\n"
+        "}\n"
+    },
+    RPCExamples{
+        HelpExampleCli("sendtoname", "myname 10") + HelpExampleRpc("sendtoname", "myname 10")},
     }.Check(request);
 
     ObserveSafeMode();
