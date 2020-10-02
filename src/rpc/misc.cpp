@@ -567,23 +567,29 @@ static UniValue echo(const JSONRPCRequest& request)
 // ThreadRPCServer: holds cs_main and acquiring cs_vSend in alert.RelayTo()/PushMessage()/BeginMessage()
 UniValue sendalert(const JSONRPCRequest& request)
 {
-    //emcTODO - fill this
-    if (request.fHelp)
-        throw std::runtime_error(
-            RPCHelpMan{"sendalert <message> <privatekey> <minver> <maxver> <priority> <id> [cancelupto]",
-               "<message> is the alert text message\n"
-               "<privatekey> is hex string of alert master private key\n"
-               "<minver> is the minimum applicable internal client version\n"
-               "<maxver> is the maximum applicable internal client version\n"
-               "<priority> is integer priority number\n"
-               "<id> is the alert id\n"
-               "[cancelupto] cancels all alert id's up to this number\n"
-               "Returns true or false.",
-                {},
-                RPCResults{},
-                RPCExamples{""},
-            }.ToString()
-        );
+    RPCHelpMan{"sendalert",
+    "\nSend alert.\n",
+    {
+        {"message", RPCArg::Type::STR, RPCArg::Optional::NO, "Alert text message"},
+        {"privatekey", RPCArg::Type::STR, RPCArg::Optional::NO, "Hex string of alert master private key"},
+        {"minver", RPCArg::Type::NUM, RPCArg::Optional::NO, "Minimum applicable internal client version"},
+        {"maxver", RPCArg::Type::NUM, RPCArg::Optional::NO, "Maximum applicable internal client version"},
+        {"id", RPCArg::Type::NUM, RPCArg::Optional::NO, "Alert id"},
+        {"cancelupto", RPCArg::Type::NUM, /* default */ "0", "Cancels all alert id's up to this number"},
+
+    },
+    RPCResult{
+        "{\n"
+        "  \"strStatusBar\": \"xxxx\", (string) Alert text message\n"
+        "  \"nVersion\": nnn,          (numeric) Internal client version\n"
+        "  \"nMinVer\": nnn,           (numeric) Minimum applicable internal client version\n"
+        "  \"nMaxVer\": xxx.xxxxx      (numeric) Maximum applicable internal client version\n"
+        "  \"nPriority\": nnn,         (numeric) Alert priority\n"
+        "  \"nID\": nnn                (numeric) Alert id\n"
+        "}\n"
+    },
+    RPCExamples{""},
+    }.Check(request);
 
     if (!g_connman)
         throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
