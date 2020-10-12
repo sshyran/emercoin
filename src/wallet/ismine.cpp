@@ -182,7 +182,7 @@ IsMineResult IsMineInner(const CWallet& keystore, const CScript& scriptPubKey, I
 
 isminetype IsMine(const CWallet& keystore, const CScript& scriptPubKey)
 {
-    bool fName;
+    bool fName = false;
     switch (IsMineInner(keystore, scriptPubKey, IsMineSigVersion::TOP, fName)) {
     case IsMineResult::INVALID:
     case IsMineResult::NO:

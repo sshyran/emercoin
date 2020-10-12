@@ -80,14 +80,12 @@ public:
         parent->beginResetModel();
         cachedNameTable.clear();
 
-        //emcTODO - fix and reenable GetNameList
-        //CNameVal nameUniq;
-        map<CNameVal, NameTxInfo> mapNames, mapPending;
-        //GetNameList(nameUniq, mapNames, mapPending, model->wallet().getWallet().get());
+        CNameVal nameUniq;
+        std::map<CNameVal, NameTxInfo> mapNames, mapPending;
+        GetNameList(nameUniq, mapNames, mapPending, model->wallet().getWallet().get());
 
         // add info about existing names
-        for (const auto& item : mapNames)
-        {
+        for (const auto& item : mapNames) {
             // name is mine and user asked to hide my names
             if (item.second.fIsMine && !fMyNames)
                 continue;
@@ -103,8 +101,7 @@ public:
         }
 
         // add pending name operations
-        for (const auto& item : mapPending)
-        {
+        for (const auto& item : mapPending) {
             // name is mine and user asked to hide my names
             if (item.second.fIsMine && !fMyNames)
                 continue;
@@ -278,7 +275,7 @@ QVariant NameTableModel::data(const QModelIndex &index, int role) const
             else
             {
                 float days = (rec->nExpiresAt - ::ChainActive().Height()) / 175.0;  // 175 - number of blocks per day on average
-                return days < 0 ? QString("%1 hours").arg(days * 24, 0, 'f', 1) : QString("%1 days").arg(days, 0, 'f', 1);
+                return abs(days) < 0 ? QString("%1 hours").arg(days * 24, 0, 'f', 1) : QString("%1 days").arg(days, 0, 'f', 1);
             }
         }
         break;

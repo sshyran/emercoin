@@ -391,8 +391,7 @@ void GetNameList(const CNameVal& nameUniq, std::map<CNameVal, NameTxInfo> &mapNa
     LOCK2(cs_main, pwallet->cs_wallet);
 
     // add all names from wallet tx that are in blockchain
-    for (const auto &item : pwallet->mapWallet)
-    {
+    for (const auto &item : pwallet->mapWallet) {
         NameTxInfo ntiWalllet;
         if (!DecodeNameTx(item.second.tx, ntiWalllet))
             continue;
@@ -406,7 +405,7 @@ void GetNameList(const CNameVal& nameUniq, std::map<CNameVal, NameTxInfo> &mapNa
             continue;
 
         NameTxInfo nti;
-        if (!DecodeNameTx(tx, nti, true))
+        if (!DecodeNameTx(tx, nti, true, pwallet))
             continue;
 
         if (nameUniq.size() > 0 && nameUniq != nti.name)
@@ -428,8 +427,7 @@ void GetNameList(const CNameVal& nameUniq, std::map<CNameVal, NameTxInfo> &mapNa
         uint32_t nTime = 0;
         bool found = false;
         uint256 hashLastTx;
-        for (const auto& hash : item.second)
-        {
+        for (const auto& hash : item.second) {
             auto it = mempool.mapTx.find(hash);
             if (it == mempool.mapTx.end())
                 continue;
@@ -555,6 +553,12 @@ UniValue name_show(const JSONRPCRequest& request)
 
 UniValue name_history(const JSONRPCRequest& request)
 {
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    CWallet* const pwallet = wallet.get();
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 3)
         throw std::runtime_error (
             "name_history <name> [fullhistory] [valuetype]\n"
@@ -609,7 +613,7 @@ UniValue name_history(const JSONRPCRequest& request)
             throw JSONRPCError(RPC_DATABASE_ERROR, "could not read transaction from disk");
 
         NameTxInfo nti;
-        if (!DecodeNameTx(tx, nti, true))
+        if (!DecodeNameTx(tx, nti, true, pwallet))
             throw JSONRPCError(RPC_DATABASE_ERROR, "failed to decode name transaction");
 
         UniValue obj(UniValue::VOBJ);
@@ -633,6 +637,12 @@ UniValue name_history(const JSONRPCRequest& request)
 
 UniValue name_mempool(const JSONRPCRequest& request)
 {
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    CWallet* const pwallet = wallet.get();
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
     if (request.fHelp || request.params.size() > 1)
         throw std::runtime_error (
             "name_mempool [valuetype]\n"
@@ -671,7 +681,7 @@ UniValue name_mempool(const JSONRPCRequest& request)
 
             const CTransactionRef& tx = mempool.get(hash);
             NameTxInfo nti;
-            if (!DecodeNameTx(tx, nti, true))
+            if (!DecodeNameTx(tx, nti, true, pwallet))
                 throw JSONRPCError(RPC_DATABASE_ERROR, "failed to decode name transaction");
 
             UniValue obj(UniValue::VOBJ);
@@ -1349,7 +1359,7 @@ bool reindexNameAddressIndex()
 
 // read name tx and extract: name, value and rentalDays
 // optionaly it can extract destination address and check if tx is mine (note: it does not check if address is valid)
-bool DecodeNameTx(const CTransactionRef& tx, NameTxInfo& nti, bool fExtractAddress /* = false */)
+bool DecodeNameTx(const CTransactionRef& tx, NameTxInfo& nti, bool fExtractAddress /* = false */, CWallet* pwallet /* = nullptr */)
 {
     if (tx->nVersion != NAMECOIN_TX_VERSION)
         return false;
@@ -1376,9 +1386,8 @@ bool DecodeNameTx(const CTransactionRef& tx, NameTxInfo& nti, bool fExtractAddre
                 nti.strAddress = EncodeDestination(address);
 
                 // check if this is mine destination
-                //emcTODO - redo this, or move check to callers
-//                if (pwallet)
-//                    nti.fIsMine = IsMine(*pwallet, address) == ISMINE_SPENDABLE;
+                if (pwallet)
+                    nti.fIsMine = IsMine(*pwallet, address) == ISMINE_SPENDABLE;
             }
             found = true;
         }
