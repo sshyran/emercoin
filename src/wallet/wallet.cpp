@@ -2977,8 +2977,9 @@ OutputType CWallet::TransactionChangeType(OutputType change_type, const std::vec
     return m_default_address_type;
 }
 
-bool CWallet::CreateTransaction(interfaces::Chain::Lock& locked_chain, const std::vector<CRecipient>& vecSend, CTransactionRef& tx, CAmount& nFeeRet,
-                         int& nChangePosInOut, std::string& strFailReason, const CCoinControl& coin_control, bool sign)
+bool CWallet::CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeInput,
+        interfaces::Chain::Lock& locked_chain, const std::vector<CRecipient>& vecSend, CTransactionRef& tx, CAmount& nFeeRet,
+        int& nChangePosInOut, std::string& strFailReason, const CCoinControl& coin_control, bool sign)
 {
     CAmount nValue = 0;
     ReserveDestination reservedest(this);
@@ -3305,19 +3306,12 @@ bool CWallet::CreateTransaction(interfaces::Chain::Lock& locked_chain, const std
     return true;
 }
 
-//emcTODO redo this
-//bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
-//                                int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign)
-//{
-//    return CreateTransactionInner(vecSend, CWalletTx(), 0, wtxNew, reservekey, nFeeRet, nChangePosInOut, strFailReason, coinControl, sign);
-//}
-
-//bool CWallet::CreateNameTx(const CRecipient& recipient, const CWalletTx& wtxNameIn, const CAmount& nFeeInput, CWalletTx& wtxNew, CReserveKey& reservekey,
-//                           CAmount& nFeeRet, int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign)
-//{
-//    vector<CRecipient> vecSend = {recipient};
-//    return CreateTransactionInner(vecSend, wtxNameIn, nFeeInput, wtxNew, reservekey, nFeeRet, nChangePosInOut, strFailReason, coinControl, sign);
-//}
+bool CWallet::CreateTransaction(interfaces::Chain::Lock& locked_chain, const std::vector<CRecipient>& vecSend, CTransactionRef& tx, CAmount& nFeeRet,
+                         int& nChangePosInOut, std::string& strFailReason, const CCoinControl& coin_control, bool sign)
+{
+    CTransactionRef txNameIn;
+    return CreateTransaction(txNameIn, 0, locked_chain, vecSend, tx, nFeeRet, nChangePosInOut, strFailReason, coin_control, sign);
+}
 
 /**
  * Call after CreateTransaction unless you want to abort
