@@ -8,7 +8,6 @@
 #include <coins.h>
 #include <core_io.h>
 #include <init.h>
-#include <interfaces/chain.h>
 #include <key_io.h>
 #include <node/transaction.h>
 #include <outputtype.h>
@@ -304,17 +303,26 @@ static UniValue setlabel(const JSONRPCRequest& request)
     return NullUniValue;
 }
 
-
-static CTransactionRef SendMoney(interfaces::Chain::Lock& locked_chain, CWallet * const pwallet, const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, const CCoinControl& coin_control, mapValue_t mapValue)
+void SendMoneyCheck(const CAmount& nValue, const CAmount& curBalance)
 {
-    CAmount curBalance = pwallet->GetBalance(0, coin_control.m_avoid_address_reuse).m_mine_trusted;
-
     // Check amount
     if (nValue <= 0)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid amount");
 
     if (nValue > curBalance)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
+
+    if (fWalletUnlockMintOnly) {
+        string strError = _("Error: Wallet unlocked for block minting only, unable to create transaction.");
+        LogPrintf("SendMoney() : %s", strError);
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    }
+}
+
+CTransactionRef SendMoney(interfaces::Chain::Lock& locked_chain, CWallet * const pwallet, const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, const CCoinControl& coin_control, mapValue_t mapValue)
+{
+    CAmount curBalance = pwallet->GetBalance(0, coin_control.m_avoid_address_reuse).m_mine_trusted;
+    SendMoneyCheck(nValue, curBalance);
 
     // Parse Bitcoin address
     CScript scriptPubKey = GetScriptForDestination(address);
@@ -338,6 +346,30 @@ static CTransactionRef SendMoney(interfaces::Chain::Lock& locked_chain, CWallet 
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
     }
     return tx;
+}
+
+void SendName(CScript scriptPubKey, CAmount nValue, CWalletTx& wtxNew, const CWalletTx& wtxNameIn, CAmount nFeeInput)
+{
+    //emcTODO redo this
+//    CAmount curBalance = pwalletMain->GetBalance();
+//    SendMoneyCheck(nValue, curBalance);
+
+//    // Create and send the transaction
+//    CReserveKey reservekey(pwalletMain);
+//    CAmount nFeeRequired;
+//    std::string strError;
+//    int nChangePosRet = -1;
+//    CRecipient recipient = {scriptPubKey, nValue, false};
+//    if (!pwalletMain->CreateNameTx(recipient, wtxNameIn, nFeeInput, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError)) {
+//        if (nValue + nFeeRequired > curBalance)
+//            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
+//        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+//    }
+//    CValidationState state;
+//    if (!pwalletMain->CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {
+//        strError = strprintf("Error: The transaction was rejected! Reason given: %s", state.GetRejectReason());
+//        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+//    }
 }
 
 static UniValue sendtoaddress(const JSONRPCRequest& request)

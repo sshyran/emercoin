@@ -5,6 +5,8 @@
 #ifndef BITCOIN_WALLET_RPCWALLET_H
 #define BITCOIN_WALLET_RPCWALLET_H
 
+#include <interfaces/chain.h>
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -16,8 +18,11 @@ class UniValue;
 struct PartiallySignedTransaction;
 class CTransaction;
 
+class CWallet;
+class CCoinControl;
+typedef std::map<std::string, std::string> mapValue_t;
+
 namespace interfaces {
-class Chain;
 class Handler;
 }
 
@@ -34,6 +39,11 @@ std::shared_ptr<CWallet> GetWalletForJSONRPCRequest(const JSONRPCRequest& reques
 std::string HelpRequiringPassphrase(const CWallet*);
 void EnsureWalletIsUnlocked(const CWallet*);
 bool EnsureWalletIsAvailable(const CWallet*, bool avoidException);
+
+void SendMoneyCheck(const CAmount& nValue, const CAmount& curBalance);
+CTransactionRef SendMoney(interfaces::Chain::Lock& locked_chain, CWallet * const pwallet, const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, const CCoinControl& coin_control, mapValue_t mapValue);
+//void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew);
+//void SendName(CScript scriptPubKey, CAmount nValue, CWalletTx& wtxNew, const CWalletTx &wtxNameIn, CAmount nFeeInput);
 
 UniValue getaddressinfo(const JSONRPCRequest& request);
 UniValue signrawtransactionwithwallet(const JSONRPCRequest& request);
