@@ -39,7 +39,7 @@
 
 static const std::string WALLET_ENDPOINT_BASE = "/wallet/";
 
-static inline bool GetAvoidReuseFlag(CWallet * const pwallet, const UniValue& param) {
+inline bool GetAvoidReuseFlag(CWallet * const pwallet, const UniValue& param) {
     bool can_avoid_reuse = pwallet->IsWalletFlagSet(WALLET_FLAG_AVOID_REUSE);
     bool avoid_reuse = param.isNull() ? can_avoid_reuse : param.get_bool();
 
@@ -436,9 +436,6 @@ static UniValue sendtoaddress(const JSONRPCRequest& request)
 
     // Amount
     CAmount nAmount = AmountFromValue(request.params[1]);
-    if (nAmount <= 0)
-        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
-
     if (nAmount < MIN_TXOUT_AMOUNT)
         throw JSONRPCError(RPC_INSUFFICIENT_SEND_AMOUNT, "Send amount too small");
 

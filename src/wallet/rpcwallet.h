@@ -26,6 +26,8 @@ namespace interfaces {
 class Handler;
 }
 
+bool GetAvoidReuseFlag(CWallet * const pwallet, const UniValue& param);
+
 void RegisterWalletRPCCommands(interfaces::Chain& chain, std::vector<std::unique_ptr<interfaces::Handler>>& handlers);
 
 /**

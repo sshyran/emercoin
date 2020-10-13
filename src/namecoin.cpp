@@ -7,6 +7,7 @@
 #include <rpc/util.h>
 #include <wallet/rpcwallet.h>
 #include <key_io.h>
+#include <wallet/coincontrol.h>
 
 #include <boost/format.hpp>
 #include <boost/xpressive/xpressive_dynamic.hpp>
@@ -284,10 +285,19 @@ UniValue sendtoname(const JSONRPCRequest& request)
     if (::ChainstateActive().IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Emercoin is downloading blocks...");
 
-    LOCK2(cs_main, pwallet->cs_wallet);
+    // Make sure the results are valid at least up to the most recent block
+    // the user could have gotten from another RPC command prior to now
+    pwallet->BlockUntilSyncedToCurrentChain();
+
+    auto locked_chain = pwallet->chain().lock();
+    LOCK(pwallet->cs_wallet);
 
     CNameVal name = nameValFromValue(request.params[0]);
+
+    // Amount
     CAmount nAmount = AmountFromValue(request.params[1]);
+    if (nAmount < MIN_TXOUT_AMOUNT)
+        throw JSONRPCError(RPC_INSUFFICIENT_SEND_AMOUNT, "Send amount too small");
 
     // Wallet comments
     mapValue_t mapValue;
@@ -301,12 +311,19 @@ UniValue sendtoname(const JSONRPCRequest& request)
     if (!GetNameCurrentAddress(name, dest, error))
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, error);
 
-    //emcTODO - redo this
-//    CTransactionRef tx = SendMoney(*locked_chain, pwallet, dest, nAmount, fSubtractFeeFromAmount, coin_control, std::move(mapValue));
+    CCoinControl coin_control;
+    coin_control.m_avoid_address_reuse = GetAvoidReuseFlag(pwallet, NullUniValue);
+    // We also enable partial spend avoidance if reuse avoidance is set.
+    coin_control.m_avoid_partial_spends |= coin_control.m_avoid_address_reuse;
+
+    EnsureWalletIsUnlocked(pwallet);
+
+    bool fSubtractFeeFromAmount = false;
+    CTransactionRef tx = SendMoney(*locked_chain, pwallet, dest, nAmount, fSubtractFeeFromAmount, coin_control, std::move(mapValue));
 
     UniValue res(UniValue::VOBJ);
     res.pushKV("sending to", EncodeDestination(dest));
-//    res.pushKV("transaction", tx->GetHash().GetHex());
+    res.pushKV("transaction", tx->GetHash().GetHex());
     return res;
 }
 
