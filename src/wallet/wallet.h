@@ -886,10 +886,6 @@ private:
      */
     uint256 m_last_block_processed GUARDED_BY(cs_wallet);
 
-    //emcTODO
-//    bool CreateTransactionInner(const std::vector<CRecipient>& vecSend, const CWalletTx& wtxNameIn, CAmount nFeeInput, CWalletTx& wtxNew,
-//             CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut, std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true);
-
 public:
     //! Fetches a key from the keypool
     bool GetKeyFromPool(CPubKey &key, bool internal = false);

@@ -433,8 +433,7 @@ SendCoinsEntry *SendCoinsDialog::addEntry()
     connect(entry, &SendCoinsEntry::useAvailableBalance, this, &SendCoinsDialog::useAvailableBalance);
     connect(entry, &SendCoinsEntry::payAmountChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
     connect(entry, &SendCoinsEntry::subtractFeeFromAmountChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
-    //emcTODO - maybe redo this?
-    connect(entry, SIGNAL(sendNow()), this, SLOT(on_sendButton_clicked()));
+    connect(entry, &SendCoinsEntry::sendNow, this, &SendCoinsDialog::on_sendButton_clicked);
 
     // Focus the field, so that entry can start immediately
     entry->clear();

@@ -350,7 +350,6 @@ CTransactionRef SendMoney(interfaces::Chain::Lock& locked_chain, CWallet * const
 
 CTransactionRef SendName(interfaces::Chain::Lock& locked_chain, CWallet * const pwallet, CScript scriptPubKey, CAmount nValue, CTransactionRef txNameIn, CAmount nFeeInput)
 {
-    //emcTODO redo this
     CCoinControl coin_control;
     CAmount curBalance = pwallet->GetBalance(0, coin_control.m_avoid_address_reuse).m_mine_trusted;
     SendMoneyCheck(nValue, curBalance);
