@@ -348,7 +348,7 @@ CTransactionRef SendMoney(interfaces::Chain::Lock& locked_chain, CWallet * const
     return tx;
 }
 
-CTransactionRef SendName(interfaces::Chain::Lock& locked_chain, CWallet * const pwallet, CScript scriptPubKey, CAmount nValue, CTransactionRef wtxNameIn, CAmount nFeeInput)
+CTransactionRef SendName(interfaces::Chain::Lock& locked_chain, CWallet * const pwallet, CScript scriptPubKey, CAmount nValue, CTransactionRef txNameIn, CAmount nFeeInput)
 {
     //emcTODO redo this
     CCoinControl coin_control;
@@ -363,8 +363,10 @@ CTransactionRef SendName(interfaces::Chain::Lock& locked_chain, CWallet * const 
     bool fSubtractFeeFromAmount = false;
     CRecipient recipient = {scriptPubKey, nValue, fSubtractFeeFromAmount};
     vecSend.push_back(recipient);
-    CTransactionRef tx;
-    if (!pwallet->CreateTransaction(wtxNameIn, nFeeInput, locked_chain, vecSend, tx, nFeeRequired, nChangePosRet, strError, coin_control)) {
+    CMutableTransaction tmpTx;
+    tmpTx.nVersion = NAMECOIN_TX_VERSION;
+    CTransactionRef tx = MakeTransactionRef(std::move(tmpTx));
+    if (!pwallet->CreateTransaction(txNameIn, nFeeInput, locked_chain, vecSend, tx, nFeeRequired, nChangePosRet, strError, coin_control)) {
         if (!fSubtractFeeFromAmount && nValue + nFeeRequired > curBalance)
             strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
         throw JSONRPCError(RPC_WALLET_ERROR, strError);

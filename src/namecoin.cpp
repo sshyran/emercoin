@@ -1166,13 +1166,12 @@ NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, 
         return ret;
     }
 
-    CMutableTransaction tmpTx;
-    tmpTx.nVersion = NAMECOIN_TX_VERSION;
-    CWalletTx wtx(pwallet, MakeTransactionRef(std::move(tmpTx)));
     stringstream ss;
     CScript scriptPubKey;
+    CTransactionRef tx;
 
     {
+        auto locked_chain = pwallet->chain().lock();
         LOCK2(cs_main, pwallet->cs_wallet);
 
     // wait until other name operation on this name are completed
@@ -1210,17 +1209,17 @@ NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, 
             if (op == OP_NAME_UPDATE && value.empty())
                 value = nameRec.vtxPos.back().value;
 
-            uint256 wtxInHash = prevTx->GetHash();
-            auto it = pwallet->mapWallet.find(wtxInHash);
+            uint256 txInHash = prevTx->GetHash();
+            auto it = pwallet->mapWallet.find(txInHash);
             if (it == pwallet->mapWallet.end()) {
-                ret.err_msg = "this name tx is not in your wallet: " + wtxInHash.GetHex();
+                ret.err_msg = "this name tx is not in your wallet: " + txInHash.GetHex();
                 return ret;
             }
             txIn = it->second.tx;
             int nTxOut = IndexOfNameOutput(txIn);
 
             if (::IsMine(*pwallet, txIn->vout[nTxOut].scriptPubKey) != ISMINE_SPENDABLE) {
-                ret.err_msg = "this name tx is not yours or is not spendable: " + wtxInHash.GetHex();
+                ret.err_msg = "this name tx is not yours or is not spendable: " + txInHash.GetHex();
                 return ret;
             }
         }
@@ -1262,8 +1261,7 @@ NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, 
 
     // set fee and send!
         CAmount nameFee = GetNameOpFee(::ChainActive().Tip(), nRentalDays, op, name, value);
-        //emcTODO redo this
-        //SendName(nameScript, MIN_TXOUT_AMOUNT, wtx, txIn, nameFee);
+        tx = SendName(*locked_chain, pwallet, nameScript, MIN_TXOUT_AMOUNT, txIn, nameFee);
     }
 
     //success! collect info and return
@@ -1271,7 +1269,7 @@ NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, 
     if (ExtractDestination(scriptPubKey, address)) {
         ret.address = EncodeDestination(address);
     }
-    ret.hex = wtx.GetHash();
+    ret.hex = tx->GetHash();
     ret.ok = true;
     return ret;
 }
