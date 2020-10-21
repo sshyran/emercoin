@@ -43,6 +43,7 @@
 #include <netbase.h>
 #include <key_io.h>
 #include <util/validation.h>
+#include <wallet/wallet.h>
 
 /*---------------------------------------------------*/
 /*

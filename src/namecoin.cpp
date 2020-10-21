@@ -1216,9 +1216,14 @@ NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, 
                 return ret;
             }
             txIn = it->second.tx;
-            int nTxOut = IndexOfNameOutput(txIn);
 
-            if (::IsMine(*pwallet, txIn->vout[nTxOut].scriptPubKey) != ISMINE_SPENDABLE) {
+            NameTxInfo nti;
+            if (!DecodeNameTx(txIn, nti)) {
+                ret.err_msg = "failed to decode txIn";
+                return ret;
+            }
+
+            if (::IsMine(*pwallet, txIn->vout[nti.nOut].scriptPubKey) != ISMINE_SPENDABLE) {
                 ret.err_msg = "this name tx is not yours or is not spendable: " + txInHash.GetHex();
                 return ret;
             }
@@ -1370,54 +1375,6 @@ bool reindexNameAddressIndex()
             pNameAddressDB->WriteSingleName(nti.strAddress, name);
     }
     return true;
-}
-
-// read name tx and extract: name, value and rentalDays
-// optionaly it can extract destination address and check if tx is mine (note: it does not check if address is valid)
-bool DecodeNameTx(const CTransactionRef& tx, NameTxInfo& nti, bool fExtractAddress /* = false */, CWallet* pwallet /* = nullptr */)
-{
-    if (tx->nVersion != NAMECOIN_TX_VERSION)
-        return false;
-
-    bool found = false;
-    for (unsigned int i = 0; i < tx->vout.size(); i++) {
-        const CTxOut& out = tx->vout[i];
-        NameTxInfo ntiTmp;
-        CScript::const_iterator pc = out.scriptPubKey.begin();
-        if (DecodeNameScript(out.scriptPubKey, ntiTmp, pc)) {
-            // If more than one name op, fail
-            if (found)
-                return false;
-
-            nti = ntiTmp;
-            nti.nOut = i;
-
-            if (fExtractAddress) {
-                //read address
-                CTxDestination address;
-                CScript scriptPubKey(pc, out.scriptPubKey.end());
-                if (!ExtractDestination(scriptPubKey, address))
-                    nti.strAddress = "";
-                nti.strAddress = EncodeDestination(address);
-
-                // check if this is mine destination
-                if (pwallet)
-                    nti.fIsMine = IsMine(*pwallet, address) == ISMINE_SPENDABLE;
-            }
-            found = true;
-        }
-    }
-
-    if (found) nti.err_msg = "";
-    return found;
-}
-
-int IndexOfNameOutput(const CTransactionRef& tx)
-{
-    NameTxInfo nti;
-    if (!DecodeNameTx(tx, nti))
-        throw runtime_error("IndexOfNameOutput() : name output not found");
-    return nti.nOut;
 }
 
 bool CNamecoinHooks::CheckPendingNames(const CTransactionRef& tx)

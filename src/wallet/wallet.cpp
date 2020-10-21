@@ -3005,6 +3005,18 @@ bool CWallet::CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeIn
 
     CMutableTransaction txNew;
 
+    // emercoin: define some values used in case of namecoin tx creation
+    CAmount nNameTxInCredit = 0;
+    unsigned int nNameTxOut = 0;
+    if (!txNameIn->IsNull()) {
+        NameTxInfo nti;
+        if (!DecodeNameTx(tx, nti))
+            return false;
+        nNameTxOut = nti.nOut;
+        nNameTxInCredit = txNameIn->vout[nNameTxOut].nValue;
+        txNew.nVersion = NAMECOIN_TX_VERSION;
+    }
+
     txNew.nLockTime = GetLocktimeForNewTransaction(chain(), locked_chain);
 
     FeeCalculation feeCalc;
@@ -3016,7 +3028,7 @@ bool CWallet::CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeIn
         LOCK(cs_wallet);
         {
             std::vector<COutput> vAvailableCoins;
-            AvailableCoins(*locked_chain, vAvailableCoins, true, &coin_control, 1, MAX_MONEY, MAX_MONEY, 0);
+            AvailableCoins(*locked_chain, vAvailableCoins, true, &coin_control, 1, MAX_MONEY, MAX_MONEY, 0, txNew.nTime);
             CoinSelectionParams coin_selection_params; // Parameters for coin selection, init with dummy
 
             // Create change script that will be used if we need change
@@ -3057,7 +3069,7 @@ bool CWallet::CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeIn
             // Get the fee rate to use effective values in coin selection
             CFeeRate nFeeRateNeeded = GetMinimumFeeRate(*this, coin_control, &feeCalc);
 
-            nFeeRet = 0;
+            nFeeRet = std::max(nFeeInput, MIN_TX_FEE);  // emercoin: a good starting point, probably...
             bool pick_new_inputs = true;
             CAmount nValueIn = 0;
 
@@ -3112,7 +3124,10 @@ bool CWallet::CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeIn
                         coin_selection_params.change_spend_size = (size_t)change_spend_size;
                     }
                     coin_selection_params.effective_fee = nFeeRateNeeded;
-                    if (!SelectCoins(vAvailableCoins, nValueToSelect, setCoins, nValueIn, coin_control, coin_selection_params, bnb_used))
+                    // emercoin: in case of name tx we have already supplied input
+                    //           skip coin selection if we have enough money in name input
+                    if (nValueToSelect - nNameTxInCredit > 0 &&
+                        !SelectCoins(vAvailableCoins, nValueToSelect, setCoins, nValueIn, coin_control, coin_selection_params, bnb_used))
                     {
                         // If BnB was used, it was the first pass. No longer the first pass and continue loop with knapsack.
                         if (bnb_used) {
@@ -3128,7 +3143,20 @@ bool CWallet::CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeIn
                     bnb_used = false;
                 }
 
-                const CAmount nChange = nValueIn - nValueToSelect;
+                // emercoin: add name input
+                if (!txNameIn->IsNull()) {
+                    setCoins.insert(CInputCoin(txNameIn, nNameTxOut));
+                    nValueIn += nNameTxInCredit;
+                }
+
+                CAmount nChange = nValueIn - nValueToSelect;
+
+                // ppcoin: sub-cent change is moved to fee
+                if (nChange > 0 && nChange < MIN_TXOUT_AMOUNT) {
+                    nFeeRet += nChange;
+                    nChange = 0;
+                }
+
                 if (nChange > 0)
                 {
                     // Fill a vout to ourself
@@ -3163,6 +3191,7 @@ bool CWallet::CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeIn
                     return false;
                 }
 
+                //emcTODO - check this
                 nFeeNeeded = GetMinimumFee(*this, nBytes, coin_control, &feeCalc);
                 if (feeCalc.reason == FeeReason::FALLBACK && !m_allow_fallback_fee) {
                     // eventually allow a fallback fee
@@ -5003,4 +5032,44 @@ bool CWallet::AddCryptedKeyInner(const CPubKey &vchPubKey, const std::vector<uns
     mapCryptedKeys[vchPubKey.GetID()] = make_pair(vchPubKey, vchCryptedSecret);
     ImplicitlyLearnRelatedKeyScripts(vchPubKey);
     return true;
+}
+
+// read name tx and extract: name, value and rentalDays
+// optionaly it can extract destination address and check if tx is mine (note: it does not check if address is valid)
+bool DecodeNameTx(const CTransactionRef& tx, NameTxInfo& nti, bool fExtractAddress /* = false */, CWallet* pwallet /* = nullptr */)
+{
+    if (tx->nVersion != NAMECOIN_TX_VERSION)
+        return false;
+
+    bool found = false;
+    for (unsigned int i = 0; i < tx->vout.size(); i++) {
+        const CTxOut& out = tx->vout[i];
+        NameTxInfo ntiTmp;
+        CScript::const_iterator pc = out.scriptPubKey.begin();
+        if (DecodeNameScript(out.scriptPubKey, ntiTmp, pc)) {
+            // If more than one name op, fail
+            if (found)
+                return false;
+
+            nti = ntiTmp;
+            nti.nOut = i;
+
+            if (fExtractAddress) {
+                //read address
+                CTxDestination address;
+                CScript scriptPubKey(pc, out.scriptPubKey.end());
+                if (!ExtractDestination(scriptPubKey, address))
+                    nti.strAddress = "";
+                nti.strAddress = EncodeDestination(address);
+
+                // check if this is mine destination
+                if (pwallet)
+                    nti.fIsMine = IsMine(*pwallet, address) == ISMINE_SPENDABLE;
+            }
+            found = true;
+        }
+    }
+
+    if (found) nti.err_msg = "";
+    return found;
 }

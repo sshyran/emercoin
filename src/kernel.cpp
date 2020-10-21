@@ -586,20 +586,9 @@ bool CreateCoinStake(const CWallet* pwallet, unsigned int nBits, int64_t nSearch
         LOCK(pwallet->cs_wallet);
         pwallet->AvailableCoins(*locked_chain, vAvailableCoins, include_unsafe, &cctl, nMinimumAmount, nMaximumAmount, nMinimumSumAmount, nMaximumCount);
 
-        //emcTODO - is this needs to be placed inside a while(true) loop?
         bool bnb_used;
         CoinSelectionParams coin_selection_params; // Parameters for coin selection, init with dummy
         if (!pwallet->SelectCoins(vAvailableCoins, nBalance - nReserveBalance, setCoins, nValueIn, cctl, coin_selection_params, bnb_used)) {
-            //emcTODO - do we need to somehow add this BnB stuff here? below is a copy of how it is used with SelectCoins() calls
-//            // If BnB was used, it was the first pass. No longer the first pass and continue loop with knapsack.
-//            if (bnb_used) {
-//                coin_selection_params.use_bnb = false;
-//                continue;
-//            }
-//            else {
-//                strFailReason = _("Insufficient funds").translated;
-//                return false;
-//            }
             return false;
         }
     }

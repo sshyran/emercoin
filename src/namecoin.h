@@ -140,7 +140,6 @@ extern std::map<CNameVal, std::set<uint256> > mapNamePending;
 extern std::unique_ptr<CNameDB> pNameDB;
 extern std::unique_ptr<CNameAddressDB> pNameAddressDB;
 
-int IndexOfNameOutput(const CTransactionRef &tx);
 bool GetNameCurrentAddress(const CNameVal& name, CTxDestination& dest, std::string& error);
 CNameVal nameValFromString(const std::string& str);
 CNameVal toCNameVal(const std::string& str);
@@ -150,7 +149,6 @@ std::string stringFromOp(int op);
 
 CAmount GetNameOpFee(const CBlockIndex* pindexBlock, const int nRentalDays, int op, const CNameVal& name, const CNameVal& value);
 
-bool DecodeNameTx(const CTransactionRef& tx, NameTxInfo& nti, bool fExtractAddress = false, CWallet* pwallet=nullptr);
 void GetNameList(const CNameVal& nameUniq, std::map<CNameVal, NameTxInfo> &mapNames, std::map<CNameVal, NameTxInfo> &mapPending, CWallet* pwallet);
 bool GetNameValue(const CNameVal& name, CNameVal& value);
 
