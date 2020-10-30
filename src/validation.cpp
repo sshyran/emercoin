@@ -733,7 +733,6 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
 
     return true;
     //emcTODO - add code somewhere that deals with fRandPayCheck
-    //emcTODO - add code somewhere that adds to AddToPendingNames
 }
 
 bool MemPoolAccept::PolicyScriptChecks(ATMPArgs& args, Workspace& ws, PrecomputedTransactionData& txdata)
@@ -850,6 +849,9 @@ bool MemPoolAccept::AcceptSingleTransaction(const CTransactionRef& ptx, ATMPArgs
     if (!Finalize(args, workspace)) return false;
 
     GetMainSignals().TransactionAddedToMempool(ptx);
+
+    if (ptx->nVersion == NAMECOIN_TX_VERSION)
+        hooks->AddToPendingNames(ptx);
 
     return true;
 }
