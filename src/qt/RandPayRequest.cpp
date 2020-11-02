@@ -15,6 +15,7 @@
 #include <wallet/wallet.h>
 #include <amount.h>
 #include <net.h>
+#include <qt/walletcontroller.h>
 
 //test links:
 //emercoin://randpay?amount=0.001&chap=ffaaaa&risk=14&timeout=30
@@ -79,25 +80,28 @@ QString RandPayRequest::parse() {
 }
 
 QString RandPayRequest::checkAmountInWallet()const {
-    //emcTODO - redo this if this is still needed
-//	const CAmount nValue = COIN * _amount * _risk;
-//    const CAmount curBalance = pwalletMain->GetBalance();
-//	// Check amount
-//	if (nValue <= 0)
-//		return tr("Invalid amount");
+    if(_server->m_wallet_controller->m_wallets.size() == 0)
+        return tr("No wallet found");
+    CWallet* pwalletMain = _server->m_wallet_controller->m_wallets[0]->wallet().getWallet().get();
 
-//	if (nValue > curBalance)
-//		return "Insufficient funds";
+    const CAmount nValue = COIN * _amount * _risk;
+    const CAmount curBalance = pwalletMain->GetBalance(0, true).m_mine_trusted;
+    // Check amount
+    if (nValue <= 0)
+        return tr("Invalid amount");
 
-//	if (pwalletMain->GetBroadcastTransactions() && !g_connman)
-//		return tr("Error: Peer-to-peer functionality missing or disabled");
+    if (nValue > curBalance)
+        return "Insufficient funds";
 
-//	if (pwalletMain->IsLocked())
-//		return "Error: Wallet locked, unable to create transaction!";
+    if (pwalletMain->GetBroadcastTransactions() && !g_connman)
+        return tr("Error: Peer-to-peer functionality missing or disabled");
 
-//	if (fWalletUnlockMintOnly)
-//		return tr("Error: Wallet unlocked for block minting only, unable to create transaction.");
-	return {};
+    if (pwalletMain->IsLocked())
+        return "Error: Wallet locked, unable to create transaction!";
+
+    if (fWalletUnlockMintOnly)
+        return tr("Error: Wallet unlocked for block minting only, unable to create transaction.");
+    return {};
 }
 void RandPayRequest::correctTimeout() {
 	if(0 == _timeout) {//not specified

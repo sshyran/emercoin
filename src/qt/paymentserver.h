@@ -45,6 +45,7 @@
 #include <QString>
 
 class OptionsModel;
+class WalletController;
 
 QT_BEGIN_NAMESPACE
 class QApplication;
@@ -76,11 +77,12 @@ public:
     static bool ipcSendCommandLine();
 
     // parent should be QApplication object
-    explicit PaymentServer(QObject* parent, bool startLocalServer = true);
+    explicit PaymentServer(QObject* parent, WalletController* wallet_controller, bool startLocalServer = true);
     ~PaymentServer();
 
     // OptionsModel is used for getting proxy settings and display unit
     void setOptionsModel(OptionsModel *optionsModel);
+    WalletController* m_wallet_controller{nullptr};
 
 #ifdef ENABLE_BIP70
     // Load root certificate authorities. Pass nullptr (default)

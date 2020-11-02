@@ -59,6 +59,8 @@ public:
 
     void closeWallet(WalletModel* wallet_model, QWidget* parent = nullptr);
 
+    std::vector<WalletModel*> m_wallets;
+
 Q_SIGNALS:
     void walletAdded(WalletModel* wallet_model);
     void walletRemoved(WalletModel* wallet_model);
@@ -72,7 +74,6 @@ private:
     const PlatformStyle* const m_platform_style;
     OptionsModel* const m_options_model;
     mutable QMutex m_mutex;
-    std::vector<WalletModel*> m_wallets;
     std::unique_ptr<interfaces::Handler> m_handler_load_wallet;
 
     friend class WalletControllerActivity;
