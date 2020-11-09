@@ -98,7 +98,7 @@ bool CalculateExpiresAt(CNameRecord& nameRec)
         if (!DecodeNameTx(tx, nti))
             return error("CalculateExpiresAt() : %s is not name tx, this should never happen", tx->GetHash().GetHex());
 
-        sum += nti.nRentalDays * 175; //days to blocks. 175 is average number of blocks per day
+       sum += 175ULL * nti.nRentalDays; //days to blocks. 175 is average number of blocks per day
     }
 
     //limit to INT_MAX value
