@@ -4254,14 +4254,6 @@ bool static LoadBlockIndexDB(const CChainParams& chainparams) EXCLUSIVE_LOCKS_RE
         }
     }
 
-    // ppcoin: load hashSyncCheckpoint
-    if (!pblocktree->ReadSyncCheckpoint(CheckpointsSync::hashSyncCheckpoint))
-    {
-        LogPrintf("LoadBlockIndexDB(): synchronized checkpoint not read\n");
-        CheckpointsSync::hashSyncCheckpoint = chainparams.GetConsensus().hashGenesisBlock;
-    }
-    LogPrintf("LoadBlockIndexDB(): synchronized checkpoint %s\n", CheckpointsSync::hashSyncCheckpoint.ToString());
-
     // Check whether we have ever pruned block & undo files
     pblocktree->ReadFlag("prunedblockfiles", fHavePruned);
     if (fHavePruned)
@@ -4696,6 +4688,13 @@ bool LoadBlockIndex(const CChainParams& chainparams)
         if (!ret) return false;
         needs_init = g_blockman.m_block_index.empty();
     }
+
+    // ppcoin: load hashSyncCheckpoint
+    if (!pblocktree->ReadSyncCheckpoint(CheckpointsSync::hashSyncCheckpoint)) {
+        LogPrintf("LoadBlockIndexDB(): synchronized checkpoint not read\n");
+        CheckpointsSync::hashSyncCheckpoint = chainparams.GetConsensus().hashGenesisBlock;
+    }
+    LogPrintf("LoadBlockIndexDB(): synchronized checkpoint %s\n", CheckpointsSync::hashSyncCheckpoint.ToString());
 
     if (needs_init) {
         // Everything here is for *new* reindex/DBs. Thus, though
