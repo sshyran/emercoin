@@ -256,8 +256,8 @@ public:
         qDebug() << "NotifyTransactionChanged: " + strHash + " status= " + QString::number(status);
         bool invoked = QMetaObject::invokeMethod(ttm, "updateTransaction", Qt::QueuedConnection,
                                   Q_ARG(QString, strHash),
-                                  Q_ARG(int, status),
-                                  Q_ARG(bool, showTransaction));
+                                  Q_ARG(int, status));
+                                  //Q_ARG(bool, showTransaction));
         assert(invoked);
     }
 private:
