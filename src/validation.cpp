@@ -5334,9 +5334,14 @@ bool SignBlock(CBlock& block, const CWallet& keystore)
     // Sign
     const valtype& vchPubKey = vSolutions[0];
     CKey key;
-    if (!keystore.GetKey(CKeyID(uint160(vchPubKey)), key))
+
+    CPubKey pubkey(vchPubKey);
+    PKHash pkhash(pubkey);
+    CKeyID keyID(pkhash);
+
+    if (!keystore.GetKey(keyID, key))
         return false;
-    if (key.GetPubKey() != CPubKey(vchPubKey))
+    if (key.GetPubKey() != pubkey)
         return false;
     return key.Sign(block.GetHash(), block.vchBlockSig, 0);
 }
