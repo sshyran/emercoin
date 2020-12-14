@@ -98,6 +98,8 @@ static bool SelectBlockFromCandidates(
     } // for
  
     if (itemSelected) {
+        if (gArgs.GetBoolArg("-printstakemodifier", false))
+            LogPrintf("%s: selection hash=%s\n", __func__, itemSelected->second.ToString());
         *pindexSelected = itemSelected->first;
         itemSelected->first = NULL;
         return true;
@@ -105,9 +107,6 @@ static bool SelectBlockFromCandidates(
         *pindexSelected = (const CBlockIndex*) 0;
         return false;
     }
-
-  //  if (GetBoolArg("-printstakemodifier", false))
-  //      LogPrintf("%s: selection hash=%s\n", __func__, hashBest.ToString());
 }
 
 static void SwapSort(vector<pair<const CBlockIndex*, arith_uint256> > &v, unsigned pos) {

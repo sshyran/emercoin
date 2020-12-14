@@ -13,6 +13,7 @@
 
 #include <warnings.h>
 #include <util/system.h>
+#include <rpc/server.h>
 
 #include <tuple>
 
@@ -755,7 +756,6 @@ UniValue GetServicesNames(ServiceFlags services)
     return servicesNames;
 }
 
-static const bool DEFAULT_DISABLE_SAFEMODE = false;
 void ObserveSafeMode()
 {
     std::string warning = GetWarnings("rpc");

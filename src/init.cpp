@@ -572,11 +572,29 @@ void SetupServerArgs()
     gArgs.AddArg("-genproclimit=<n>", strprintf(_("Set the number of threads for coin generation if enabled (-1 = all cores, default: %d)"), DEFAULT_GENERATE_THREADS);
 #endif
 
-    gArgs.AddArg("-nameaddress", "enable address->names index (default: false)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
-    gArgs.AddArg("-stakegen", "enable proof of stake minting (default: true)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-nameaddress", "Enable address->names index (default: false)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-nameindexchainsize", strprintf("Number of updates per each name to memorize on disk (default: %u)", NAMEINDEX_CHAIN_SIZE), ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-stunsrcport", "Port for STUN system to identify your own ip (default: 0)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-exchtest", "Enable exchange testing (for code debugging only) (default: 0)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-randkeymapsz", "Debug parameter (default: 16)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-sortir", "Debug parameter (default: 0)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-maxdp", "Debug parameter (default: 128 * 1024 * 1024)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-printselectcoin", "Debug print (default: false)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-disablesafemode", strprintf("Disable safemode, override a real safe mode event (default: %u)", DEFAULT_DISABLE_SAFEMODE), ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+
+    // peercoin stuff
+    gArgs.AddArg("-stakegen", "Enable proof of stake minting (default: true)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-printstakemodifier", "Print stake modifier to debug log (default: false)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-printfee", "Print stake fee to debug log (default: false)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-printcreation", "Print block reward checks to debug log (default: false)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-printcoinage", "Print block reward checks to debug log (default: false)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-modcache", "Stake modifier optimization parameter 0=disable; 1=InitialDownload; 2=always (default: 2)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-splitpos", "Stake creation parameter 0=No Split, 1=RandSplit before 90d, -1=Principal+Reward (default: 1)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-staketimio", "Stake creation timeout (default: 530 * sqrt(number of wallet txs))", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-checkpointkey", "Checkpoint master key, used to print checkpoints (default: empty)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
 
     // emcdns stuff
-    gArgs.AddArg("-emcdns", "enable emcdns (default: false)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-emcdns", "Enable emcdns (default: false)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
     gArgs.AddArg("-emcdnsport", strprintf("emcdns port (default: %u)", EMCDNS_PORT), ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
     gArgs.AddArg("-emcdnsverbose", "emcdns verbose debug log (default: true)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
     gArgs.AddArg("-emcdnssuffix", "emcdns suffix (default: empty)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
