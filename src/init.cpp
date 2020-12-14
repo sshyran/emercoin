@@ -573,6 +573,7 @@ void SetupServerArgs()
 #endif
 
     gArgs.AddArg("-nameaddress", "enable address->names index (default: false)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-stakegen", "enable proof of stake minting (default: true)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
 
     // Add the hidden options
     gArgs.AddHiddenArgs(hidden_args);
