@@ -575,6 +575,19 @@ void SetupServerArgs()
     gArgs.AddArg("-nameaddress", "enable address->names index (default: false)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
     gArgs.AddArg("-stakegen", "enable proof of stake minting (default: true)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
 
+    // emcdns stuff
+    gArgs.AddArg("-emcdns", "enable emcdns (default: false)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-emcdnsport", strprintf("emcdns port (default: %u)", EMCDNS_PORT), ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-emcdnsverbose", "emcdns verbose debug log (default: true)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-emcdnssuffix", "emcdns suffix (default: empty)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-emcdnsbindip", "emcdns bindip (default: empty)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-emcdnsallowed", "emcdns allowed (default: empty)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-emcdnslocalcf", "emcdns localcf (default: empty)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-enumtrust", "emcdns enum trust (default: empty)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-enumtollfree", "emcdns enum toll free (default: empty)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-dapsize", "emcdns dap size (default: 0)", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    gArgs.AddArg("-daptreshold", strprintf("emcdns dap treshold (default: %u)", EMCDNS_DAPTRESHOLD), ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+
     // Add the hidden options
     gArgs.AddHiddenArgs(hidden_args);
 }
