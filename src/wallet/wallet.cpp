@@ -3008,7 +3008,7 @@ bool CWallet::CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeIn
     // emercoin: define some values used in case of namecoin tx creation
     CAmount nNameTxInCredit = 0;
     unsigned int nNameTxOut = 0;
-    if (!txNameIn->IsNull()) {
+    if (txNameIn && !txNameIn->IsNull()) {
         NameTxInfo nti;
         if (!DecodeNameTx(tx, nti))
             return false;
@@ -3144,7 +3144,7 @@ bool CWallet::CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeIn
                 }
 
                 // emercoin: add name input
-                if (!txNameIn->IsNull()) {
+                if (txNameIn && !txNameIn->IsNull()) {
                     setCoins.insert(CInputCoin(txNameIn, nNameTxOut));
                     nValueIn += nNameTxInCredit;
                 }
