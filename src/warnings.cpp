@@ -97,6 +97,8 @@ std::string GetWarnings(const std::string& strFor)
         return strGUI;
     else if (strFor == "statusbar")
         return strStatusBar;
+    else if (strFor == "rpc")
+        return strRPC;
     assert(!"GetWarnings(): invalid parameter");
     return "error";
 }
