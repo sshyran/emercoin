@@ -175,9 +175,9 @@ static UniValue getrawtransaction(const JSONRPCRequest& request)
     }
 
     // Accept either a bool (true) or a num (>=1) to indicate verbose output.
-    bool nVerbose = 0;
+    int nVerbose = 0;
     if (!request.params[1].isNull()) {
-        nVerbose = request.params[1].isNum() ? (request.params[1].get_int() != 0) : request.params[1].get_bool();
+        nVerbose = request.params[1].isNum() ? request.params[1].get_int() : request.params[1].get_bool();
     }
 
     if (!request.params[2].isNull()) {
@@ -221,7 +221,7 @@ static UniValue getrawtransaction(const JSONRPCRequest& request)
 
     UniValue result(UniValue::VOBJ);
     if (blockindex) result.pushKV("in_active_chain", in_active_chain);
-    TxToJSON(*tx, hash_block, result);
+    TxToJSON(*tx, hash_block, result, nVerbose == 2);
     return result;
 }
 
