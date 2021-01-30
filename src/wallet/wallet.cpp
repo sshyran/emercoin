@@ -3191,8 +3191,13 @@ bool CWallet::CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeIn
                     return false;
                 }
 
-                //emcTODO - check this
+                //emcTODO - redo GetMinimumFee
                 nFeeNeeded = GetMinimumFee(*this, nBytes, coin_control, &feeCalc);
+
+                // emc - in case of name input we never want to get bellow the fee needed for name
+                if (nFeeInput != 0)
+                    nFeeNeeded = std::max(nFeeNeeded, nFeeRet);
+
                 if (feeCalc.reason == FeeReason::FALLBACK && !m_allow_fallback_fee) {
                     // eventually allow a fallback fee
                     strFailReason = _("Fee estimation failed. Fallbackfee is disabled. Wait a few blocks or enable -fallbackfee.").translated;
