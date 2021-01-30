@@ -998,7 +998,7 @@ UniValue name_new(const JSONRPCRequest& request)
         {"valuetype", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Interpretation of value string. Can be \"hex\", \"base64\" or filepath.\n"
             "       not specified or empty - Write value as a unicode string.\n"
             "       \"hex\" or \"base64\" - Decode value string as a binary data in hex or base64 string format.\n"
-            "       otherwise - Decode value string as a filepath from which to read the data.\n"
+            "       otherwise - Decode value string as a filepath from which to read the data."
         }
     },
     RPCResult{
@@ -1042,7 +1042,7 @@ UniValue name_update(const JSONRPCRequest& request)
         {"valuetype", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Interpretation of value string. Can be \"hex\", \"base64\" or filepath.\n"
             "       not specified or empty - Write value as a unicode string.\n"
             "       \"hex\" or \"base64\" - Decode value string as a binary data in hex or base64 string format.\n"
-            "       otherwise - Decode value string as a filepath from which to read the data.\n"
+            "       otherwise - Decode value string as a filepath from which to read the data."
         }
     },
     RPCResult{

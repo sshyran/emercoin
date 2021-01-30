@@ -1788,18 +1788,16 @@ static void InitMapRandKeyT() {
 UniValue randpay_createaddrchap(const JSONRPCRequest& request)
 {
     //emcTODO fill this
-    RPCHelpMan{"randpay_createaddrchap risk timeout",
-    "\nCreates privkey/pubkey pair for a given risk. Does not write anything into wallet.dat.\n"
-    "1. risk          (numeric, required) 1 / probability of success for random payments.\n"
-    "2. timeout         (numeric, required) ?\n",
-    {},
-    RPCResult {
-        ""
+    RPCHelpMan{"randpay_createaddrchap",
+    "\nCreates privkey/pubkey pair for a given risk. Does not write anything into wallet.dat.\n",
+    {
+        {"risk", RPCArg::Type::NUM, RPCArg::Optional::NO, "1 / probability of success for random payments"},
+        {"timeout", RPCArg::Type::NUM, RPCArg::Optional::NO, "Locks utxo from being spent in another tx for timeout seconds"}
     },
-    RPCExamples {
-        HelpExampleCli("randpay_createaddrchap", "")
-    }}.Check(request);
-
+    RPCResult{"???"},
+    RPCExamples{
+        HelpExampleCli("randpay_createaddrchap", "") + HelpExampleRpc("randpay_createaddrchap", "")},
+    }.Check(request);
 
     if (!request.params[0].isNum())
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid type provided. risk parameter must be numeric.");
@@ -1839,21 +1837,19 @@ UniValue randpay_createtx(const JSONRPCRequest& request)
     }
 
     //emcTODO fill this
-    RPCHelpMan{"randpay_createtx amount \"addrchap\" risk timeout [naive]",
-    "\nCreates randpay tx.\n"
-    "1. amount         (numeric, required) Amount of emc to send.\n"
-    "2. \"addrchap\"   (string, required)  ?\n"
-    "3. risk           (numeric, required) 1 / probability of success for random payments.\n"
-    "4. timeout        (numeric, required) Locks utxo from being spent in another tx for timeout seconds.\n"
-    "5. naive          (bool, optional, default=false) Generate naive randpay-transaction, without randpay-in\n",
-    {},
-    RPCResult {
-        ""
+    RPCHelpMan{"randpay_createtx",
+    "\nCreates randpay tx.\n",
+    {
+        {"amount", RPCArg::Type::NUM, RPCArg::Optional::NO, "Amount of emc to send"},
+        {"addrchap", RPCArg::Type::STR, RPCArg::Optional::NO, "???"},
+        {"risk", RPCArg::Type::NUM, RPCArg::Optional::NO, "1 / probability of success for random payments"},
+        {"timeout", RPCArg::Type::NUM, RPCArg::Optional::NO, "Locks utxo from being spent in another tx for timeout seconds"},
+        {"naive", RPCArg::Type::BOOL, RPCArg::Optional::YES, "Generate naive randpay-transaction, without randpay-in"},
     },
-    RPCExamples {
-        HelpExampleCli("randpay_createtx", "")
-    }}.Check(request);
-
+    RPCResult{"???"},
+    RPCExamples{
+        HelpExampleCli("randpay_createtx", "") + HelpExampleRpc("randpay_createtx", "")},
+    }.Check(request);
 
     CAmount nAmount = AmountFromValue(request.params[0]);
     if (nAmount <= 0)
@@ -1944,21 +1940,16 @@ UniValue randpay_submittx(const JSONRPCRequest& request)
     }
 
     //emcTODO fill this
-    RPCHelpMan{"randpay_submittx \"hexstring\" risk",
-    "\nVerifies and submits randpaytx.\n"
-    "\nArguments:\n"
-    "1. \"hexstring\"     (string, required)  The hex string of the randpay transaction.\n"
-    "2. risk              (numeric, required) 1 / probability of success for random payments.\n"
-    "\nResult:\n"
-    "\"transaction\"      (string) Hex string of the transaction\n",
-    {},
-    RPCResult {
-        ""
+    RPCHelpMan{"randpay_submittx",
+    "\nVerifies and submits randpaytx.\n",
+    {
+        {"hexstring", RPCArg::Type::NUM, RPCArg::Optional::NO, "The hex string of the randpay transaction"},
+        {"risk", RPCArg::Type::NUM, RPCArg::Optional::NO, "1 / probability of success for random payments"},
     },
-    RPCExamples {
-        HelpExampleCli("randpay_createtx", "")
-    }}.Check(request);
-
+    RPCResult{"\"transaction\"              (string) hex string of the transaction"},
+    RPCExamples{
+        HelpExampleCli("randpay_submittx", "") + HelpExampleRpc("randpay_submittx", "")},
+    }.Check(request);
 
 #ifdef ENABLE_WALLET
     InitMapRandKeyT();
