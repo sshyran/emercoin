@@ -991,10 +991,10 @@ UniValue name_new(const JSONRPCRequest& request)
     "\nCreates new key->value pair which expires after specified number of days.\n"
     "Cost is square root of (1% of last PoW + 1% per year of last PoW).\n",
     {
-        {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "Name to create\n"},
-        {"value", RPCArg::Type::STR, RPCArg::Optional::NO, "Value to write inside name\n"},
-        {"days", RPCArg::Type::NUM, RPCArg::Optional::NO, "How many days this name will be active (1 day~=175 blocks)\n"},
-        {"toaddress", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Address of recipient. Empty string = transaction to yourself\n"},
+        {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "Name to create"},
+        {"value", RPCArg::Type::STR, RPCArg::Optional::NO, "Value to write inside name"},
+        {"days", RPCArg::Type::NUM, RPCArg::Optional::NO, "How many days this name will be active (1 day~=175 blocks)"},
+        {"toaddress", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Address of recipient. Empty string = transaction to yourself"},
         {"valuetype", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Interpretation of value string. Can be \"hex\", \"base64\" or filepath.\n"
             "       not specified or empty - Write value as a unicode string.\n"
             "       \"hex\" or \"base64\" - Decode value string as a binary data in hex or base64 string format.\n"
@@ -1035,10 +1035,10 @@ UniValue name_update(const JSONRPCRequest& request)
     RPCHelpMan{"name_update",
     "\nUpdate name value, add days to expiration time and possibly transfer a name to diffrent address.\n",
     {
-        {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "Name to create\n"},
-        {"value", RPCArg::Type::STR, RPCArg::Optional::NO, "Value to write inside name\n"},
-        {"days", RPCArg::Type::NUM, RPCArg::Optional::NO, "How many days this name will be active (1 day~=175 blocks)\n"},
-        {"toaddress", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Address of recipient. Empty string = transaction to yourself\n"},
+        {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "Name to update"},
+        {"value", RPCArg::Type::STR, RPCArg::Optional::NO, "Value to write inside name"},
+        {"days", RPCArg::Type::NUM, RPCArg::Optional::NO, "How many days this name will be active (1 day~=175 blocks)"},
+        {"toaddress", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Address of recipient. Empty string = transaction to yourself"},
         {"valuetype", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Interpretation of value string. Can be \"hex\", \"base64\" or filepath.\n"
             "       not specified or empty - Write value as a unicode string.\n"
             "       \"hex\" or \"base64\" - Decode value string as a binary data in hex or base64 string format.\n"
@@ -1079,7 +1079,7 @@ UniValue name_delete(const JSONRPCRequest& request)
     RPCHelpMan{"name_delete",
     "\nDelete a name if you own it. Others may do name_new after this command.\n",
     {
-        {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "Name to create\n"},
+        {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "Name to delete"},
     },
     RPCResult{
         "{\n"
