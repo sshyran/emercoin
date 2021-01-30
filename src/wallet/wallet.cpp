@@ -3014,9 +3014,9 @@ bool CWallet::CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeIn
             return false;
         nNameTxOut = nti.nOut;
         nNameTxInCredit = txNameIn->vout[nNameTxOut].nValue;
-        txNew.nVersion = NAMECOIN_TX_VERSION;
     }
 
+    txNew.nVersion = tx->nVersion;
     txNew.nLockTime = GetLocktimeForNewTransaction(chain(), locked_chain);
 
     FeeCalculation feeCalc;
