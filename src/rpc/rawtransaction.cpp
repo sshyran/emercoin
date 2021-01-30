@@ -1844,7 +1844,7 @@ UniValue randpay_createtx(const JSONRPCRequest& request)
         {"addrchap", RPCArg::Type::STR, RPCArg::Optional::NO, "???"},
         {"risk", RPCArg::Type::NUM, RPCArg::Optional::NO, "1 / probability of success for random payments"},
         {"timeout", RPCArg::Type::NUM, RPCArg::Optional::NO, "Locks utxo from being spent in another tx for timeout seconds"},
-        {"naive", RPCArg::Type::BOOL, RPCArg::Optional::YES, "Generate naive randpay-transaction, without randpay-in"},
+        {"naive", RPCArg::Type::BOOL, RPCArg::Optional::OMITTED_NAMED_ARG, "Generate naive randpay-transaction, without randpay-in"},
     },
     RPCResult{"???"},
     RPCExamples{
