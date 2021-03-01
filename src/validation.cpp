@@ -5401,6 +5401,12 @@ bool CheckMinTxOut(const CBlock& block, bool fV7Enabled)
     return true;
 }
 
+bool IsV8Enabled(const CBlockIndex* pindexPrev, const Consensus::Params& params)
+{
+    AssertLockHeld(cs_main);
+    return IsSuperMajority(8, pindexPrev, params.nRejectBlockOutdatedMajority, params);
+}
+
 /** Comparison function for sorting the getchaintips heads.  */
 typedef std::map<uint256, recentPoSHeadersValue>::const_iterator myIter;
 struct CompareBlocksByHeight2
