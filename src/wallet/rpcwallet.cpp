@@ -348,7 +348,7 @@ CTransactionRef SendMoney(interfaces::Chain::Lock& locked_chain, CWallet * const
     return tx;
 }
 
-CTransactionRef SendName(interfaces::Chain::Lock& locked_chain, CWallet * const pwallet, CScript scriptPubKey, CAmount nValue, CTransactionRef txNameIn, CAmount nFeeInput)
+CTransactionRef SendName(interfaces::Chain::Lock& locked_chain, CWallet * const pwallet, CScript scriptPubKey, CAmount nValue, CTransactionRef txNameIn, CAmount nFeeInput, bool fMultiName)
 {
     CCoinControl coin_control;
     CAmount curBalance = pwallet->GetBalance(0, coin_control.m_avoid_address_reuse).m_mine_trusted;
@@ -365,7 +365,7 @@ CTransactionRef SendName(interfaces::Chain::Lock& locked_chain, CWallet * const 
     CMutableTransaction tmpTx;
     tmpTx.nVersion = NAMECOIN_TX_VERSION;
     CTransactionRef tx = MakeTransactionRef(std::move(tmpTx));
-    if (!pwallet->CreateTransaction(txNameIn, nFeeInput, locked_chain, vecSend, tx, nFeeRequired, nChangePosRet, strError, coin_control)) {
+    if (!pwallet->CreateTransaction(txNameIn, nFeeInput, fMultiName, locked_chain, vecSend, tx, nFeeRequired, nChangePosRet, strError, coin_control)) {
         if (!fSubtractFeeFromAmount && nValue + nFeeRequired > curBalance)
             strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
         throw JSONRPCError(RPC_WALLET_ERROR, strError);

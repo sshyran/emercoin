@@ -24,7 +24,7 @@ class CNamecoinHooks : public CHooks
 public:
     virtual bool IsNameFeeEnough(const CTransactionRef& tx, const CAmount& txFee);
     virtual bool CheckInputs(const CTransactionRef& tx, const CBlockIndex* pindexBlock, vector<nameTempProxy> &vName, const CDiskTxPos& pos, const CAmount& txFee);
-    virtual bool DisconnectInputs(const CTransactionRef& tx);
+    virtual bool DisconnectInputs(const CTransactionRef& tx, bool fMultiName);
     virtual bool ConnectBlock(CBlockIndex* pindex, const vector<nameTempProxy>& vName);
     virtual bool ExtractAddress(const CScript& script, string& address);
     virtual bool CheckPendingNames(const CTransactionRef& tx);
@@ -81,7 +81,7 @@ string encodeNameVal(const CNameVal& input, const string& format)
 }
 
 // Calculate at which block will expire.
-bool CalculateExpiresAt(CNameRecord& nameRec)
+bool CalculateExpiresAt(CNameRecord& nameRec, bool fMultiName)
 {
     if (nameRec.deleted()) {
         nameRec.nExpiresAt = 0;
@@ -95,7 +95,7 @@ bool CalculateExpiresAt(CNameRecord& nameRec)
             return error("CalculateExpiresAt() : could not read tx from disk");
 
         NameTxInfo nti;
-        if (!DecodeNameTx(tx, nti))
+        if (!DecodeNameTx(fMultiName, tx, nti))
             return error("CalculateExpiresAt() : %s is not name tx, this should never happen", tx->GetHash().GetHex());
 
        sum += 175ULL * nti.nRentalDays; //days to blocks. 175 is average number of blocks per day
@@ -210,7 +210,7 @@ bool IsNameFeeEnough(const NameTxInfo& nti, const CBlockIndex* pindexBlock, cons
 bool CNamecoinHooks::IsNameFeeEnough(const CTransactionRef& tx, const CAmount& txFee)
 {
     NameTxInfo nti;
-    if (!DecodeNameTx(tx, nti))
+    if (!DecodeNameTx(IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus()), tx, nti))
         return false;
 
     return ::IsNameFeeEnough(nti, ::ChainActive().Tip(), txFee);
@@ -243,13 +243,6 @@ bool GetLastTxOfName(const CNameVal& name, CTransactionRef& tx, CNameRecord& nam
         return error("GetLastTxOfName() : could not read tx from disk");
     return true;
 }
-
-bool GetLastTxOfName(const CNameVal& name, CTransactionRef& tx)
-{
-    CNameRecord nameRec;
-    return GetLastTxOfName(name, tx, nameRec);
-}
-
 
 UniValue sendtoname(const JSONRPCRequest& request)
 {
@@ -336,7 +329,9 @@ bool GetNameCurrentAddress(const CNameVal& name, CTxDestination& dest, string& e
 
     CTransactionRef tx;
     NameTxInfo nti;
-    if (!GetLastTxOfName(name, tx) || !DecodeNameTx(tx, nti, true)) {
+    CNameRecord nameRec;
+    bool fMultiName = IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus());
+    if (!GetLastTxOfName(name, tx, nameRec) || !DecodeNameTx(fMultiName, tx, nti, true)) {
         error = "Failed to read/decode last name transaction";
         return false;
     }
@@ -409,8 +404,16 @@ void GetNameList(const CNameVal& nameUniq, std::map<CNameVal, NameTxInfo> &mapNa
 
     // add all names from wallet tx that are in blockchain
     for (const auto &item : pwallet->mapWallet) {
+        CBlockIndex* pindexPrev;
+        if (item.second.m_confirm.status == CWalletTx::CONFIRMED) {
+            pindexPrev = LookupBlockIndex(item.second.m_confirm.hashBlock);
+            assert(pindexPrev); // confirmed transaction should never point to non-existing block index
+            pindexPrev = pindexPrev->pprev;
+        } else
+            pindexPrev = ::ChainActive().Tip();
+
         NameTxInfo ntiWalllet;
-        if (!DecodeNameTx(item.second.tx, ntiWalllet))
+        if (!DecodeNameTx(IsV8Enabled(pindexPrev, Params().GetConsensus()), item.second.tx, ntiWalllet))
             continue;
 
         if (mapNames.count(ntiWalllet.name)) // already added info about this name
@@ -422,7 +425,8 @@ void GetNameList(const CNameVal& nameUniq, std::map<CNameVal, NameTxInfo> &mapNa
             continue;
 
         NameTxInfo nti;
-        if (!DecodeNameTx(tx, nti, true, pwallet))
+        bool fMultiName = IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus());
+        if (!DecodeNameTx(fMultiName, tx, nti, true, pwallet))
             continue;
 
         if (nameUniq.size() > 0 && nameUniq != nti.name)
@@ -461,7 +465,7 @@ void GetNameList(const CNameVal& nameUniq, std::map<CNameVal, NameTxInfo> &mapNa
             continue;
 
         NameTxInfo nti;
-        if (!DecodeNameTx(mempool.mapTx.find(hashLastTx)->GetSharedTx(), nti, true))
+        if (!DecodeNameTx(IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus()), mempool.mapTx.find(hashLastTx)->GetSharedTx(), nti, true))
             continue;
 
         if (nameUniq.size() > 0 && nameUniq != nti.name)
@@ -536,7 +540,7 @@ UniValue name_show(const JSONRPCRequest& request)
         if (!g_txindex || !g_txindex->FindTx(nameRec.vtxPos.back().txPos, tx))
             throw JSONRPCError(RPC_WALLET_ERROR, "failed to read from from disk");
 
-        if (!DecodeNameTx(tx, nti, true))
+        if (!DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus()), tx, nti, true))
             throw JSONRPCError(RPC_WALLET_ERROR, "failed to decode name");
 
         oName.pushKV("name", sName);
@@ -630,7 +634,7 @@ UniValue name_history(const JSONRPCRequest& request)
             throw JSONRPCError(RPC_DATABASE_ERROR, "could not read transaction from disk");
 
         NameTxInfo nti;
-        if (!DecodeNameTx(tx, nti, true, pwallet))
+        if (!DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus()), tx, nti, true, pwallet))
             throw JSONRPCError(RPC_DATABASE_ERROR, "failed to decode name transaction");
 
         UniValue obj(UniValue::VOBJ);
@@ -698,7 +702,7 @@ UniValue name_mempool(const JSONRPCRequest& request)
 
             const CTransactionRef& tx = mempool.get(hash);
             NameTxInfo nti;
-            if (!DecodeNameTx(tx, nti, true, pwallet))
+            if (!DecodeNameTx(IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus()), tx, nti, true, pwallet))
                 throw JSONRPCError(RPC_DATABASE_ERROR, "failed to decode name transaction");
 
             UniValue obj(UniValue::VOBJ);
@@ -917,7 +921,7 @@ UniValue name_scan_address(const JSONRPCRequest& request)
             throw JSONRPCError(RPC_WALLET_ERROR, "failed to read from from disk");
 
         NameTxInfo nti;
-        if (!DecodeNameTx(tx, nti, true))
+        if (!DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus()), tx, nti, true))
             throw JSONRPCError(RPC_WALLET_ERROR, "failed to decode name");
 
         oName.pushKV("name", stringFromNameVal(name));
@@ -1216,9 +1220,10 @@ NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, 
                 return ret;
             }
             txIn = it->second.tx;
+            //emcTODO: remove dependency on transaction history of wallet.dat. Having only a private key that can spend it should be enough.
 
             NameTxInfo nti;
-            if (!DecodeNameTx(txIn, nti)) {
+            if (!DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus()), txIn, nti)) {
                 ret.err_msg = "failed to decode txIn";
                 return ret;
             }
@@ -1266,7 +1271,8 @@ NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, 
 
     // set fee and send!
         CAmount nameFee = GetNameOpFee(::ChainActive().Tip(), nRentalDays, op, name, value);
-        tx = SendName(*locked_chain, pwallet, nameScript, MIN_TXOUT_AMOUNT, txIn, nameFee);
+        bool fMultiName = IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus());
+        tx = SendName(*locked_chain, pwallet, nameScript, MIN_TXOUT_AMOUNT, txIn, nameFee, fMultiName);
     }
 
     //success! collect info and return
@@ -1368,7 +1374,7 @@ bool reindexNameAddressIndex()
             return error("createNameAddressFile() : could not read tx from disk - your blockchain or nameindexV3 are probably corrupt");
 
         NameTxInfo nti;
-        if (!DecodeNameTx(tx, nti, true))
+        if (!DecodeNameTx(IsV8Enabled(::ChainActive()[nameScan[nHeight].second.first.nHeight - 1], Params().GetConsensus()), tx, nti, true))
             return error("createNameAddressFile() : failed to decode name - your blockchain or nameindexV3 are probably corrupt");
 
         if (nti.strAddress != "" && nti.op != OP_NAME_DELETE)
@@ -1383,7 +1389,7 @@ bool CNamecoinHooks::CheckPendingNames(const CTransactionRef& tx)
         return error("%s: no output in tx %s\n", __func__, tx->GetHash().ToString());
 
     NameTxInfo nti;
-    if (!DecodeNameTx(tx, nti))
+    if (!DecodeNameTx(IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus()), tx, nti))
         return error("%s: could not decode name script in tx %s\n", __func__, tx->GetHash().ToString());
 
     if (mapNamePending.count(nti.name)) {
@@ -1402,7 +1408,7 @@ void CNamecoinHooks::AddToPendingNames(const CTransactionRef& tx)
     }
 
     NameTxInfo nti;
-    if (!DecodeNameTx(tx, nti))
+    if (!DecodeNameTx(IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus()), tx, nti))
     {
         LogPrintf("%s : could not decode name script in tx %s\n", __func__, tx->GetHash().ToString());
         return;
@@ -1422,7 +1428,7 @@ bool CNamecoinHooks::CheckInputs(const CTransactionRef& tx, const CBlockIndex* p
 
 //read name tx
     NameTxInfo nti;
-    if (!DecodeNameTx(tx, nti, true)) {
+    if (!DecodeNameTx(IsV8Enabled(pindexBlock->pprev, Params().GetConsensus()), tx, nti, true)) {
         if (pindexBlock->nHeight > RELEASE_HEIGHT)
             return error("CheckInputsHook() : could not decode name tx %s in block %d", tx->GetHash().GetHex(), pindexBlock->nHeight);
         return false;
@@ -1445,7 +1451,7 @@ bool CNamecoinHooks::CheckInputs(const CTransactionRef& tx, const CBlockIndex* p
         if (!g_txindex || !g_txindex->FindTx(nameRec.vtxPos.back().txPos, lastKnownNameTx))
             return error("CheckInputsHook() : failed to read from name DB for %s", info);
         uint256 lasthash = lastKnownNameTx->GetHash();
-        if (!DecodeNameTx(lastKnownNameTx, prev_nti, true))
+        if (!DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus()), lastKnownNameTx, prev_nti, true))
             return error("CheckInputsHook() : Failed to decode existing previous name tx for %s. Your blockchain or nameindexV3 may be corrupt.", info);
 
         for (unsigned int i = 0; i < tx->vin.size(); i++) { //this scans all scripts of tx.vin
@@ -1528,13 +1534,13 @@ bool CNamecoinHooks::CheckInputs(const CTransactionRef& tx, const CBlockIndex* p
     return true;
 }
 
-bool CNamecoinHooks::DisconnectInputs(const CTransactionRef& tx)
+bool CNamecoinHooks::DisconnectInputs(const CTransactionRef& tx, bool fMultiName)
 {
     if (tx->nVersion != NAMECOIN_TX_VERSION)
         return false;
 
     NameTxInfo nti;
-    if (!DecodeNameTx(tx, nti, true))
+    if (!DecodeNameTx(fMultiName, tx, nti, true))
     {
         LogPrintf("DisconnectInputs() : could not decode name tx, skipping...");
         return false;
@@ -1585,7 +1591,7 @@ bool CNamecoinHooks::DisconnectInputs(const CTransactionRef& tx)
                     break;
                 }
 
-        if (!CalculateExpiresAt(nameRec))
+        if (!CalculateExpiresAt(nameRec, fMultiName))
             return error("DisconnectInputs() : failed to calculate expiration time before writing to name DB");
         if (!pNameDB->Write(nti.name, nameRec))
             return error("DisconnectInputs() : failed to write to name DB");
@@ -1601,7 +1607,7 @@ bool CNamecoinHooks::DisconnectInputs(const CTransactionRef& tx)
             if (!g_txindex || !g_txindex->FindTx(nameRec.vtxPos.back().txPos, prevTx))
                 return error("DisconnectInputs() : could not read tx from disk");
             NameTxInfo prev_nti;
-            if (!DecodeNameTx(prevTx, prev_nti, true))
+            if (!DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus()), prevTx, prev_nti, true))
                 return error("DisconnectInputs() : failed to decode name tx");
             newAddress = prev_nti.strAddress;
         }
@@ -1693,7 +1699,7 @@ bool CNamecoinHooks::ConnectBlock(CBlockIndex* pindex, const vector<nameTempProx
         // save name op
         nameRec.vtxPos.back().op = i.op;
 
-        if (!CalculateExpiresAt(nameRec))
+        if (!CalculateExpiresAt(nameRec, IsV8Enabled(pindex->pprev, Params().GetConsensus())))
             return error("ConnectBlockHook() : failed to calculate expiration time before writing to name DB for %s", i.hash.GetHex());
         if (!pNameDB->Write(i.name, nameRec))
             return error("ConnectBlockHook() : failed to write to name DB");
@@ -1721,7 +1727,8 @@ bool CNamecoinHooks::getNameValue(const string& sName, string& sValue)
 
     CTransactionRef tx;
     NameTxInfo nti;
-    if (!(GetLastTxOfName(name, tx) && DecodeNameTx(tx, nti, true)))
+    CNameRecord nameRec;
+    if (!(GetLastTxOfName(name, tx, nameRec) && DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus()), tx, nti, true)))
         return false;
 
     if (!NameActive(name))

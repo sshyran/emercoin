@@ -1152,7 +1152,7 @@ public:
      * selected by SelectCoins(); Also create the change output, when needed
      * @note passing nChangePosInOut as -1 will result in setting a random position
      */
-    bool CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeInput,
+    bool CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeInput, bool fMultiName,
                            interfaces::Chain::Lock& locked_chain, const std::vector<CRecipient>& vecSend, CTransactionRef& tx, CAmount& nFeeRet, int& nChangePosInOut,
                            std::string& strFailReason, const CCoinControl& coin_control, bool sign = true);
     // emercoin: same as above, except without name input
@@ -1473,6 +1473,6 @@ int64_t CalculateMaximumSignedTxSize(const CTransaction &tx, const CWallet *wall
 int64_t CalculateMaximumSignedTxSize(const CTransaction &tx, const CWallet *wallet, const std::vector<CTxOut>& txouts, bool use_max_sig = false);
 
 // emercoin:
-bool DecodeNameTx(const CTransactionRef& tx, NameTxInfo& nti, bool fExtractAddress = false, CWallet* pwallet=nullptr);
+bool DecodeNameTx(bool fMultiName, const CTransactionRef& tx, NameTxInfo& nti, bool fExtractAddress = false, CWallet* pwallet=nullptr);
 
 #endif // BITCOIN_WALLET_WALLET_H

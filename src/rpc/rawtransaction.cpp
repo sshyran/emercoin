@@ -51,7 +51,7 @@
  */
 static const CFeeRate DEFAULT_MAX_RAW_TX_FEE_RATE{COIN / 10};
 
-void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, bool fName=false)
+void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, bool fName=false, bool fMultiName=false)
 {
     // Call into TxToUniv() in bitcoin-common to decode the transaction hex.
     //
@@ -60,7 +60,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, 
     // data into the returned UniValue.
     NameTxInfo nti;
     std::pair<std::string, std::string>* nameKV = nullptr;
-    if (fName && DecodeNameTx(MakeTransactionRef(std::move(tx)), nti))
+    if (fName && DecodeNameTx(fMultiName, MakeTransactionRef(std::move(tx)), nti))
         *nameKV = std::make_pair(stringFromNameVal(nti.name), encodeNameVal(nti.value, ""));
 
     TxToUniv(tx, uint256(), entry, true, RPCSerializationFlags(), nameKV);
@@ -221,7 +221,7 @@ static UniValue getrawtransaction(const JSONRPCRequest& request)
 
     UniValue result(UniValue::VOBJ);
     if (blockindex) result.pushKV("in_active_chain", in_active_chain);
-    TxToJSON(*tx, hash_block, result, nVerbose == 2);
+    TxToJSON(*tx, hash_block, result, nVerbose == 2, IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus()));
     return result;
 }
 

@@ -46,7 +46,7 @@
 #include <memory>
 #include <mutex>
 
-extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, bool fName=false);
+extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, bool fName=false, bool fMultiName=false);
 
 struct CUpdatedBlock
 {

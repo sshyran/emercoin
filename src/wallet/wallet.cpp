@@ -2977,7 +2977,7 @@ OutputType CWallet::TransactionChangeType(OutputType change_type, const std::vec
     return m_default_address_type;
 }
 
-bool CWallet::CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeInput,
+bool CWallet::CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeInput, bool fMultiName,
         interfaces::Chain::Lock& locked_chain, const std::vector<CRecipient>& vecSend, CTransactionRef& tx, CAmount& nFeeRet,
         int& nChangePosInOut, std::string& strFailReason, const CCoinControl& coin_control, bool sign)
 {
@@ -3010,7 +3010,7 @@ bool CWallet::CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeIn
     unsigned int nNameTxOut = 0;
     if (txNameIn && !txNameIn->IsNull()) {
         NameTxInfo nti;
-        if (!DecodeNameTx(tx, nti))
+        if (!DecodeNameTx(fMultiName, tx, nti))
             return false;
         nNameTxOut = nti.nOut;
         nNameTxInCredit = txNameIn->vout[nNameTxOut].nValue;
@@ -3344,7 +3344,7 @@ bool CWallet::CreateTransaction(interfaces::Chain::Lock& locked_chain, const std
                          int& nChangePosInOut, std::string& strFailReason, const CCoinControl& coin_control, bool sign)
 {
     CTransactionRef txNameIn;
-    return CreateTransaction(txNameIn, 0, locked_chain, vecSend, tx, nFeeRet, nChangePosInOut, strFailReason, coin_control, sign);
+    return CreateTransaction(txNameIn, 0, false, locked_chain, vecSend, tx, nFeeRet, nChangePosInOut, strFailReason, coin_control, sign);
 }
 
 /**
@@ -5043,7 +5043,7 @@ bool CWallet::AddCryptedKeyInner(const CPubKey &vchPubKey, const std::vector<uns
 
 // read name tx and extract: name, value and rentalDays
 // optionaly it can extract destination address and check if tx is mine (note: it does not check if address is valid)
-bool DecodeNameTx(const CTransactionRef& tx, NameTxInfo& nti, bool fExtractAddress /* = false */, CWallet* pwallet /* = nullptr */)
+bool DecodeNameTx(bool fMultiName, const CTransactionRef& tx, NameTxInfo& nti, bool fExtractAddress /* = false */, CWallet* pwallet /* = nullptr */)
 {
     if (tx->nVersion != NAMECOIN_TX_VERSION)
         return false;
@@ -5077,6 +5077,7 @@ bool DecodeNameTx(const CTransactionRef& tx, NameTxInfo& nti, bool fExtractAddre
         }
     }
 
-    if (found) nti.err_msg = "";
+    if (found)
+        nti.err_msg = "";
     return found;
 }

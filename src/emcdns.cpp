@@ -1285,7 +1285,6 @@ bool EmcDns::CheckEnumSig(const char *q_str, char *sig_str) {
 	return false; // Already unable to fetch
 
       do {
-        NameTxInfo nti;
         CNameRecord nameRec;
         CTransactionRef tx;
         LOCK(cs_main);
@@ -1295,7 +1294,9 @@ bool EmcDns::CheckEnumSig(const char *q_str, char *sig_str) {
 	  break; // no result returned
         if(!g_txindex || !g_txindex->FindTx(nameRec.vtxPos.back().txPos, tx))
           break; // failed to read from from disk
-        if(!DecodeNameTx(tx, nti, true))
+        NameTxInfo nti;
+        bool fMultiName = IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus());
+        if(!DecodeNameTx(fMultiName, tx, nti, true))
           break; // failed to decode name
         CTxDestination dest = DecodeDestination(nti.strAddress);
         if (!IsValidDestination(dest))
