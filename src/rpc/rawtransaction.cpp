@@ -58,12 +58,16 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, 
     // Blockchain contextual information (confirmations and blocktime) is not
     // available to code in bitcoin-common, so we query them here and push the
     // data into the returned UniValue.
-    NameTxInfo nti;
-    std::pair<std::string, std::string>* nameKV = nullptr;
-    if (fName && DecodeNameTx(fMultiName, MakeTransactionRef(std::move(tx)), nti))
-        *nameKV = std::make_pair(stringFromNameVal(nti.name), encodeNameVal(nti.value, ""));
+    std::vector<std::pair<std::string, std::string>>* vNameKV = nullptr;
+    if (fName) {
+        std::vector<NameTxInfo> vnti = DecodeNameTx(fMultiName, MakeTransactionRef(std::move(tx)));
+        vNameKV->reserve(vnti.size());
+        for (const auto& nti : vnti) {
+            vNameKV->push_back(std::make_pair(stringFromNameVal(nti.name), encodeNameVal(nti.value, "")));
+        }
+    }
 
-    TxToUniv(tx, uint256(), entry, true, RPCSerializationFlags(), nameKV);
+    TxToUniv(tx, uint256(), entry, true, RPCSerializationFlags(), vNameKV);
 
     if (!hashBlock.IsNull()) {
         LOCK(cs_main);

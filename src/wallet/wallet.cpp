@@ -3009,10 +3009,10 @@ bool CWallet::CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeIn
     CAmount nNameTxInCredit = 0;
     unsigned int nNameTxOut = 0;
     if (txNameIn && !txNameIn->IsNull()) {
-        NameTxInfo nti;
-        if (!DecodeNameTx(fMultiName, tx, nti))
+        std::vector<NameTxInfo> vnti = DecodeNameTx(fMultiName, tx);
+        if (vnti.empty())
             return false;
-        nNameTxOut = nti.nOut;
+        nNameTxOut = vnti[0].nOut;
         nNameTxInCredit = txNameIn->vout[nNameTxOut].nValue;
     }
 
@@ -5043,22 +5043,26 @@ bool CWallet::AddCryptedKeyInner(const CPubKey &vchPubKey, const std::vector<uns
 
 // read name tx and extract: name, value and rentalDays
 // optionaly it can extract destination address and check if tx is mine (note: it does not check if address is valid)
-bool DecodeNameTx(bool fMultiName, const CTransactionRef& tx, NameTxInfo& nti, bool fExtractAddress /* = false */, CWallet* pwallet /* = nullptr */)
+std::vector<NameTxInfo> DecodeNameTx(bool fMultiName, const CTransactionRef& tx, bool fExtractAddress /* = false */, CWallet* pwallet /* = nullptr */)
 {
+    std::vector<NameTxInfo> result;
     if (tx->nVersion != NAMECOIN_TX_VERSION)
-        return false;
+        return result;
+
+    result.reserve(tx->vout.size());
 
     bool found = false;
     for (unsigned int i = 0; i < tx->vout.size(); i++) {
         const CTxOut& out = tx->vout[i];
-        NameTxInfo ntiTmp;
+        NameTxInfo nti;
         CScript::const_iterator pc = out.scriptPubKey.begin();
-        if (DecodeNameScript(out.scriptPubKey, ntiTmp, pc)) {
+        if (DecodeNameScript(out.scriptPubKey, nti, pc)) {
             // If more than one name op, fail
-            if (found)
-                return false;
+            if (found) {
+                result.clear();
+                return result;
+            }
 
-            nti = ntiTmp;
             nti.nOut = i;
 
             if (fExtractAddress) {
@@ -5074,10 +5078,10 @@ bool DecodeNameTx(bool fMultiName, const CTransactionRef& tx, NameTxInfo& nti, b
                     nti.fIsMine = IsMine(*pwallet, address) == ISMINE_SPENDABLE;
             }
             found = true;
+            nti.err_msg = "";
+            result.push_back(nti);
         }
     }
 
-    if (found)
-        nti.err_msg = "";
-    return found;
+    return result;
 }

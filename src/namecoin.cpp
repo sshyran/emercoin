@@ -94,11 +94,11 @@ bool CalculateExpiresAt(CNameRecord& nameRec, bool fMultiName)
         if (!g_txindex || !g_txindex->FindTx(nameRec.vtxPos[i].txPos, tx))
             return error("CalculateExpiresAt() : could not read tx from disk");
 
-        NameTxInfo nti;
-        if (!DecodeNameTx(fMultiName, tx, nti))
+        std::vector<NameTxInfo> vnti = DecodeNameTx(fMultiName, tx);
+        if (vnti.empty())
             return error("CalculateExpiresAt() : %s is not name tx, this should never happen", tx->GetHash().GetHex());
 
-       sum += 175ULL * nti.nRentalDays; //days to blocks. 175 is average number of blocks per day
+       sum += 175ULL * vnti[0].nRentalDays; //days to blocks. 175 is average number of blocks per day
     }
 
     //limit to INT_MAX value
@@ -209,11 +209,11 @@ bool IsNameFeeEnough(const NameTxInfo& nti, const CBlockIndex* pindexBlock, cons
 
 bool CNamecoinHooks::IsNameFeeEnough(const CTransactionRef& tx, const CAmount& txFee)
 {
-    NameTxInfo nti;
-    if (!DecodeNameTx(IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus()), tx, nti))
+    std::vector<NameTxInfo> vnti = DecodeNameTx(IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus()), tx);
+    if (vnti.empty())
         return false;
 
-    return ::IsNameFeeEnough(nti, ::ChainActive().Tip(), txFee);
+    return ::IsNameFeeEnough(vnti[0], ::ChainActive().Tip(), txFee);
 }
 
 //returns first name operation. I.e. name_new from chain like name_new->name_update->name_update->...->name_update
@@ -328,24 +328,29 @@ bool GetNameCurrentAddress(const CNameVal& name, CTxDestination& dest, string& e
     }
 
     CTransactionRef tx;
-    NameTxInfo nti;
     CNameRecord nameRec;
-    bool fMultiName = IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus());
-    if (!GetLastTxOfName(name, tx, nameRec) || !DecodeNameTx(fMultiName, tx, nti, true)) {
-        error = "Failed to read/decode last name transaction";
+    if (!GetLastTxOfName(name, tx, nameRec)) {
+        error = "Failed to read last name transaction";
         return false;
     }
 
-    dest = DecodeDestination(nti.strAddress);
+    bool fMultiName = IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus());
+    std::vector<NameTxInfo> vnti = DecodeNameTx(fMultiName, tx, true);
+    if (vnti.empty()) {
+        error = "Failed to decode last name transaction";
+        return false;
+    }
+
+    dest = DecodeDestination(vnti[0].strAddress);
     if (!IsValidDestination(dest)) {
-        error = "Invalid address: 0" + nti.strAddress;
+        error = "Invalid address: 0" + vnti[0].strAddress;
         return false;
     }
 
     if (!NameActive(name)) {
         stringstream ss;
         ss << "This name have expired. If you still wish to send money to it's last owner you can use this command:\n"
-           << "sendtoaddress " << nti.strAddress << " <your_amount> ";
+           << "sendtoaddress " << vnti[0].strAddress << " <your_amount> ";
         error = ss.str();
         return false;
     }
@@ -412,31 +417,31 @@ void GetNameList(const CNameVal& nameUniq, std::map<CNameVal, NameTxInfo> &mapNa
         } else
             pindexPrev = ::ChainActive().Tip();
 
-        NameTxInfo ntiWalllet;
-        if (!DecodeNameTx(IsV8Enabled(pindexPrev, Params().GetConsensus()), item.second.tx, ntiWalllet))
+        std::vector<NameTxInfo> vntiWallet = DecodeNameTx(IsV8Enabled(pindexPrev, Params().GetConsensus()), item.second.tx);
+        if (vntiWallet.empty())
             continue;
 
-        if (mapNames.count(ntiWalllet.name)) // already added info about this name
+        if (mapNames.count(vntiWallet[0].name)) // already added info about this name
             continue;
 
         CTransactionRef tx;
         CNameRecord nameRec;
-        if (!GetLastTxOfName(ntiWalllet.name, tx, nameRec))
+        if (!GetLastTxOfName(vntiWallet[0].name, tx, nameRec))
             continue;
 
-        NameTxInfo nti;
         bool fMultiName = IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus());
-        if (!DecodeNameTx(fMultiName, tx, nti, true, pwallet))
+        std::vector<NameTxInfo> vnti = DecodeNameTx(fMultiName, tx, true, pwallet);
+        if (vnti.empty())
             continue;
 
-        if (nameUniq.size() > 0 && nameUniq != nti.name)
+        if (nameUniq.size() > 0 && nameUniq != vnti[0].name)
             continue;
 
-        if (!pNameDB->Exists(nti.name))
+        if (!pNameDB->Exists(vnti[0].name))
             continue;
 
-        nti.nExpiresAt = nameRec.nExpiresAt;
-        mapNames[nti.name] = nti;
+        vnti[0].nExpiresAt = nameRec.nExpiresAt;
+        mapNames[vnti[0].name] = vnti[0];
     }
 
     // add all pending names
@@ -464,14 +469,14 @@ void GetNameList(const CNameVal& nameUniq, std::map<CNameVal, NameTxInfo> &mapNa
         if (!found)
             continue;
 
-        NameTxInfo nti;
-        if (!DecodeNameTx(IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus()), mempool.mapTx.find(hashLastTx)->GetSharedTx(), nti, true))
+        std::vector<NameTxInfo> vnti = DecodeNameTx(IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus()), mempool.mapTx.find(hashLastTx)->GetSharedTx(), true);
+        if (vnti.empty())
             continue;
 
-        if (nameUniq.size() > 0 && nameUniq != nti.name)
+        if (nameUniq.size() > 0 && nameUniq != vnti[0].name)
             continue;
 
-        mapPending[nti.name] = nti;
+        mapPending[vnti[0].name] = vnti[0];
     }
 }
 
@@ -526,7 +531,7 @@ UniValue name_show(const JSONRPCRequest& request)
     CNameVal name = nameValFromValue(request.params[0]);
     string outputType = request.params.size() > 1 ? request.params[1].get_str() : "";
     string sName = stringFromNameVal(name);
-    NameTxInfo nti;
+    std::vector<NameTxInfo> vnti;
     {
         LOCK(cs_main);
         CNameRecord nameRec;
@@ -540,13 +545,14 @@ UniValue name_show(const JSONRPCRequest& request)
         if (!g_txindex || !g_txindex->FindTx(nameRec.vtxPos.back().txPos, tx))
             throw JSONRPCError(RPC_WALLET_ERROR, "failed to read from from disk");
 
-        if (!DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus()), tx, nti, true))
+        vnti = DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus()), tx, true);
+        if (vnti.empty())
             throw JSONRPCError(RPC_WALLET_ERROR, "failed to decode name");
 
         oName.pushKV("name", sName);
-        oName.pushKV("value", encodeNameVal(nti.value, outputType));
+        oName.pushKV("value", encodeNameVal(vnti[0].value, outputType));
         oName.pushKV("txid", tx->GetHash().GetHex());
-        oName.pushKV("address", nti.strAddress);
+        oName.pushKV("address", vnti[0].strAddress);
         oName.pushKV("expires_in", nameRec.nExpiresAt - ::ChainActive().Height());
         oName.pushKV("expires_at", nameRec.nExpiresAt);
         oName.pushKV("time", (boost::int64_t)tx->nTime);
@@ -565,7 +571,7 @@ UniValue name_show(const JSONRPCRequest& request)
         if (!file.is_open())
             throw JSONRPCError(RPC_PARSE_ERROR, "Failed to open file. Check if you have permission to open it.");
 
-        file.write((const char*)&nti.value[0], nti.value.size());
+        file.write((const char*)&vnti[0].value[0], vnti[0].value.size());
         file.close();
     }
 
@@ -633,22 +639,22 @@ UniValue name_history(const JSONRPCRequest& request)
         if (!g_txindex || !g_txindex->FindTx(nameRec.vtxPos[i].txPos, tx))
             throw JSONRPCError(RPC_DATABASE_ERROR, "could not read transaction from disk");
 
-        NameTxInfo nti;
-        if (!DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus()), tx, nti, true, pwallet))
+        std::vector<NameTxInfo> vnti = DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus()), tx, true, pwallet);
+        if (vnti.empty())
             throw JSONRPCError(RPC_DATABASE_ERROR, "failed to decode name transaction");
 
         UniValue obj(UniValue::VOBJ);
         obj.pushKV("txid",             tx->GetHash().ToString());
         obj.pushKV("time",             (boost::int64_t)tx->nTime);
         obj.pushKV("height",           nameRec.vtxPos[i].nHeight);
-        obj.pushKV("address",          nti.strAddress);
-        if (nti.fIsMine)
+        obj.pushKV("address",          vnti[0].strAddress);
+        if (vnti[0].fIsMine)
             obj.pushKV("address_is_mine",  "true");
-        obj.pushKV("operation",        stringFromOp(nti.op));
-        if (nti.op == OP_NAME_UPDATE || nti.op == OP_NAME_NEW)
-            obj.pushKV("days_added",       nti.nRentalDays);
-        if (nti.op == OP_NAME_UPDATE || nti.op == OP_NAME_NEW)
-            obj.pushKV("value", encodeNameVal(nti.value, outputType));
+        obj.pushKV("operation",        stringFromOp(vnti[0].op));
+        if (vnti[0].op == OP_NAME_UPDATE || vnti[0].op == OP_NAME_NEW)
+            obj.pushKV("days_added", vnti[0].nRentalDays);
+        if (vnti[0].op == OP_NAME_UPDATE || vnti[0].op == OP_NAME_NEW)
+            obj.pushKV("value", encodeNameVal(vnti[0].value, outputType));
 
         res.push_back(obj);
     }
@@ -701,22 +707,22 @@ UniValue name_mempool(const JSONRPCRequest& request)
                 continue;
 
             const CTransactionRef& tx = mempool.get(hash);
-            NameTxInfo nti;
-            if (!DecodeNameTx(IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus()), tx, nti, true, pwallet))
+            std::vector<NameTxInfo> vnti = DecodeNameTx(IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus()), tx, true, pwallet);
+            if (vnti.empty())
                 throw JSONRPCError(RPC_DATABASE_ERROR, "failed to decode name transaction");
 
             UniValue obj(UniValue::VOBJ);
             obj.pushKV("name",             sName);
             obj.pushKV("txid",             hash.ToString());
             obj.pushKV("time",             (boost::int64_t)tx->nTime);
-            obj.pushKV("address",          nti.strAddress);
-            if (nti.fIsMine)
+            obj.pushKV("address",          vnti[0].strAddress);
+            if (vnti[0].fIsMine)
                 obj.pushKV("address_is_mine",  "true");
-            obj.pushKV("operation",        stringFromOp(nti.op));
-            if (nti.op == OP_NAME_UPDATE || nti.op == OP_NAME_NEW)
-                obj.pushKV("days_added",       nti.nRentalDays);
-            if (nti.op == OP_NAME_UPDATE || nti.op == OP_NAME_NEW)
-                obj.pushKV("value",            encodeNameVal(nti.value, outputType));
+            obj.pushKV("operation",        stringFromOp(vnti[0].op));
+            if (vnti[0].op == OP_NAME_UPDATE || vnti[0].op == OP_NAME_NEW)
+                obj.pushKV("days_added", vnti[0].nRentalDays);
+            if (vnti[0].op == OP_NAME_UPDATE || vnti[0].op == OP_NAME_NEW)
+                obj.pushKV("value", encodeNameVal(vnti[0].value, outputType));
 
             res.push_back(obj);
         }
@@ -920,14 +926,14 @@ UniValue name_scan_address(const JSONRPCRequest& request)
         if (!g_txindex || !g_txindex->FindTx(nameRec.vtxPos.back().txPos, tx))
             throw JSONRPCError(RPC_WALLET_ERROR, "failed to read from from disk");
 
-        NameTxInfo nti;
-        if (!DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus()), tx, nti, true))
+        std::vector<NameTxInfo> vnti = DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus()), tx, true);
+        if (vnti.empty())
             throw JSONRPCError(RPC_WALLET_ERROR, "failed to decode name");
 
         oName.pushKV("name", stringFromNameVal(name));
-        oName.pushKV("value", limitString(encodeNameVal(nti.value, outputType), nMaxShownValue, "\n...(value too large - use name_show to see full value)"));
+        oName.pushKV("value", limitString(encodeNameVal(vnti[0].value, outputType), nMaxShownValue, "\n...(value too large - use name_show to see full value)"));
         oName.pushKV("txid", tx->GetHash().GetHex());
-        oName.pushKV("address", nti.strAddress);
+        oName.pushKV("address", vnti[0].strAddress);
         oName.pushKV("expires_in", nameRec.nExpiresAt - ::ChainActive().Height());
         oName.pushKV("expires_at", nameRec.nExpiresAt);
         oName.pushKV("time", (boost::int64_t)tx->nTime);
@@ -1222,13 +1228,13 @@ NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, 
             txIn = it->second.tx;
             //emcTODO: remove dependency on transaction history of wallet.dat. Having only a private key that can spend it should be enough.
 
-            NameTxInfo nti;
-            if (!DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus()), txIn, nti)) {
+            std::vector<NameTxInfo> vnti = DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus()), txIn);
+            if (vnti.empty()) {
                 ret.err_msg = "failed to decode txIn";
                 return ret;
             }
 
-            if (::IsMine(*pwallet, txIn->vout[nti.nOut].scriptPubKey) != ISMINE_SPENDABLE) {
+            if (::IsMine(*pwallet, txIn->vout[vnti[0].nOut].scriptPubKey) != ISMINE_SPENDABLE) {
                 ret.err_msg = "this name tx is not yours or is not spendable: " + txInHash.GetHex();
                 return ret;
             }
@@ -1373,12 +1379,12 @@ bool reindexNameAddressIndex()
         if (!g_txindex || !g_txindex->FindTx(txpos, tx))
             return error("createNameAddressFile() : could not read tx from disk - your blockchain or nameindexV3 are probably corrupt");
 
-        NameTxInfo nti;
-        if (!DecodeNameTx(IsV8Enabled(::ChainActive()[nameScan[nHeight].second.first.nHeight - 1], Params().GetConsensus()), tx, nti, true))
+        std::vector<NameTxInfo> vnti = DecodeNameTx(IsV8Enabled(::ChainActive()[nameScan[nHeight].second.first.nHeight - 1], Params().GetConsensus()), tx, true);
+        if (vnti.empty())
             return error("createNameAddressFile() : failed to decode name - your blockchain or nameindexV3 are probably corrupt");
 
-        if (nti.strAddress != "" && nti.op != OP_NAME_DELETE)
-            pNameAddressDB->WriteSingleName(nti.strAddress, name);
+        if (vnti[0].strAddress != "" && vnti[0].op != OP_NAME_DELETE)
+            pNameAddressDB->WriteSingleName(vnti[0].strAddress, name);
     }
     return true;
 }
@@ -1388,12 +1394,12 @@ bool CNamecoinHooks::CheckPendingNames(const CTransactionRef& tx)
     if (tx->vout.size() < 1)
         return error("%s: no output in tx %s\n", __func__, tx->GetHash().ToString());
 
-    NameTxInfo nti;
-    if (!DecodeNameTx(IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus()), tx, nti))
+    std::vector<NameTxInfo> vnti = DecodeNameTx(IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus()), tx);
+    if (vnti.empty())
         return error("%s: could not decode name script in tx %s\n", __func__, tx->GetHash().ToString());
 
-    if (mapNamePending.count(nti.name)) {
-        LogPrintf("%s: there is already a pending operation on this name %s\n", __func__, stringFromNameVal(nti.name));
+    if (mapNamePending.count(vnti[0].name)) {
+        LogPrintf("%s: there is already a pending operation on this name %s\n", __func__, stringFromNameVal(vnti[0].name));
         return false;
     }
     return true;
@@ -1407,15 +1413,14 @@ void CNamecoinHooks::AddToPendingNames(const CTransactionRef& tx)
         return;
     }
 
-    NameTxInfo nti;
-    if (!DecodeNameTx(IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus()), tx, nti))
-    {
+    std::vector<NameTxInfo> vnti = DecodeNameTx(IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus()), tx);
+    if (vnti.empty()) {
         LogPrintf("%s : could not decode name script in tx %s\n", __func__, tx->GetHash().ToString());
         return;
     }
 
-    mapNamePending[nti.name].insert(tx->GetHash());
-    LogPrintf("%s: added %s %s from tx %s\n", __func__, stringFromOp(nti.op), stringFromNameVal(nti.name), tx->GetHash().ToString());
+    mapNamePending[vnti[0].name].insert(tx->GetHash());
+    LogPrintf("%s: added %s %s from tx %s\n", __func__, stringFromOp(vnti[0].op), stringFromNameVal(vnti[0].name), tx->GetHash().ToString());
 }
 
 // Checks name tx and save name data to vName if valid
@@ -1427,17 +1432,17 @@ bool CNamecoinHooks::CheckInputs(const CTransactionRef& tx, const CBlockIndex* p
         return false;
 
 //read name tx
-    NameTxInfo nti;
-    if (!DecodeNameTx(IsV8Enabled(pindexBlock->pprev, Params().GetConsensus()), tx, nti, true)) {
+    std::vector<NameTxInfo> vnti = DecodeNameTx(IsV8Enabled(pindexBlock->pprev, Params().GetConsensus()), tx, true);
+    if (vnti.empty()) {
         if (pindexBlock->nHeight > RELEASE_HEIGHT)
             return error("CheckInputsHook() : could not decode name tx %s in block %d", tx->GetHash().GetHex(), pindexBlock->nHeight);
         return false;
     }
 
-    CNameVal name = nti.name;
+    CNameVal name = vnti[0].name;
     string sName = stringFromNameVal(name);
     string info = str( boost::format("name %s, tx=%s, block=%d, value=%s") %
-        sName % tx->GetHash().GetHex() % pindexBlock->nHeight % stringFromNameVal(nti.value));
+        sName % tx->GetHash().GetHex() % pindexBlock->nHeight % stringFromNameVal(vnti[0].value));
 
 //check if last known tx on this name matches any of inputs of this tx
     CNameRecord nameRec;
@@ -1445,13 +1450,14 @@ bool CNamecoinHooks::CheckInputs(const CTransactionRef& tx, const CBlockIndex* p
         return error("CheckInputsHook() : failed to read from name DB for %s", info);
 
     bool found = false;
-    NameTxInfo prev_nti;
+    std::vector<NameTxInfo> prev_vnti;
     if (!nameRec.vtxPos.empty() && !nameRec.deleted()) {
         CTransactionRef lastKnownNameTx;
         if (!g_txindex || !g_txindex->FindTx(nameRec.vtxPos.back().txPos, lastKnownNameTx))
             return error("CheckInputsHook() : failed to read from name DB for %s", info);
         uint256 lasthash = lastKnownNameTx->GetHash();
-        if (!DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus()), lastKnownNameTx, prev_nti, true))
+        prev_vnti = DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus()), lastKnownNameTx, true);
+        if (prev_vnti.empty())
             return error("CheckInputsHook() : Failed to decode existing previous name tx for %s. Your blockchain or nameindexV3 may be corrupt.", info);
 
         for (unsigned int i = 0; i < tx->vin.size(); i++) { //this scans all scripts of tx.vin
@@ -1462,12 +1468,12 @@ bool CNamecoinHooks::CheckInputs(const CTransactionRef& tx, const CBlockIndex* p
         }
     }
 
-    switch (nti.op)
+    switch (vnti[0].op)
     {
         case OP_NAME_NEW:
         {
             //scan last 10 PoW block for tx fee that matches the one specified in tx
-            if (!::IsNameFeeEnough(nti, pindexBlock, txFee)) {
+            if (!::IsNameFeeEnough(vnti[0], pindexBlock, txFee)) {
                 if (pindexBlock->nHeight > RELEASE_HEIGHT)
                     return error("CheckInputsHook() : rejected name_new because not enough fee for %s", info);
                 return false;
@@ -1483,16 +1489,16 @@ bool CNamecoinHooks::CheckInputs(const CTransactionRef& tx, const CBlockIndex* p
         case OP_NAME_UPDATE:
         {
             //scan last 10 PoW block for tx fee that matches the one specified in tx
-            if (!::IsNameFeeEnough(nti, pindexBlock, txFee)) {
+            if (!::IsNameFeeEnough(vnti[0], pindexBlock, txFee)) {
                 if (pindexBlock->nHeight > RELEASE_HEIGHT)
                     return error("CheckInputsHook() : rejected name_update because not enough fee for %s", info);
                 return false;
             }
 
-            if (!found || (prev_nti.op != OP_NAME_NEW && prev_nti.op != OP_NAME_UPDATE))
+            if (!found || (prev_vnti[0].op != OP_NAME_NEW && prev_vnti[0].op != OP_NAME_UPDATE))
                 return error("name_update without previous new or update tx for %s", info);
 
-            if (prev_nti.name != name)
+            if (prev_vnti[0].name != name)
                 return error("CheckInputsHook() : name_update name mismatch for %s", info);
 
             if (!NameActive(name, pindexBlock->nHeight))
@@ -1501,10 +1507,10 @@ bool CNamecoinHooks::CheckInputs(const CTransactionRef& tx, const CBlockIndex* p
         }
         case OP_NAME_DELETE:
         {
-            if (!found || (prev_nti.op != OP_NAME_NEW && prev_nti.op != OP_NAME_UPDATE))
+            if (!found || (prev_vnti[0].op != OP_NAME_NEW && prev_vnti[0].op != OP_NAME_UPDATE))
                 return error("name_delete without previous new or update tx, for %s", info);
 
-            if (prev_nti.name != name)
+            if (prev_vnti[0].name != name)
                 return error("CheckInputsHook() : name_delete name mismatch for %s", info);
 
             if (!NameActive(name, pindexBlock->nHeight))
@@ -1518,17 +1524,17 @@ bool CNamecoinHooks::CheckInputs(const CTransactionRef& tx, const CBlockIndex* p
     // all checks passed - record tx information to vName. It will be sorted by nTime and writen to nameindexV3 at the end of ConnectBlock
     CNameIndex txPos2;
     txPos2.nHeight = pindexBlock->nHeight;
-    txPos2.value = nti.value;
+    txPos2.value = vnti[0].value;
     txPos2.txPos = pos;
 
     nameTempProxy tmp;
     tmp.nTime = tx->nTime;
     tmp.name = name;
-    tmp.op = nti.op;
+    tmp.op = vnti[0].op;
     tmp.hash = tx->GetHash();
     tmp.ind = txPos2;
-    tmp.address = (nti.op != OP_NAME_DELETE) ? nti.strAddress : "";                 // we are not interested in address of deleted name
-    tmp.prev_address = (prev_nti.op != OP_NAME_DELETE) ? prev_nti.strAddress : "";  // same
+    tmp.address = (vnti[0].op != OP_NAME_DELETE) ? vnti[0].strAddress : "";                 // we are not interested in address of deleted name
+    tmp.prev_address = (prev_vnti[0].op != OP_NAME_DELETE) ? prev_vnti[0].strAddress : "";  // same
 
     vName.push_back(tmp);
     return true;
@@ -1539,15 +1545,14 @@ bool CNamecoinHooks::DisconnectInputs(const CTransactionRef& tx, bool fMultiName
     if (tx->nVersion != NAMECOIN_TX_VERSION)
         return false;
 
-    NameTxInfo nti;
-    if (!DecodeNameTx(fMultiName, tx, nti, true))
-    {
+    std::vector<NameTxInfo> vnti = DecodeNameTx(fMultiName, tx, true);
+    if (vnti.empty()) {
         LogPrintf("DisconnectInputs() : could not decode name tx, skipping...");
         return false;
     }
 
     CNameRecord nameRec;
-    if (!pNameDB->ReadName(nti.name, nameRec)) {
+    if (!pNameDB->ReadName(vnti[0].name, nameRec)) {
         LogPrintf("DisconnectInputs() : failed to read from name DB, skipping...");
         return false;
     }
@@ -1555,7 +1560,7 @@ bool CNamecoinHooks::DisconnectInputs(const CTransactionRef& tx, bool fMultiName
     // vtxPos might be empty if we pruned expired transactions.  However, it should normally still not
     // be empty, since a reorg cannot go that far back.  Be safe anyway and do not try to pop if empty.
     if (nameRec.vtxPos.empty())
-        return pNameDB->Erase(nti.name); // delete empty record
+        return pNameDB->Erase(vnti[0].name); // delete empty record
 
     CDiskTxPos postx;
     if (!g_txindex || !g_txindex->FindTxPosition(tx->GetHash(), postx))
@@ -1580,11 +1585,11 @@ bool CNamecoinHooks::DisconnectInputs(const CTransactionRef& tx, bool fMultiName
     // remove tx
     nameRec.vtxPos.pop_back();
 
-    if (nameRec.vtxPos.size() == 0 && !pNameDB->Erase(nti.name)) // delete empty record
+    if (nameRec.vtxPos.size() == 0 && !pNameDB->Erase(vnti[0].name)) // delete empty record
         return error("DisconnectInputs() : failed to erase from name DB");
     else {
         // if we have deleted name_new - recalculate Last Active Chain Index
-        if (nti.op == OP_NAME_NEW)
+        if (vnti[0].op == OP_NAME_NEW)
             for (int i = nameRec.vtxPos.size() - 1; i >= 0; i--)
                 if (nameRec.vtxPos[i].op == OP_NAME_NEW) {
                     nameRec.nLastActiveChainIndex = i;
@@ -1593,25 +1598,25 @@ bool CNamecoinHooks::DisconnectInputs(const CTransactionRef& tx, bool fMultiName
 
         if (!CalculateExpiresAt(nameRec, fMultiName))
             return error("DisconnectInputs() : failed to calculate expiration time before writing to name DB");
-        if (!pNameDB->Write(nti.name, nameRec))
+        if (!pNameDB->Write(vnti[0].name, nameRec))
             return error("DisconnectInputs() : failed to write to name DB");
     }
 
     // update (address->name) index
     // delete name from old address and add it to new address
     if (fNameAddressIndex) {
-        string oldAddress = (nti.op != OP_NAME_DELETE) ? nti.strAddress : "";
+        string oldAddress = (vnti[0].op != OP_NAME_DELETE) ? vnti[0].strAddress : "";
         string newAddress = "";
         if (!nameRec.vtxPos.empty() && !nameRec.deleted()) {
             CTransactionRef prevTx;
             if (!g_txindex || !g_txindex->FindTx(nameRec.vtxPos.back().txPos, prevTx))
                 return error("DisconnectInputs() : could not read tx from disk");
-            NameTxInfo prev_nti;
-            if (!DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus()), prevTx, prev_nti, true))
+            std::vector<NameTxInfo> prev_vnti = DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus()), prevTx, true);
+            if (prev_vnti.empty())
                 return error("DisconnectInputs() : failed to decode name tx");
-            newAddress = prev_nti.strAddress;
+            newAddress = prev_vnti[0].strAddress;
         }
-        if (!pNameAddressDB->MoveName(oldAddress, newAddress, nti.name))
+        if (!pNameAddressDB->MoveName(oldAddress, newAddress, vnti[0].name))
             return error("ConnectBlockHook(): failed to move name in nameaddress.dat");
     }
 
@@ -1726,15 +1731,17 @@ bool CNamecoinHooks::getNameValue(const string& sName, string& sValue)
         return false;
 
     CTransactionRef tx;
-    NameTxInfo nti;
     CNameRecord nameRec;
-    if (!(GetLastTxOfName(name, tx, nameRec) && DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus()), tx, nti, true)))
+    if (!GetLastTxOfName(name, tx, nameRec))
+        return false;
+    std::vector<NameTxInfo> vnti = DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus()), tx, true);
+    if (vnti.empty())
         return false;
 
     if (!NameActive(name))
         return false;
 
-    sValue = stringFromNameVal(nti.value);
+    sValue = stringFromNameVal(vnti[0].value);
 
     return true;
 }

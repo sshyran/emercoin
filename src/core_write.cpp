@@ -175,7 +175,7 @@ void ScriptPubKeyToUniv(const CScript& scriptPubKey,
     out.pushKV("addresses", a);
 }
 
-void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry, bool include_hex, int serialize_flags, const std::pair<std::string, std::string>* nameKV)
+void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry, bool include_hex, int serialize_flags, const std::vector<std::pair<std::string, std::string>>* vNameKV)
 {
     entry.pushKV("txid", tx.GetHash().GetHex());
     entry.pushKV("hash", tx.GetWitnessHash().GetHex());
@@ -186,9 +186,13 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
     entry.pushKV("locktime", (int64_t)tx.nLockTime);
     entry.pushKV("time", (int64_t)tx.nTime);
 
-    if (nameKV) {
-        entry.pushKV("name", nameKV->first);
-        entry.pushKV("value", nameKV->second);
+    if (vNameKV) {
+        int i = 0;
+        for (const auto& nameKV : *vNameKV) {
+            entry.pushKV("name" + std::to_string(i), nameKV.first);
+            entry.pushKV("value" + std::to_string(i), nameKV.second);
+            i++;
+        }
     }
 
     UniValue vin(UniValue::VARR);
