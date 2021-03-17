@@ -5041,6 +5041,33 @@ bool CWallet::AddCryptedKeyInner(const CPubKey &vchPubKey, const std::vector<uns
     return true;
 }
 
+bool DecodeNameOutput(const CTransactionRef& tx, uint32_t nOut, NameTxInfo& nti, bool fExtractAddress /* = false */, CWallet* pwallet /* = nullptr */)
+{
+    if (tx->nVersion != NAMECOIN_TX_VERSION)
+        return false;
+
+    const CTxOut& out = tx->vout[nOut];
+    CScript::const_iterator pc = out.scriptPubKey.begin();
+    if (!DecodeNameScript(out.scriptPubKey, nti, pc))
+        return false;
+
+    nti.nOut = nOut;
+
+    if (fExtractAddress) {
+        //read address
+        CTxDestination address;
+        CScript scriptPubKey(pc, out.scriptPubKey.end());
+        if (!ExtractDestination(scriptPubKey, address))
+            nti.strAddress = "";
+        nti.strAddress = EncodeDestination(address);
+
+        // check if this is mine destination
+        if (pwallet)
+            nti.fIsMine = IsMine(*pwallet, address) == ISMINE_SPENDABLE;
+    }
+    nti.err_msg = "";
+}
+
 // read name tx and extract: name, value and rentalDays
 // optionaly it can extract destination address and check if tx is mine (note: it does not check if address is valid)
 std::vector<NameTxInfo> DecodeNameTx(bool fMultiName, const CTransactionRef& tx, bool fExtractAddress /* = false */, CWallet* pwallet /* = nullptr */)

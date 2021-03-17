@@ -1290,11 +1290,11 @@ bool EmcDns::CheckEnumSig(const char *q_str, char *sig_str) {
         LOCK(cs_main);
         if(!pNameDB->ReadName(CNameVal(it->first.c_str(), it->first.c_str() + it->first.size()), nameRec))
 	  break; // failed to read from name DB
-        if(nameRec.vtxPos.size() < 1)
+        if(nameRec.vNameOp.size() < 1)
 	  break; // no result returned
-        if(!g_txindex || !g_txindex->FindTx(nameRec.vtxPos.back().txPos, tx))
+        if(!g_txindex || !g_txindex->FindTx(nameRec.vNameOp.back().txPos, tx))
           break; // failed to read from from disk
-        bool fMultiName = IsV8Enabled(::ChainActive()[nameRec.vtxPos.back().nHeight - 1], Params().GetConsensus());
+        bool fMultiName = IsV8Enabled(::ChainActive()[nameRec.vNameOp.back().nHeight - 1], Params().GetConsensus());
         std::vector<NameTxInfo> vnti = DecodeNameTx(fMultiName, tx, true);
         if(vnti.empty())
           break; // failed to decode name

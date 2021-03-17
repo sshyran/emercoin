@@ -15,17 +15,19 @@ struct NameIndexStats;
 static const unsigned int NAMEINDEX_CHAIN_SIZE = 1000;
 static const int RELEASE_HEIGHT = 1<<16;
 
-class CNameIndex
+// a single operation with name
+class CNameOperation
 {
 public:
     CDiskTxPos txPos;
-    int nHeight;
-    int op;
+    uint32_t nOut;
+    int32_t nHeight;
+    int32_t op;
     CNameVal value;
 
-    CNameIndex() : nHeight(0), op(0) {}
+    CNameOperation() : nOut(0), nHeight(0), op(0) {}
 
-    CNameIndex(CDiskTxPos txPos, int nHeight, CNameVal value) :
+    CNameOperation(CDiskTxPos txPos, int32_t nHeight, CNameVal value) :
         txPos(txPos), nHeight(nHeight), value(value) {}
 
     ADD_SERIALIZE_METHODS;
@@ -33,25 +35,26 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(txPos);
+        READWRITE(nOut);
         READWRITE(nHeight);
         READWRITE(op);
         READWRITE(value);
     }
 };
 
-// CNameRecord is all the data that is saved (in nameindexV3) with associated name
+// all operations and other data with name
 class CNameRecord
 {
 public:
-    std::vector<CNameIndex> vtxPos;
-    int nExpiresAt;
-    int nLastActiveChainIndex;  // position in vtxPos of first tx in last active chain of name_new -> name_update -> name_update -> ....
+    std::vector<CNameOperation> vNameOp;
+    int32_t nExpiresAt;
+    int32_t nLastActiveChainIndex;  // position in vNameOp of first tx in last active chain of name_new -> name_update -> name_update -> ....
 
     CNameRecord() : nExpiresAt(0), nLastActiveChainIndex(0) {}
     bool deleted()
     {
-        if (!vtxPos.empty())
-            return vtxPos.back().op == OP_NAME_DELETE;
+        if (!vNameOp.empty())
+            return vNameOp.back().op == OP_NAME_DELETE;
         else return true;
     }
 
@@ -59,7 +62,7 @@ public:
 
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
-        READWRITE(vtxPos);
+        READWRITE(vNameOp);
         READWRITE(nExpiresAt);
         READWRITE(nLastActiveChainIndex);
     }
@@ -74,7 +77,7 @@ public:
 
     bool ReadName(const CNameVal& name, CNameRecord& rec) {
         bool ret = Read(name, rec);
-        int s = rec.vtxPos.size();
+        int s = rec.vNameOp.size();
 
          // check if array index is out of array bounds
         if (s > 0 && rec.nLastActiveChainIndex >= s) {
@@ -87,7 +90,7 @@ public:
             std::vector<
                 std::pair<
                     CNameVal,
-                    std::pair<CNameIndex, int>
+                    std::pair<CNameOperation, int>
                 >
             > &nameScan);
     bool DumpToTextFile();
@@ -145,7 +148,7 @@ CNameVal nameValFromString(const std::string& str);
 CNameVal toCNameVal(const std::string& str);
 std::string stringFromNameVal(const CNameVal& nameVal);
 std::string encodeNameVal(const CNameVal& input, const string& format);
-std::string stringFromOp(int op);
+std::string stringFromOp(int32_t op);
 
 CAmount GetNameOpFee(const CBlockIndex* pindexBlock, const int nRentalDays, int op, const CNameVal& name, const CNameVal& value);
 
@@ -167,9 +170,9 @@ struct nameTempProxy
 {
     unsigned int nTime;
     CNameVal name;
-    int op;
+    int32_t op;
     uint256 hash;
-    CNameIndex ind;
+    CNameOperation nameOp;
     std::string address;
     std::string prev_address;
 };
