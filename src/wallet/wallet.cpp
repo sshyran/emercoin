@@ -5041,7 +5041,7 @@ bool CWallet::AddCryptedKeyInner(const CPubKey &vchPubKey, const std::vector<uns
     return true;
 }
 
-bool DecodeNameOutput(const CTransactionRef& tx, uint32_t nOut, NameTxInfo& nti, bool fExtractAddress /* = false */, CWallet* pwallet /* = nullptr */)
+bool DecodeNameOutput(const CTransactionRef& tx, const uint32_t nOut, NameTxInfo& nti, bool fExtractAddress /* = false */, CWallet* pwallet /* = nullptr */)
 {
     if (tx->nVersion != NAMECOIN_TX_VERSION)
         return false;
@@ -5085,7 +5085,7 @@ std::vector<NameTxInfo> DecodeNameTx(bool fMultiName, const CTransactionRef& tx,
         CScript::const_iterator pc = out.scriptPubKey.begin();
         if (DecodeNameScript(out.scriptPubKey, nti, pc)) {
             // If more than one name op, fail
-            if (found) {
+            if (found & !fMultiName) {
                 result.clear();
                 return result;
             }

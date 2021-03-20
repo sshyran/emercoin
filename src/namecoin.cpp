@@ -23,9 +23,8 @@ class CNamecoinHooks : public CHooks
 {
 public:
     virtual bool IsNameFeeEnough(const CTransactionRef& tx, const CAmount& txFee);
-    virtual bool CheckInputs(const CTransactionRef& tx, const CBlockIndex* pindexBlock, vector<nameTempProxy> &vName, const CDiskTxPos& pos, const CAmount& txFee);
     virtual bool DisconnectInputs(const CTransactionRef& tx, bool fMultiName);
-    virtual bool ConnectBlock(CBlockIndex* pindex, const vector<nameTempProxy>& vName);
+    virtual bool ConnectBlock(CBlockIndex* pindex, const vector<nameCheckResult>& vName);
     virtual bool ExtractAddress(const CScript& script, string& address);
     virtual bool CheckPendingNames(const CTransactionRef& tx);
     virtual void AddToPendingNames(const CTransactionRef& tx);
@@ -1317,7 +1316,7 @@ bool reindexNameIndex()
             return error("createNameIndexes() : *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
 
         // collect name tx from block
-        vector<nameTempProxy> vName;
+        vector<nameCheckResult> vName;
         CDiskTxPos pos(pindex->GetBlockPos(), GetSizeOfCompactSize(block.vtx.size())); // start position
         for (unsigned int i=0; i<block.vtx.size(); i++) {
             const CTransactionRef& tx = block.vtx[i];
@@ -1338,7 +1337,7 @@ bool reindexNameIndex()
             }
             CAmount fee = input - tx->GetValueOut();
 
-            hooks->CheckInputs(tx, pindex, vName, pos, fee);                    // collect valid name tx to vName
+            CheckNameTx(tx, pindex, vName, pos, fee);                           // collect valid names from tx to vName
             pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);  // set next tx position
         }
 
@@ -1423,42 +1422,53 @@ void CNamecoinHooks::AddToPendingNames(const CTransactionRef& tx)
     LogPrintf("%s: added %s %s from tx %s\n", __func__, stringFromOp(vnti[0].op), stringFromNameVal(vnti[0].name), tx->GetHash().ToString());
 }
 
-// Checks name tx and save name data to vName if valid
-// returns true if: tx is valid name tx
-// returns false if tx is invalid name tx
-bool CNamecoinHooks::CheckInputs(const CTransactionRef& tx, const CBlockIndex* pindexBlock, vector<nameTempProxy> &vName, const CDiskTxPos& pos, const CAmount& txFee)
+// Checks name tx and save names data to vName if valid
+// returns true if all names are valid
+// false otherwise
+bool CheckNameTx(const CTransactionRef& tx, const CBlockIndex* pindexBlock, vector<nameCheckResult> &vNameResult, const CDiskTxPos& pos, const CAmount& txFee)
 {
     if (tx->nVersion != NAMECOIN_TX_VERSION)
         return false;
 
-//read name tx
+    //read names from tx
     std::vector<NameTxInfo> vnti = DecodeNameTx(IsV8Enabled(pindexBlock->pprev, Params().GetConsensus()), tx, true);
     if (vnti.empty()) {
         if (pindexBlock->nHeight > RELEASE_HEIGHT)
-            return error("CheckInputsHook() : could not decode name tx %s in block %d", tx->GetHash().GetHex(), pindexBlock->nHeight);
+            LogPrintf("%s: could not decode name tx %s in block %d", __func__, tx->GetHash().GetHex(), pindexBlock->nHeight);
         return false;
     }
 
-    CNameVal name = vnti[0].name;
+    for (const auto& nti : vnti) {
+        nameCheckResult nameResult;
+        if (CheckName(nti, tx, pindexBlock, nameResult, pos, txFee)) {
+            vNameResult.push_back(nameResult);
+        } else
+            return false;
+    }
+
+    return true;
+}
+
+bool CheckName(const NameTxInfo& nti, const CTransactionRef& tx, const CBlockIndex* pindexBlock, nameCheckResult& nameResult, const CDiskTxPos& pos, const CAmount& txFee) {
+    CNameVal name = nti.name;
     string sName = stringFromNameVal(name);
     string info = str( boost::format("name %s, tx=%s, block=%d, value=%s") %
-        sName % tx->GetHash().GetHex() % pindexBlock->nHeight % stringFromNameVal(vnti[0].value));
+        sName % tx->GetHash().GetHex() % pindexBlock->nHeight % stringFromNameVal(nti.value));
 
-//check if last known tx on this name matches any of inputs of this tx
+    //check if last known tx on this name matches any of inputs of this tx
     CNameRecord nameRec;
-    if (pNameDB->Exists(name) && !pNameDB->ReadName(name, nameRec))
-        return error("CheckInputsHook() : failed to read from name DB for %s", info);
+    if (!pNameDB->ReadName(name, nameRec))
+        return error("%s: failed to read from name DB for %s", __func__, info);
 
     bool found = false;
-    std::vector<NameTxInfo> prev_vnti;
+    NameTxInfo prev_nti;
     if (!nameRec.vNameOp.empty() && !nameRec.deleted()) {
         CTransactionRef lastKnownNameTx;
         if (!g_txindex || !g_txindex->FindTx(nameRec.vNameOp.back().txPos, lastKnownNameTx))
-            return error("CheckInputsHook() : failed to read from name DB for %s", info);
+            return error("%s: failed to read from name DB for %s",__func__ , info);
         uint256 lasthash = lastKnownNameTx->GetHash();
-        prev_vnti = DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vNameOp.back().nHeight - 1], Params().GetConsensus()), lastKnownNameTx, true);
-        if (prev_vnti.empty())
-            return error("CheckInputsHook() : Failed to decode existing previous name tx for %s. Your blockchain or nameindexV3 may be corrupt.", info);
+        if (!DecodeNameOutput(lastKnownNameTx, nameRec.vNameOp.back().nOut, prev_nti, true))
+            return error("%s: Failed to decode existing previous name tx for %s. Your blockchain or nameindexV3 may be corrupt.", __func__, info);
 
         for (unsigned int i = 0; i < tx->vin.size(); i++) { //this scans all scripts of tx.vin
             if (tx->vin[i].prevout.hash != lasthash)
@@ -1468,12 +1478,12 @@ bool CNamecoinHooks::CheckInputs(const CTransactionRef& tx, const CBlockIndex* p
         }
     }
 
-    switch (vnti[0].op)
+    switch (nti.op)
     {
         case OP_NAME_NEW:
         {
             //scan last 10 PoW block for tx fee that matches the one specified in tx
-            if (!::IsNameFeeEnough(vnti[0], pindexBlock, txFee)) {
+            if (!::IsNameFeeEnough(nti, pindexBlock, txFee)) {
                 if (pindexBlock->nHeight > RELEASE_HEIGHT)
                     return error("CheckInputsHook() : rejected name_new because not enough fee for %s", info);
                 return false;
@@ -1489,16 +1499,16 @@ bool CNamecoinHooks::CheckInputs(const CTransactionRef& tx, const CBlockIndex* p
         case OP_NAME_UPDATE:
         {
             //scan last 10 PoW block for tx fee that matches the one specified in tx
-            if (!::IsNameFeeEnough(vnti[0], pindexBlock, txFee)) {
+            if (!::IsNameFeeEnough(nti, pindexBlock, txFee)) {
                 if (pindexBlock->nHeight > RELEASE_HEIGHT)
                     return error("CheckInputsHook() : rejected name_update because not enough fee for %s", info);
                 return false;
             }
 
-            if (!found || (prev_vnti[0].op != OP_NAME_NEW && prev_vnti[0].op != OP_NAME_UPDATE))
+            if (!found || (prev_nti.op != OP_NAME_NEW && prev_nti.op != OP_NAME_UPDATE))
                 return error("name_update without previous new or update tx for %s", info);
 
-            if (prev_vnti[0].name != name)
+            if (prev_nti.name != name)
                 return error("CheckInputsHook() : name_update name mismatch for %s", info);
 
             if (!NameActive(name, pindexBlock->nHeight))
@@ -1507,10 +1517,10 @@ bool CNamecoinHooks::CheckInputs(const CTransactionRef& tx, const CBlockIndex* p
         }
         case OP_NAME_DELETE:
         {
-            if (!found || (prev_vnti[0].op != OP_NAME_NEW && prev_vnti[0].op != OP_NAME_UPDATE))
+            if (!found || (prev_nti.op != OP_NAME_NEW && prev_nti.op != OP_NAME_UPDATE))
                 return error("name_delete without previous new or update tx, for %s", info);
 
-            if (prev_vnti[0].name != name)
+            if (prev_nti.name != name)
                 return error("CheckInputsHook() : name_delete name mismatch for %s", info);
 
             if (!NameActive(name, pindexBlock->nHeight))
@@ -1522,21 +1532,19 @@ bool CNamecoinHooks::CheckInputs(const CTransactionRef& tx, const CBlockIndex* p
     }
 
     // all checks passed - record tx information to vName. It will be sorted by nTime and writen to nameindexV3 at the end of ConnectBlock
-    CNameOperation txPos2;
-    txPos2.nHeight = pindexBlock->nHeight;
-    txPos2.value = vnti[0].value;
-    txPos2.txPos = pos;
+    CNameOperation nameOp;
+    nameOp.nHeight = pindexBlock->nHeight;
+    nameOp.value = nti.value;
+    nameOp.txPos = pos;
 
-    nameTempProxy tmp;
-    tmp.nTime = tx->nTime;
-    tmp.name = name;
-    tmp.op = vnti[0].op;
-    tmp.hash = tx->GetHash();
-    tmp.nameOp = txPos2;
-    tmp.address = (vnti[0].op != OP_NAME_DELETE) ? vnti[0].strAddress : "";                 // we are not interested in address of deleted name
-    tmp.prev_address = (prev_vnti[0].op != OP_NAME_DELETE) ? prev_vnti[0].strAddress : "";  // same
+    nameResult.nTime = tx->nTime;
+    nameResult.name = name;
+    nameResult.op = nti.op;
+    nameResult.hash = tx->GetHash();
+    nameResult.nameOp = nameOp;
+    nameResult.address = (nti.op != OP_NAME_DELETE) ? nti.strAddress : "";                 // we are not interested in address of deleted name
+    nameResult.prev_address = (prev_nti.op != OP_NAME_DELETE) ? prev_nti.strAddress : "";  // same
 
-    vName.push_back(tmp);
     return true;
 }
 
@@ -1651,7 +1659,7 @@ bool CNamecoinHooks::ExtractAddress(const CScript& script, string& address)
 
 // Executes name operations in vName and writes result to nameindexV3.
 // NOTE: the block should already be written to blockchain by now - otherwise this may fail.
-bool CNamecoinHooks::ConnectBlock(CBlockIndex* pindex, const vector<nameTempProxy> &vName)
+bool CNamecoinHooks::ConnectBlock(CBlockIndex* pindex, const vector<nameCheckResult> &vName)
 {
     if (vName.empty())
         return true;

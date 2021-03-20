@@ -2165,10 +2165,10 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
 
     // emercoin: collect valid name tx
     // NOTE: tx.UpdateCoins should not affect this loop, probably...
-    std::vector<nameTempProxy> vName;
+    std::vector<nameCheckResult> vName;
     if (fWriteNames)
         for (unsigned int i=0; i<block.vtx.size(); i++)
-            hooks->CheckInputs(block.vtx[i], pindex, vName, vPos[i].second, vFees[i]);
+            CheckNameTx(block.vtx[i], pindex, vName, vPos[i].second, vFees[i]);
 
     if (!WriteUndoDataForBlock(blockundo, state, pindex, chainparams))
         return false;

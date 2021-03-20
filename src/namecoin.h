@@ -166,7 +166,7 @@ struct NameTxReturn
 NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, const int nRentalDays, const string& strAddress, const string& strValueType, CWallet* pwallet);
 
 
-struct nameTempProxy
+struct nameCheckResult
 {
     unsigned int nTime;
     CNameVal name;
@@ -176,5 +176,8 @@ struct nameTempProxy
     std::string address;
     std::string prev_address;
 };
+
+bool CheckNameTx(const CTransactionRef& tx, const CBlockIndex* pindexBlock, vector<nameCheckResult> &vName, const CDiskTxPos& pos, const CAmount& txFee);
+bool CheckName(const NameTxInfo& nti, const CTransactionRef& tx, const CBlockIndex* pindexBlock, nameCheckResult& nameResult, const CDiskTxPos& pos, const CAmount& txFee);
 
 #endif

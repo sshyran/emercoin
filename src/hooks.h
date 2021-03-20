@@ -17,7 +17,7 @@ class CTxOut;
 typedef int64_t CAmount;
 typedef std::shared_ptr<const CTransaction> CTransactionRef;
 
-struct nameTempProxy;
+struct nameCheckResult;
 
 #include <map>
 #include <vector>
@@ -28,9 +28,8 @@ class CHooks
 {
 public:
     virtual bool IsNameFeeEnough(const CTransactionRef& tx, const CAmount& txFee) = 0;
-    virtual bool CheckInputs(const CTransactionRef& tx, const CBlockIndex* pindexBlock, std::vector<nameTempProxy> &vName, const CDiskTxPos& pos, const CAmount& txFee) = 0;
     virtual bool DisconnectInputs(const CTransactionRef& tx, bool fMultiName) = 0;
-    virtual bool ConnectBlock(CBlockIndex* pindex, const std::vector<nameTempProxy> &vName) = 0;
+    virtual bool ConnectBlock(CBlockIndex* pindex, const std::vector<nameCheckResult> &vName) = 0;
     virtual bool ExtractAddress(const CScript& script, std::string& address) = 0;
     virtual bool CheckPendingNames(const CTransactionRef& tx) = 0;
     virtual void AddToPendingNames(const CTransactionRef& tx) = 0;

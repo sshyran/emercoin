@@ -1473,7 +1473,7 @@ int64_t CalculateMaximumSignedTxSize(const CTransaction &tx, const CWallet *wall
 int64_t CalculateMaximumSignedTxSize(const CTransaction &tx, const CWallet *wallet, const std::vector<CTxOut>& txouts, bool use_max_sig = false);
 
 // emercoin:
-bool DecodeNameOutput(const CTransactionRef& tx, uint32_t nOut, NameTxInfo& nti, bool fExtractAddress /* = false */, CWallet* pwallet /* = nullptr */);
+bool DecodeNameOutput(const CTransactionRef& tx, const uint32_t nOut, NameTxInfo& nti, bool fExtractAddress /* = false */, CWallet* pwallet=nullptr);
 std::vector<NameTxInfo> DecodeNameTx(bool fMultiName, const CTransactionRef& tx, bool fExtractAddress = false, CWallet* pwallet=nullptr);
 
 #endif // BITCOIN_WALLET_WALLET_H
