@@ -1294,18 +1294,17 @@ bool EmcDns::CheckEnumSig(const char *q_str, char *sig_str) {
 	  break; // no result returned
         if(!g_txindex || !g_txindex->FindTx(nameRec.vNameOp.back().txPos, tx))
           break; // failed to read from from disk
-        bool fMultiName = IsV8Enabled(::ChainActive()[nameRec.vNameOp.back().nHeight - 1], Params().GetConsensus());
-        std::vector<NameTxInfo> vnti = DecodeNameTx(fMultiName, tx, true);
-        if(vnti.empty())
-          break; // failed to decode name
-        CTxDestination dest = DecodeDestination(vnti[0].strAddress);
+        NameTxInfo nti;
+        if (!DecodeNameOutput(tx, nameRec.vNameOp.back().nOut, nti, true))
+            break; // failed to decode name
+        CTxDestination dest = DecodeDestination(nti.strAddress);
         if (!IsValidDestination(dest))
             break; // Invalid address
 
 	// Verifier has been read successfully, configure SRL if exist
 	char valbuf[VAL_SIZE], *str_val = valbuf;
-        memcpy(valbuf, &vnti[0].value[0], vnti[0].value.size());
-        valbuf[vnti[0].value.size()] = 0;
+        memcpy(valbuf, &nti.value[0], nti.value.size());
+        valbuf[nti.value.size()] = 0;
 
 	// Proces SRL-line like
 	// SRL=5|srl:hello-%02x
