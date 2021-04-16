@@ -139,7 +139,7 @@ public:
     bool GetNameAddressIndexStats(NameIndexStats &stats);
 };
 
-extern std::map<CNameVal, std::set<uint256> > mapNamePending;
+extern std::map<CNameVal, std::set<COutPoint> > mapNamePending;
 extern std::unique_ptr<CNameDB> pNameDB;
 extern std::unique_ptr<CNameAddressDB> pNameAddressDB;
 
@@ -172,6 +172,7 @@ struct nameCheckResult
     CNameVal name;
     int32_t op;
     uint256 hash;
+    uint32_t nOut;
     CNameOperation nameOp;
     std::string address;
     std::string prev_address;

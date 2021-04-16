@@ -15,7 +15,7 @@
 
 using namespace std;
 
-map<CNameVal, set<uint256> > mapNamePending; // for pending tx
+map<CNameVal, set<COutPoint> > mapNamePending; // for pending tx
 std::unique_ptr<CNameDB> pNameDB;
 std::unique_ptr<CNameAddressDB> pNameAddressDB;
 
@@ -443,37 +443,38 @@ void GetNameList(const CNameVal& nameUniq, std::map<CNameVal, NameTxInfo> &mapNa
 
     // add all pending names
     for (const auto &item : mapNamePending) {
-        if (!item.second.size())
+        const set<COutPoint>& sNameOut = item.second;
+        if (!sNameOut.size())
             continue;
 
         // if there is a set of pending op on a single name - select last one, by nTime
         uint32_t nTime = 0;
-        bool found = false;
-        uint256 hashLastTx;
-        for (const auto& hash : item.second) {
-            auto it = mempool.mapTx.find(hash);
+        CTxMemPool::txiter it2;
+        uint32_t nOut = UINT32_MAX;
+
+        for (const auto& out : sNameOut) {
+            auto it = mempool.mapTx.find(out.hash);
             if (it == mempool.mapTx.end())
                 continue;
 
-            if (it->GetTx().nTime > nTime)
-            {
-                hashLastTx = hash;
+            if (it->GetTx().nTime > nTime) {
                 nTime = it->GetTx().nTime;
-                found = true;
+                it2 = it;
+                nOut = out.n;
             }
         }
 
-        if (!found)
+        if (nOut == UINT32_MAX)
             continue;
 
-        std::vector<NameTxInfo> vnti = DecodeNameTx(IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus()), mempool.mapTx.find(hashLastTx)->GetSharedTx(), true);
-        if (vnti.empty())
+        NameTxInfo nti;
+        if (!DecodeNameOutput(it2->GetSharedTx(), nOut, nti, true, pwallet))
             continue;
 
-        if (nameUniq.size() > 0 && nameUniq != vnti[0].name)
+        if (nameUniq.size() > 0 && nameUniq != nti.name)
             continue;
 
-        mapPending[vnti[0].name] = vnti[0];
+        mapPending[nti.name] = nti;
     }
 }
 
@@ -497,11 +498,11 @@ UniValue name_debug(const JSONRPCRequest& request)
         for (const auto& pairPending : mapNamePending) {
             string name = stringFromNameVal(pairPending.first);
             LogPrintf("%s :\n", name);
-            for (const auto& hash : pairPending.second) {
+            for (const auto& nameOut : pairPending.second) {
                 LogPrintf("    ");
-                if (!pwallet->mapWallet.count(hash))
+                if (!pwallet->mapWallet.count(nameOut.hash))
                     LogPrintf("foreign ");
-                LogPrintf("    %s\n", hash.GetHex());
+                LogPrintf("    %s %d\n", nameOut.hash.GetHex(), nameOut.n);
             }
         }
     }
@@ -694,22 +695,20 @@ UniValue name_mempool(const JSONRPCRequest& request)
 
     UniValue res(UniValue::VARR);
     LOCK(mempool.cs);
-    for (const auto& pairPending : mapNamePending)
-    {
+    for (const auto& pairPending : mapNamePending) {
         string sName = stringFromNameVal(pairPending.first);
-        for (const uint256& hash : pairPending.second)
-        {
-            if (!mempool.exists(hash))
+        for (const auto& nameOut : pairPending.second) {
+            if (!mempool.exists(nameOut.hash))
                 continue;
 
-            const CTransactionRef& tx = mempool.get(hash);
+            const CTransactionRef& tx = mempool.get(nameOut.hash);
             std::vector<NameTxInfo> vnti = DecodeNameTx(IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus()), tx, true, pwallet);
             if (vnti.empty())
                 throw JSONRPCError(RPC_DATABASE_ERROR, "failed to decode name transaction");
 
             UniValue obj(UniValue::VOBJ);
             obj.pushKV("name",             sName);
-            obj.pushKV("txid",             hash.ToString());
+            obj.pushKV("txid",             nameOut.hash.ToString());
             obj.pushKV("time",             (boost::int64_t)tx->nTime);
             obj.pushKV("address",          vnti[0].strAddress);
             if (vnti[0].fIsMine)
@@ -1183,7 +1182,7 @@ NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, 
     // wait until other name operation on this name are completed
         if (mapNamePending.count(name) && mapNamePending[name].size()) {
             ss << "there are " << mapNamePending[name].size() <<
-                  " pending operations on that name, including " << mapNamePending[name].begin()->GetHex();
+                  " pending operations on that name, including " << mapNamePending[name].begin()->hash.GetHex();
             ret.err_msg = ss.str();
             return ret;
         }
@@ -1394,17 +1393,18 @@ bool CNamecoinHooks::CheckPendingNames(const CTransactionRef& tx)
     if (vnti.empty())
         return error("%s: could not decode name script in tx %s\n", __func__, tx->GetHash().ToString());
 
-    if (mapNamePending.count(vnti[0].name)) {
-        LogPrintf("%s: there is already a pending operation on this name %s\n", __func__, stringFromNameVal(vnti[0].name));
-        return false;
+    for (const auto& nti : vnti) {
+        if (mapNamePending.count(nti.name)) {
+            LogPrintf("%s: there is already a pending operation on this name %s\n", __func__, stringFromNameVal(nti.name));
+            return false;
+        }
     }
     return true;
 }
 
 void CNamecoinHooks::AddToPendingNames(const CTransactionRef& tx)
 {
-    if (tx->vout.size() < 1)
-    {
+    if (tx->vout.size() < 1) {
         LogPrintf("%s : no output in tx %s\n", __func__, tx->GetHash().ToString());
         return;
     }
@@ -1415,8 +1415,10 @@ void CNamecoinHooks::AddToPendingNames(const CTransactionRef& tx)
         return;
     }
 
-    mapNamePending[vnti[0].name].insert(tx->GetHash());
-    LogPrintf("%s: added %s %s from tx %s\n", __func__, stringFromOp(vnti[0].op), stringFromNameVal(vnti[0].name), tx->GetHash().ToString());
+    for (const auto& nti : vnti) {
+        mapNamePending[nti.name].insert( COutPoint(tx->GetHash(), nti.nOut) );
+        LogPrintf("%s: added %s %s from tx %s\n", __func__, stringFromOp(nti.op), stringFromNameVal(nti.name), tx->GetHash().ToString());
+    }
 }
 
 // Checks name tx and save names data to vName if valid
@@ -1538,6 +1540,7 @@ bool CheckName(const NameTxInfo& nti, const CTransactionRef& tx, const CBlockInd
     nameResult.name = name;
     nameResult.op = nti.op;
     nameResult.hash = tx->GetHash();
+    nameResult.nOut = nti.nOut;
     nameResult.nameOp = nameOp;
     nameResult.address = (nti.op != OP_NAME_DELETE) ? nti.strAddress : "";                 // we are not interested in address of deleted name
     nameResult.prev_address = (prev_nti.op != OP_NAME_DELETE) ? prev_nti.strAddress : "";  // same
@@ -1664,15 +1667,13 @@ bool CNamecoinHooks::ConnectBlock(CBlockIndex* pindex, const vector<nameCheckRes
     // All of these name ops should succed. If there is an error - nameindexV3 is probably corrupt.
     set<CNameVal> sNameNew;
 
-    for (const auto& i : vName)
-    {
+    for (const auto& i : vName) {
         {
             // remove from pending names list
             LOCK(cs_main);
-            map<CNameVal, set<uint256> >::iterator mi = mapNamePending.find(i.name);
-            if (mi != mapNamePending.end())
-            {
-                mi->second.erase(i.hash);
+            map<CNameVal, set<COutPoint> >::iterator mi = mapNamePending.find(i.name);
+            if (mi != mapNamePending.end()) {
+                mi->second.erase(COutPoint(i.hash, i.nOut));
                 if (mi->second.empty())
                     mapNamePending.erase(i.name);
             }
