@@ -212,7 +212,12 @@ bool CNamecoinHooks::IsNameFeeEnough(const CTransactionRef& tx, const CAmount& t
     if (vnti.empty())
         return false;
 
-    return ::IsNameFeeEnough(vnti[0], ::ChainActive().Tip(), txFee);
+    for (const auto& nti : vnti) {
+        if (!::IsNameFeeEnough(nti, ::ChainActive().Tip(), txFee))
+            return false;
+    }
+
+    return true;
 }
 
 //returns first name operation. I.e. name_new from chain like name_new->name_update->name_update->...->name_update
@@ -416,29 +421,28 @@ void GetNameList(const CNameVal& nameUniq, std::map<CNameVal, NameTxInfo> &mapNa
             pindexPrev = ::ChainActive().Tip();
 
         std::vector<NameTxInfo> vntiWallet = DecodeNameTx(IsV8Enabled(pindexPrev, Params().GetConsensus()), item.second.tx);
-        if (vntiWallet.empty())
-            continue;
+        for (const auto& ntiWallet : vntiWallet) {
+            if (mapNames.count(ntiWallet.name)) // already added info about this name
+                continue;
 
-        if (mapNames.count(vntiWallet[0].name)) // already added info about this name
-            continue;
+            CTransactionRef tx;
+            CNameRecord nameRec;
+            if (!GetLastTxOfName(ntiWallet.name, tx, nameRec))
+                continue;
 
-        CTransactionRef tx;
-        CNameRecord nameRec;
-        if (!GetLastTxOfName(vntiWallet[0].name, tx, nameRec))
-            continue;
+            NameTxInfo nti;
+            if (!DecodeNameOutput(tx, nameRec.vNameOp.back().nOut, nti, true, pwallet))
+                continue;
 
-        NameTxInfo nti;
-        if (!DecodeNameOutput(tx, nameRec.vNameOp.back().nOut, nti, true, pwallet))
-            continue;
+            if (nameUniq.size() > 0 && nameUniq != nti.name)
+                continue;
 
-        if (nameUniq.size() > 0 && nameUniq != nti.name)
-            continue;
+            if (!pNameDB->Exists(nti.name))
+                continue;
 
-        if (!pNameDB->Exists(nti.name))
-            continue;
-
-        nti.nExpiresAt = nameRec.nExpiresAt;
-        mapNames[nti.name] = nti;
+            nti.nExpiresAt = nameRec.nExpiresAt;
+            mapNames[nti.name] = nti;
+        }
     }
 
     // add all pending names
@@ -702,22 +706,23 @@ UniValue name_mempool(const JSONRPCRequest& request)
                 continue;
 
             const CTransactionRef& tx = mempool.get(nameOut.hash);
-            std::vector<NameTxInfo> vnti = DecodeNameTx(IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus()), tx, true, pwallet);
-            if (vnti.empty())
-                throw JSONRPCError(RPC_DATABASE_ERROR, "failed to decode name transaction");
+
+            NameTxInfo nti;
+            if (!DecodeNameOutput(tx, nameOut.n, nti, true, pwallet))
+                throw JSONRPCError(RPC_DATABASE_ERROR, "failed to decode name output");
 
             UniValue obj(UniValue::VOBJ);
             obj.pushKV("name",             sName);
             obj.pushKV("txid",             nameOut.hash.ToString());
             obj.pushKV("time",             (boost::int64_t)tx->nTime);
-            obj.pushKV("address",          vnti[0].strAddress);
-            if (vnti[0].fIsMine)
+            obj.pushKV("address",          nti.strAddress);
+            if (nti.fIsMine)
                 obj.pushKV("address_is_mine",  "true");
-            obj.pushKV("operation",        stringFromOp(vnti[0].op));
-            if (vnti[0].op == OP_NAME_UPDATE || vnti[0].op == OP_NAME_NEW)
-                obj.pushKV("days_added", vnti[0].nRentalDays);
-            if (vnti[0].op == OP_NAME_UPDATE || vnti[0].op == OP_NAME_NEW)
-                obj.pushKV("value", encodeNameVal(vnti[0].value, outputType));
+            obj.pushKV("operation",        stringFromOp(nti.op));
+            if (nti.op == OP_NAME_UPDATE || nti.op == OP_NAME_NEW)
+                obj.pushKV("days_added", nti.nRentalDays);
+            if (nti.op == OP_NAME_UPDATE || nti.op == OP_NAME_NEW)
+                obj.pushKV("value", encodeNameVal(nti.value, outputType));
 
             res.push_back(obj);
         }
@@ -921,14 +926,14 @@ UniValue name_scan_address(const JSONRPCRequest& request)
         if (!g_txindex || !g_txindex->FindTx(nameRec.vNameOp.back().txPos, tx))
             throw JSONRPCError(RPC_WALLET_ERROR, "failed to read from from disk");
 
-        std::vector<NameTxInfo> vnti = DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vNameOp.back().nHeight - 1], Params().GetConsensus()), tx, true);
-        if (vnti.empty())
+        NameTxInfo nti;
+        if (!DecodeNameOutput(tx, nameRec.vNameOp.back().nOut, nti))
             throw JSONRPCError(RPC_WALLET_ERROR, "failed to decode name");
 
         oName.pushKV("name", stringFromNameVal(name));
-        oName.pushKV("value", limitString(encodeNameVal(vnti[0].value, outputType), nMaxShownValue, "\n...(value too large - use name_show to see full value)"));
+        oName.pushKV("value", limitString(encodeNameVal(nti.value, outputType), nMaxShownValue, "\n...(value too large - use name_show to see full value)"));
         oName.pushKV("txid", tx->GetHash().GetHex());
-        oName.pushKV("address", vnti[0].strAddress);
+        oName.pushKV("address", nti.strAddress);
         oName.pushKV("expires_in", nameRec.nExpiresAt - ::ChainActive().Height());
         oName.pushKV("expires_at", nameRec.nExpiresAt);
         oName.pushKV("time", (boost::int64_t)tx->nTime);
@@ -1223,13 +1228,14 @@ NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, 
             txIn = it->second.tx;
             //emcTODO: remove dependency on transaction history of wallet.dat. Having only a private key that can spend it should be enough.
 
-            std::vector<NameTxInfo> vnti = DecodeNameTx(IsV8Enabled(::ChainActive()[nameRec.vNameOp.back().nHeight - 1], Params().GetConsensus()), txIn);
-            if (vnti.empty()) {
+
+            NameTxInfo nti;
+            if (!DecodeNameOutput(txIn, nameRec.vNameOp.back().nOut, nti)) {
                 ret.err_msg = "failed to decode txIn";
                 return ret;
             }
 
-            if (::IsMine(*pwallet, txIn->vout[vnti[0].nOut].scriptPubKey) != ISMINE_SPENDABLE) {
+            if (::IsMine(*pwallet, txIn->vout[nti.nOut].scriptPubKey) != ISMINE_SPENDABLE) {
                 ret.err_msg = "this name tx is not yours or is not spendable: " + txInHash.GetHex();
                 return ret;
             }
