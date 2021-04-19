@@ -1671,7 +1671,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
     // emercoin: undo name transactions in reverse order
     if (fWriteNames)
         for (int i = block.vtx.size() - 1; i >= 0; i--)
-            hooks->DisconnectInputs(block.vtx[i], IsV8Enabled(pindex->pprev, Params().GetConsensus()));
+            DisconnectNameTx(block.vtx[i], IsV8Enabled(pindex->pprev, Params().GetConsensus()));
 
     // move best block pointer to prevout block
     view.SetBestBlock(pindex->pprev->GetBlockHash());

@@ -180,5 +180,7 @@ struct nameCheckResult
 
 bool CheckNameTx(const CTransactionRef& tx, const CBlockIndex* pindexBlock, vector<nameCheckResult> &vName, const CDiskTxPos& pos, const CAmount& txFee);
 bool CheckName(const NameTxInfo& nti, const CTransactionRef& tx, const CBlockIndex* pindexBlock, nameCheckResult& nameResult, const CDiskTxPos& pos, const CAmount& txFee);
+bool DisconnectNameTx(const CTransactionRef& tx, bool fMultiName);
+bool DisconnectNameOutput(const CTransactionRef& tx, const NameTxInfo& nti);
 
 #endif

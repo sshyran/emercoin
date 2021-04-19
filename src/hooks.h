@@ -28,7 +28,6 @@ class CHooks
 {
 public:
     virtual bool IsNameFeeEnough(const CTransactionRef& tx, const CAmount& txFee) = 0;
-    virtual bool DisconnectInputs(const CTransactionRef& tx, bool fMultiName) = 0;
     virtual bool ConnectBlock(CBlockIndex* pindex, const std::vector<nameCheckResult> &vName) = 0;
     virtual bool ExtractAddress(const CScript& script, std::string& address) = 0;
     virtual bool CheckPendingNames(const CTransactionRef& tx) = 0;

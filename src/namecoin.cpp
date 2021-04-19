@@ -23,7 +23,6 @@ class CNamecoinHooks : public CHooks
 {
 public:
     virtual bool IsNameFeeEnough(const CTransactionRef& tx, const CAmount& txFee);
-    virtual bool DisconnectInputs(const CTransactionRef& tx, bool fMultiName);
     virtual bool ConnectBlock(CBlockIndex* pindex, const vector<nameCheckResult>& vName);
     virtual bool ExtractAddress(const CScript& script, string& address);
     virtual bool CheckPendingNames(const CTransactionRef& tx);
@@ -1373,19 +1372,19 @@ bool reindexNameAddressIndex()
         uiInterface.ShowProgress("Creating nameadress index (do not close app!)...", percentageDone, false);
 
 
-        const CNameVal&   name  = nameScan[nHeight].first;
-        const CDiskTxPos& txpos = nameScan[nHeight].second.first.txPos;
+        const CNameVal& name = nameScan[nHeight].first;
+        const CNameOperation& nameOp = nameScan[nHeight].second.first;
 
         CTransactionRef tx;
-        if (!g_txindex || !g_txindex->FindTx(txpos, tx))
+        if (!g_txindex || !g_txindex->FindTx(nameOp.txPos, tx))
             return error("createNameAddressFile() : could not read tx from disk - your blockchain or nameindexV3 are probably corrupt");
 
-        std::vector<NameTxInfo> vnti = DecodeNameTx(IsV8Enabled(::ChainActive()[nameScan[nHeight].second.first.nHeight - 1], Params().GetConsensus()), tx, true);
-        if (vnti.empty())
+        NameTxInfo nti;
+        if (!DecodeNameOutput(tx, nameOp.nOut, nti, true))
             return error("createNameAddressFile() : failed to decode name - your blockchain or nameindexV3 are probably corrupt");
 
-        if (vnti[0].strAddress != "" && vnti[0].op != OP_NAME_DELETE)
-            pNameAddressDB->WriteSingleName(vnti[0].strAddress, name);
+        if (nti.strAddress != "" && nti.op != OP_NAME_DELETE)
+            pNameAddressDB->WriteSingleName(nti.strAddress, name);
     }
     return true;
 }
@@ -1554,31 +1553,38 @@ bool CheckName(const NameTxInfo& nti, const CTransactionRef& tx, const CBlockInd
     return true;
 }
 
-bool CNamecoinHooks::DisconnectInputs(const CTransactionRef& tx, bool fMultiName)
+bool DisconnectNameTx(const CTransactionRef& tx, bool fMultiName)
 {
     if (tx->nVersion != NAMECOIN_TX_VERSION)
         return false;
 
     std::vector<NameTxInfo> vnti = DecodeNameTx(fMultiName, tx, true);
     if (vnti.empty()) {
-        LogPrintf("DisconnectInputs() : could not decode name tx, skipping...");
+        LogPrintf("%s: could not decode name tx, skipping...", __func__);
         return false;
     }
 
+    for (const auto& nti : vnti) {
+        DisconnectNameOutput(tx, nti);
+    }
+}
+
+bool DisconnectNameOutput(const CTransactionRef& tx, const NameTxInfo& nti)
+{
     CNameRecord nameRec;
-    if (!pNameDB->ReadName(vnti[0].name, nameRec)) {
-        LogPrintf("DisconnectInputs() : failed to read from name DB, skipping...");
+    if (!pNameDB->ReadName(nti.name, nameRec)) {
+        LogPrintf("%s: failed to read from name DB, skipping...", __func__);
         return false;
     }
 
     // vNameOp might be empty if we pruned expired transactions.  However, it should normally still not
     // be empty, since a reorg cannot go that far back.  Be safe anyway and do not try to pop if empty.
     if (nameRec.vNameOp.empty())
-        return pNameDB->Erase(vnti[0].name); // delete empty record
+        return pNameDB->Erase(nti.name); // delete empty record
 
     CDiskTxPos postx;
     if (!g_txindex || !g_txindex->FindTxPosition(tx->GetHash(), postx))
-        return error("DisconnectInputs() : tx index not found");  // tx index not found
+        return error("%s: tx index not found", __func__);  // tx index not found
 
     // check if tx pos matches any known pos in name history (it should only match last tx)
     if (postx != nameRec.vNameOp.back().txPos) {
@@ -1592,18 +1598,18 @@ bool CNamecoinHooks::DisconnectInputs(const CTransactionRef& tx, bool fMultiName
             }
         }
         assert(!found);
-        LogPrintf("DisconnectInputs() : did not find any name tx to disconnect, skipping...");
+        LogPrintf("%s: did not find any name tx to disconnect, skipping...", __func__);
         return false;
     }
 
     // remove tx
     nameRec.vNameOp.pop_back();
 
-    if (nameRec.vNameOp.size() == 0 && !pNameDB->Erase(vnti[0].name)) // delete empty record
-        return error("DisconnectInputs() : failed to erase from name DB");
+    if (nameRec.vNameOp.size() == 0 && !pNameDB->Erase(nti.name)) // delete empty record
+        return error("%s: failed to erase from name DB", __func__);
     else {
         // if we have deleted name_new - recalculate Last Active Chain Index
-        if (vnti[0].op == OP_NAME_NEW)
+        if (nti.op == OP_NAME_NEW)
             for (int i = nameRec.vNameOp.size() - 1; i >= 0; i--)
                 if (nameRec.vNameOp[i].op == OP_NAME_NEW) {
                     nameRec.nLastActiveChainIndex = i;
@@ -1611,27 +1617,27 @@ bool CNamecoinHooks::DisconnectInputs(const CTransactionRef& tx, bool fMultiName
                 }
 
         if (!CalculateExpiresAt(nameRec))
-            return error("DisconnectInputs() : failed to calculate expiration time before writing to name DB");
-        if (!pNameDB->Write(vnti[0].name, nameRec))
-            return error("DisconnectInputs() : failed to write to name DB");
+            return error("%s: failed to calculate expiration time before writing to name DB", __func__);
+        if (!pNameDB->Write(nti.name, nameRec))
+            return error("%s: failed to write to name DB", __func__);
     }
 
     // update (address->name) index
     // delete name from old address and add it to new address
     if (fNameAddressIndex) {
-        string oldAddress = (vnti[0].op != OP_NAME_DELETE) ? vnti[0].strAddress : "";
+        string oldAddress = (nti.op != OP_NAME_DELETE) ? nti.strAddress : "";
         string newAddress = "";
         if (!nameRec.vNameOp.empty() && !nameRec.deleted()) {
             CTransactionRef prevTx;
             if (!g_txindex || !g_txindex->FindTx(nameRec.vNameOp.back().txPos, prevTx))
-                return error("DisconnectInputs() : could not read tx from disk");
+                return error("%s: could not read tx from disk", __func__);
             NameTxInfo prev_nti;
             if (!DecodeNameOutput(prevTx, nameRec.vNameOp.back().nOut, prev_nti, true))
                 return error("%s: failed to decode name tx", __func__);
             newAddress = prev_nti.strAddress;
         }
-        if (!pNameAddressDB->MoveName(oldAddress, newAddress, vnti[0].name))
-            return error("ConnectBlockHook(): failed to move name in nameaddress.dat");
+        if (!pNameAddressDB->MoveName(oldAddress, newAddress, nti.name))
+            return error("%s: failed to move name in nameaddress.dat", __func__);
     }
 
     return true;
