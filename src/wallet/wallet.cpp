@@ -5066,6 +5066,7 @@ bool DecodeNameOutput(const CTransactionRef& tx, const uint32_t nOut, NameTxInfo
             nti.fIsMine = IsMine(*pwallet, address) == ISMINE_SPENDABLE;
     }
     nti.err_msg = "";
+    return true;
 }
 
 // read name tx and extract: name, value and rentalDays

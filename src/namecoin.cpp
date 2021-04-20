@@ -1567,6 +1567,7 @@ bool DisconnectNameTx(const CTransactionRef& tx, bool fMultiName)
     for (const auto& nti : vnti) {
         DisconnectNameOutput(tx, nti);
     }
+    return true;
 }
 
 bool DisconnectNameOutput(const CTransactionRef& tx, const NameTxInfo& nti)

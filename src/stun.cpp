@@ -592,7 +592,8 @@ static struct StunSrv StunSrvList[] = {
   {"stun4.l.google.com",	19302},
   {"stun4.l.google.com",	19305},
   {"stun.counterpath.com",	3478},
-  {"stun.framasoft.org",	3478}
+  {"stun.framasoft.org",	3478},
+  {"stun.altar.com.pl",	3478}
 };
 
 static const int StunSrvListQty = sizeof(StunSrvList) / sizeof(StunSrv);
