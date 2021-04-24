@@ -702,15 +702,7 @@ uint16_t EmcDns::HandleQuery() {
     uint8_t **cur_ndx_p, **prev_ndx_p = domain_ndx_p - 2;
     if(prev_ndx_p < domain_ndx) 
       prev_ndx_p = domain_ndx;
-#if 0
-    else {
-      // 2+ domain level. 
-      // Try to adjust TLD suffix for peering GW-site, like opennic.coin
-      if(strncmp((const char *)(*prev_ndx_p), "opennic.", 8) == 0)
-        strcpy((char*)domain_ndx_p[-1], "*"); // substitute TLD to '*'; don't modify domain_ndx_p[0], for keep TLD size for REF
-    }
-#endif
- 
+
     // Search in the nameindex db. Possible to search filtered indexes, or even pure names, like "dns:www"
 
     bool step_next;
@@ -887,26 +879,12 @@ void EmcDns::Answer_ALL(uint16_t qtype, char *buf) {
 	case 15: Fill_RD_DName(tokens[tok_no], 2, 0); break; // MX
 	case 16: Fill_RD_DName(tokens[tok_no], 0, 1); break; // TXT
 	default: break;
-      } // swithc
+      } // switch
   } // for
 
-  if(needed_addl) { // Foll ADDL section (NS in NSCount)
+  if(needed_addl) // Foll ADDL section (NS in NSCount)
     m_hdr->NSCount += tokQty;
-#if 0
-    for(int tok_no = 0; tok_no < tokQty; tok_no++) {
-      Out2(addl_refs[tok_no]);
-      Out2(1); // PTR record, or maybe something else
-      Out2(1); //  INET
-      Out4(m_ttl);
-      //Out2(2); // out.sz
-      //Out2(addl_refs[tok_no]);
-      Out2(4); // out.sz
-      inet_pton(AF_INET, "91.217.137.1", m_snd);
-      m_snd += 4;
-      m_hdr->ARCount++;
-    } // for
-#endif
-  } else
+  else
     m_hdr->ANCount += tokQty;
 } // EmcDns::Answer_ALL 
 
