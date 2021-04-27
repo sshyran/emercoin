@@ -589,7 +589,9 @@ uint16_t EmcDns::HandleQuery() {
       return 1; // Invalid request
     *domain_ndx_p++ = key_end;
     do {
-      char c = 040 | *m_rcv++; // tolower char
+      unsigned char c = *m_rcv++;
+      if(c <= 'Z') 
+        c |= 040; // Tolower capital chars, do not need "_"
       *key_end++ = c;
     } while(--dom_len);
     *key_end++ = '.'; // Set DOT at domain end
