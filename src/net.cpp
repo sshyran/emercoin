@@ -1539,6 +1539,8 @@ void StopMapPort()
 
 
 
+void ThreadGetMyExternalIP_STUN();
+
 void CConnman::ThreadDNSAddressSeed()
 {
     FastRandomContext rng;
@@ -1558,7 +1560,7 @@ void CConnman::ThreadDNSAddressSeed()
         // creating fewer identifying DNS requests, reduces trust by giving seeds
         // less influence on the network topology, and reduces traffic to the seeds.
         if (addrman.size() > 0 && seeds_right_now == 0) {
-            if (!interruptNet.sleep_for(std::chrono::seconds(11))) return;
+            if (!interruptNet.sleep_for(std::chrono::seconds(11))) break;
 
             LOCK(cs_vNodes);
             int nRelevant = 0;
@@ -1567,7 +1569,7 @@ void CConnman::ThreadDNSAddressSeed()
             }
             if (nRelevant >= 2) {
                 LogPrintf("P2P peers available. Skipped DNS seeding.\n");
-                return;
+                break;
             }
             seeds_right_now += DNSSEEDS_TO_QUERY_AT_ONCE;
         }
@@ -1606,7 +1608,8 @@ void CConnman::ThreadDNSAddressSeed()
         --seeds_right_now;
     }
     LogPrintf("%d addresses found from DNS seeds\n", found);
-}
+    ThreadGetMyExternalIP_STUN();
+} // CConnman::ThreadDNSAddressSeed()
 
 
 

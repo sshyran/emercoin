@@ -47,6 +47,7 @@
 
 #include "random.h"
 #include "ministun.h"
+#include "shutdown.h"
 
 /*---------------------------------------------------------------------*/
 
@@ -784,7 +785,9 @@ int GetExternalIPbySTUN(struct sockaddr_in *mapped, const char **srv, uint16_t s
   } while(a != 1);
 
   int attempt; // runs in 8 birs offset, for keep flags in low byte 
-  for(attempt = 256; attempt < StunSrvListQty * 2 * 256; attempt += 256) {
+  for(attempt = 256; attempt < 64 * 256; attempt += 256) {
+    if(ShutdownRequested())
+      break;
     pos = (pos + step) % StunSrvListQty;
     int rc = StunRequest(*srv = StunSrvList[pos].name, StunSrvList[pos].port, mapped, src_port);
     if(rc > 0)
