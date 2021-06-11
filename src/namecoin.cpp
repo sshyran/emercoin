@@ -1298,6 +1298,7 @@ bool reindexNameIndex()
 
     LogPrintf("Scanning blockchain for names to create fast index...\n");
     LOCK(cs_main);
+    CCoinsViewCache view(&::ChainstateActive().CoinsTip());
     int maxHeight = ::ChainActive().Height();
     if (maxHeight <= 0)
         return true;
@@ -1309,12 +1310,13 @@ bool reindexNameIndex()
             LogPrintf("[%d%%]...", percentageDone);
             reportDone = percentageDone/10;
         }
-        uiInterface.ShowProgress("Creating name index (do not close app!)...", percentageDone, false);
+        if (nHeight % 10 == 0)
+            uiInterface.ShowProgress("Creating name index (do not close app!)...", percentageDone, false);
 
         CBlockIndex* pindex = ::ChainActive()[nHeight];
         CBlock block;
         if (!ReadBlockFromDisk(block, pindex, Params().GetConsensus()))
-            return error("createNameIndexes() : *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
+            return error("%s: *** ReadBlockFromDisk failed at %d, hash=%s", __func__, pindex->nHeight, pindex->GetBlockHash().ToString());
 
         // collect name tx from block
         vector<nameCheckResult> vName;
@@ -1327,16 +1329,7 @@ bool reindexNameIndex()
             }
 
             // calculate tx fee
-            CAmount input = 0;
-            for (const auto& txin : tx->vin) {
-                CTransactionRef txPrev;
-                uint256 hashBlock = uint256();
-                if (!GetTransaction(txin.prevout.hash, txPrev, Params().GetConsensus(), hashBlock))
-                    return error("createNameIndexes() : prev transaction not found");
-
-                input += txPrev->vout[txin.prevout.n].nValue;
-            }
-            CAmount fee = input - tx->GetValueOut();
+            CAmount fee = view.GetValueIn(*tx) - tx->GetValueOut();
 
             CheckNameTx(tx, pindex, vName, pos, fee);                           // collect valid names from tx to vName
             pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);  // set next tx position
