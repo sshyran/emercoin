@@ -5086,7 +5086,7 @@ std::vector<NameTxInfo> DecodeNameTx(bool fMultiName, const CTransactionRef& tx,
         CScript::const_iterator pc = out.scriptPubKey.begin();
         if (DecodeNameScript(out.scriptPubKey, nti, pc)) {
             // If more than one name op, fail
-            if (found & !fMultiName) {
+            if (found && !fMultiName) {
                 result.clear();
                 return result;
             }
