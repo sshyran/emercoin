@@ -1329,7 +1329,18 @@ bool reindexNameIndex()
             }
 
             // calculate tx fee
-            CAmount fee = view.GetValueIn(*tx) - tx->GetValueOut();
+            CAmount input = 0;
+            for (const auto& txin : tx->vin) {
+                if (txin.prevout.hash != randpaytx) {
+                    CTransactionRef txPrev;
+                    uint256 hashBlock = uint256();
+                    if (!GetTransaction(txin.prevout.hash, txPrev, Params().GetConsensus(), hashBlock))
+                        return error("createNameIndexes() : prev transaction not found");
+
+                    input += txPrev->vout[txin.prevout.n].nValue;
+                }
+            }
+            CAmount fee = input - tx->GetValueOut();
 
             CheckNameTx(tx, pindex, vName, pos, fee);                           // collect valid names from tx to vName
             pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);  // set next tx position
@@ -1454,15 +1465,14 @@ bool CheckName(const NameTxInfo& nti, const CTransactionRef& tx, const CBlockInd
 
     //check if last known tx on this name matches any of inputs of this tx
     CNameRecord nameRec;
-    if (!pNameDB->ReadName(name, nameRec))
-        return error("%s: failed to read from name DB for %s", __func__, info);
+    pNameDB->ReadName(name, nameRec);
 
     bool found = false;
     NameTxInfo prev_nti;
     if (!nameRec.vNameOp.empty() && !nameRec.deleted()) {
         CTransactionRef lastKnownNameTx;
         if (!g_txindex || !g_txindex->FindTx(nameRec.vNameOp.back().txPos, lastKnownNameTx))
-            return error("%s: failed to read from name DB for %s",__func__ , info);
+            return error("%s: failed to read last name tx for %s",__func__ , info);
         uint256 lasthash = lastKnownNameTx->GetHash();
         if (!DecodeNameOutput(lastKnownNameTx, nameRec.vNameOp.back().nOut, prev_nti, true))
             return error("%s: Failed to decode existing previous name tx for %s. Your blockchain or nameindexV3 may be corrupt.", __func__, info);
