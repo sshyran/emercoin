@@ -172,7 +172,6 @@ struct nameCheckResult
     CNameVal name;
     int32_t op;
     uint256 hash;
-    uint32_t nOut;
     CNameOperation nameOp;
     std::string address;
     std::string prev_address;

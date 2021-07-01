@@ -1465,17 +1465,15 @@ bool CheckName(const NameTxInfo& nti, const CTransactionRef& tx, const CBlockInd
 
     //check if last known tx on this name matches any of inputs of this tx
     CNameRecord nameRec;
-    pNameDB->ReadName(name, nameRec);
-
     bool found = false;
     NameTxInfo prev_nti;
-    if (!nameRec.vNameOp.empty() && !nameRec.deleted()) {
+    if (pNameDB->ReadName(name, nameRec) && !nameRec.vNameOp.empty() && !nameRec.deleted()) {
         CTransactionRef lastKnownNameTx;
         if (!g_txindex || !g_txindex->FindTx(nameRec.vNameOp.back().txPos, lastKnownNameTx))
             return error("%s: failed to read last name tx for %s",__func__ , info);
         uint256 lasthash = lastKnownNameTx->GetHash();
         if (!DecodeNameOutput(lastKnownNameTx, nameRec.vNameOp.back().nOut, prev_nti, true))
-            return error("%s: Failed to decode existing previous name tx for %s. Your blockchain or nameindexV3 may be corrupt.", __func__, info);
+            return error("%s: failed to decode existing previous name tx for %s. Your blockchain or nameindexV3 may be corrupt", __func__, info);
 
         for (unsigned int i = 0; i < tx->vin.size(); i++) { //this scans all scripts of tx.vin
             if (tx->vin[i].prevout.hash != lasthash)
@@ -1492,13 +1490,13 @@ bool CheckName(const NameTxInfo& nti, const CTransactionRef& tx, const CBlockInd
             //scan last 10 PoW block for tx fee that matches the one specified in tx
             if (!::IsNameFeeEnough(nti, pindexBlock, txFee)) {
                 if (pindexBlock->nHeight > RELEASE_HEIGHT)
-                    return error("CheckInputsHook() : rejected name_new because not enough fee for %s", info);
+                    return error("%s: rejected name_new because not enough fee for %s", __func__, info);
                 return false;
             }
 
             if (NameActive(name, pindexBlock->nHeight)) {
                 if (pindexBlock->nHeight > RELEASE_HEIGHT)
-                    return error("CheckInputsHook() : name_new on an unexpired name for %s", info);
+                    return error("%s: name_new on an unexpired name for %s", __func__, info);
                 return false;
             }
             break;
@@ -1508,7 +1506,7 @@ bool CheckName(const NameTxInfo& nti, const CTransactionRef& tx, const CBlockInd
             //scan last 10 PoW block for tx fee that matches the one specified in tx
             if (!::IsNameFeeEnough(nti, pindexBlock, txFee)) {
                 if (pindexBlock->nHeight > RELEASE_HEIGHT)
-                    return error("CheckInputsHook() : rejected name_update because not enough fee for %s", info);
+                    return error("%s: rejected name_update because not enough fee for %s", __func__, info);
                 return false;
             }
 
@@ -1516,10 +1514,10 @@ bool CheckName(const NameTxInfo& nti, const CTransactionRef& tx, const CBlockInd
                 return error("name_update without previous new or update tx for %s", info);
 
             if (prev_nti.name != name)
-                return error("CheckInputsHook() : name_update name mismatch for %s", info);
+                return error("%s: name_update name mismatch for %s", __func__, info);
 
             if (!NameActive(name, pindexBlock->nHeight))
-                return error("CheckInputsHook() : name_update on an expired name for %s", info);
+                return error("%s: name_update on an expired name for %s", __func__, info);
             break;
         }
         case OP_NAME_DELETE:
@@ -1528,14 +1526,14 @@ bool CheckName(const NameTxInfo& nti, const CTransactionRef& tx, const CBlockInd
                 return error("name_delete without previous new or update tx, for %s", info);
 
             if (prev_nti.name != name)
-                return error("CheckInputsHook() : name_delete name mismatch for %s", info);
+                return error("%s: name_delete name mismatch for %s", __func__, info);
 
             if (!NameActive(name, pindexBlock->nHeight))
-                return error("CheckInputsHook() : name_delete on expired name for %s", info);
+                return error("%s: name_delete on expired name for %s", __func__, info);
             break;
         }
         default:
-            return error("CheckInputsHook() : unknown name operation for %s", info);
+            return error("%s: unknown name operation for %s", __func__, info);
     }
 
     // all checks passed - record tx information to vName. It will be sorted by nTime and writen to nameindexV3 at the end of ConnectBlock
@@ -1543,12 +1541,12 @@ bool CheckName(const NameTxInfo& nti, const CTransactionRef& tx, const CBlockInd
     nameOp.nHeight = pindexBlock->nHeight;
     nameOp.value = nti.value;
     nameOp.txPos = pos;
+    nameOp.nOut = nti.nOut;
 
     nameResult.nTime = tx->nTime;
     nameResult.name = name;
     nameResult.op = nti.op;
     nameResult.hash = tx->GetHash();
-    nameResult.nOut = nti.nOut;
     nameResult.nameOp = nameOp;
     nameResult.address = (nti.op != OP_NAME_DELETE) ? nti.strAddress : "";                 // we are not interested in address of deleted name
     nameResult.prev_address = (prev_nti.op != OP_NAME_DELETE) ? prev_nti.strAddress : "";  // same
@@ -1689,7 +1687,7 @@ bool CNamecoinHooks::ConnectBlock(CBlockIndex* pindex, const vector<nameCheckRes
             LOCK(cs_main);
             map<CNameVal, set<COutPoint> >::iterator mi = mapNamePending.find(i.name);
             if (mi != mapNamePending.end()) {
-                mi->second.erase(COutPoint(i.hash, i.nOut));
+                mi->second.erase(COutPoint(i.hash, i.nameOp.nOut));
                 if (mi->second.empty())
                     mapNamePending.erase(i.name);
             }
