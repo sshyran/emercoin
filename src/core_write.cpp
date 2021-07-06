@@ -186,15 +186,6 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
     entry.pushKV("locktime", (int64_t)tx.nLockTime);
     entry.pushKV("time", (int64_t)tx.nTime);
 
-    if (vNameKV) {
-        int i = 0;
-        for (const auto& nameKV : *vNameKV) {
-            entry.pushKV("name" + std::to_string(i), nameKV.first);
-            entry.pushKV("value" + std::to_string(i), nameKV.second);
-            i++;
-        }
-    }
-
     UniValue vin(UniValue::VARR);
     for (unsigned int i = 0; i < tx.vin.size(); i++) {
         const CTxIn& txin = tx.vin[i];
@@ -233,6 +224,12 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
         UniValue o(UniValue::VOBJ);
         ScriptPubKeyToUniv(txout.scriptPubKey, o, true);
         out.pushKV("scriptPubKey", o);
+
+        if (vNameKV && vNameKV->operator[](i).first != "") {
+            out.pushKV("name", vNameKV->operator[](i).first);
+            out.pushKV("value", vNameKV->operator[](i).second);
+        }
+
         vout.push_back(out);
     }
     entry.pushKV("vout", vout);

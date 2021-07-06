@@ -60,10 +60,13 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, 
     // data into the returned UniValue.
     std::vector<std::pair<std::string, std::string>>* vNameKV = nullptr;
     if (fName) {
-        std::vector<NameTxInfo> vnti = DecodeNameTx(fMultiName, MakeTransactionRef(std::move(tx)));
-        vNameKV->reserve(vnti.size());
-        for (const auto& nti : vnti) {
-            vNameKV->push_back(std::make_pair(stringFromNameVal(nti.name), encodeNameVal(nti.value, "")));
+        vNameKV->reserve(tx.vout.size());
+        for (unsigned int i = 0; i < tx.vout.size(); i++) {
+            NameTxInfo nti;
+            if (DecodeNameOutput(MakeTransactionRef(std::move(tx)), i, nti))
+                vNameKV->push_back(std::make_pair(stringFromNameVal(nti.name), encodeNameVal(nti.value, "")));
+            else
+                vNameKV->push_back(std::make_pair("", ""));
         }
     }
 
