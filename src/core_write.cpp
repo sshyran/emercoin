@@ -213,6 +213,7 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
     entry.pushKV("vin", vin);
 
     UniValue vout(UniValue::VARR);
+    bool fPrintNames = vNameKV && vNameKV->size() == tx.vout.size();
     for (unsigned int i = 0; i < tx.vout.size(); i++) {
         const CTxOut& txout = tx.vout[i];
 
@@ -225,7 +226,7 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
         ScriptPubKeyToUniv(txout.scriptPubKey, o, true);
         out.pushKV("scriptPubKey", o);
 
-        if (vNameKV && vNameKV->operator[](i).first != "") {
+        if (fPrintNames && vNameKV->operator[](i).first != "") {
             out.pushKV("name", vNameKV->operator[](i).first);
             out.pushKV("value", vNameKV->operator[](i).second);
         }
