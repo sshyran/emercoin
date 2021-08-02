@@ -650,16 +650,14 @@ uint16_t EmcDns::HandleQuery() {
 
   while(p0 > key) {
     uint8_t c = *--p0;
-    if(c == '.') {
-      if(step == 0) {
-        // this is TLD-suffix - fix TLD params for it
-        pos = pos0; step = step0 | 1;
-        p_tld = p0;
-      }
+    if(c == '.' && step == 0) {
+      // this is TLD-suffix - fix TLD params for it
+      pos = pos0; step = step0 | 1;
+      p_tld = p0;
     } // if(c == '.')
     pos0  = ((pos0 >> 7) | (pos0 << 1)) + c;
     step0 = ((step0 << 5) - step0) ^ c; // (step * 31) ^ c
-    if(c == '.' && LocalSearch(p0, pos0, step0 | 1) > 0) { // search there with SDs, like SD.emer.emc
+    if(c == '.' && !(m_ht_offset[pos] & ENUM_FLAG) && LocalSearch(p0, pos0, step0 | 1) > 0) { // search there with SDs, like SD.emer.emc
       p_tld = NULL; // local search is OK, do not perform nameindex search
       break;
     }
@@ -667,7 +665,7 @@ uint16_t EmcDns::HandleQuery() {
 
   step0 |= 1; // Set odd step for 2-hashing
 
-  // Try to search local (like emer.emc) 1st - it has priority ove nameindex
+  // Try to search local (like emer.emc) 1st - it has priority over nameindex
   if(p_tld != NULL && LocalSearch(key, pos0, step0) > 0)
     p_tld = NULL; // local search is OK, do not perform nameindex search
 
