@@ -144,7 +144,7 @@ EmcDns::EmcDns(const char *bind_ip, uint16_t port_no,
 	  const char *gw_suffix, const char *allowed_suff, const char *local_fname, 
 	  uint32_t dapsize, uint32_t daptreshold,
 	  const char *enums, const char *tollfree, uint8_t verbose) 
-    : m_status(-1), m_thread(StatRun, this) {
+    : m_status(-1), m_flags(0), m_thread(StatRun, this) {
 
     // Clear vars [m_hdr..m_verbose)
     memset(&m_hdr, 0, &m_verbose - (uint8_t *)&m_hdr); // Clear previous state
@@ -218,6 +218,8 @@ EmcDns::EmcDns(const char *bind_ip, uint16_t port_no,
 	char *p = strchr(rd, '=');
 	if(p == NULL)
 	  continue;
+        if(*rd == '.')
+          m_flags |= FLAG_LOCAL_SD; // Futire local search for subdomains, too
 	rd = strchr(p, 0);
         while(*--rd < 040) 
 	  *rd = 0;
@@ -657,7 +659,7 @@ uint16_t EmcDns::HandleQuery() {
     } // if(c == '.')
     pos0  = ((pos0 >> 7) | (pos0 << 1)) + c;
     step0 = ((step0 << 5) - step0) ^ c; // (step * 31) ^ c
-    if(c == '.' && !(m_ht_offset[pos] & ENUM_FLAG) && LocalSearch(p0, pos0, step0 | 1) > 0) { // search there with SDs, like SD.emer.emc
+    if(c == '.' && (m_flags & FLAG_LOCAL_SD) && LocalSearch(p0, pos0, step0 | 1) > 0) { // search there with SDs, like SD.emer.emc
       p_tld = NULL; // local search is OK, do not perform nameindex search
       break;
     }
@@ -992,12 +994,12 @@ int EmcDns::Search(uint8_t *key) {
 int EmcDns::LocalSearch(const uint8_t *key, uint8_t pos, uint8_t step) {
   if(m_local_base == NULL)
     return 0; // empty local, no sense to search
-  if(m_verbose > 4) 
+  if(m_verbose > 6)
     LogPrintf("EmcDns::LocalSearch(%s, %u, %u) called\n", key, pos, step);
   do {
     pos += step;
     if(m_ht_offset[pos] == 0) {
-      if(m_verbose > 4) 
+      if(m_verbose > 6)
         LogPrintf("EmcDns::LocalSearch: Local key=[%s] not found\n", key);
       return 0; // Reached EndOfList 
     } 

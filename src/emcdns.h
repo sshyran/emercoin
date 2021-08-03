@@ -22,6 +22,8 @@ using namespace std;
 #define VERMASK_BLOCKED -2
 #define VERMASK_NOSRL	(1 << 24)	// ENUM: undef/missing mask for Signature Revocation List
 
+#define FLAG_LOCAL_SD   0x1            // Check subdomains in emcdnslocal resolver (lines starts from '.')
+
 struct DNSHeader {
   static const uint32_t QR_MASK = 0x8000;
   static const uint32_t OPCODE_MASK = 0x7800; // shr 11
@@ -128,6 +130,7 @@ class EmcDns {
     uint8_t   m_allowed_qty;
     uint8_t   m_verbose;	// LAST bzero element
     int8_t    m_status;
+    uint16_t  m_flags;          // runtime flags
     boost::thread m_thread;
     map<string, Verifier> m_verifiers;
     vector<TollFree>      m_tollfree;
