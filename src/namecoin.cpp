@@ -1033,6 +1033,50 @@ UniValue name_new(const JSONRPCRequest& request)
     return ret.hex.GetHex();
 }
 
+UniValue name_new_many(const JSONRPCRequest& request)
+{
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    CWallet* const pwallet = wallet.get();
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    RPCHelpMan{"name_new",
+    "\nCreates new key->value pairs which expires after specified number of days.\n"
+    "Cost is square root of (1% of last PoW + 1% per year of last PoW).\n",
+    {
+        {"names", RPCArg::Type::ARR, RPCArg::Optional::NO, "A json array of bitcoin addresses or hex-encoded public keys",
+            {
+                {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "",
+                    {
+                        {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "Name to create"},
+                        {"value", RPCArg::Type::STR, RPCArg::Optional::NO, "Value to write inside name"},
+                        {"days", RPCArg::Type::NUM, RPCArg::Optional::NO, "How many days this name will be active (1 day~=175 blocks)"},
+                        {"toaddress", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Address of recipient. Empty string = transaction to yourself"},
+                        {"valuetype", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Interpretation of value string. Can be \"hex\", \"base64\" or filepath.\n"
+                            "       not specified or empty - Write value as a unicode string.\n"
+                            "       \"hex\" or \"base64\" - Decode value string as a binary data in hex or base64 string format.\n"
+                            "       otherwise - Decode value string as a filepath from which to read the data."
+                        }
+                    }
+                }
+            }
+        }
+    },
+    RPCResult{
+        "{\n"
+        "  (string)    Hex of created transaction\n"
+        "}\n"
+    },
+    RPCExamples{
+        HelpExampleCli("name_new_many", "\"[{\\\"name\\\":\\\"myname\\\",\\\"value\\\":\\\"abc\\\",\\\"days\\\":3}]\"") + HelpExampleRpc("name_new_many", "\"[{\\\"name\\\":\\\"myname\\\",\\\"value\\\":\\\"abc\\\",\\\"days\\\":3}]\"")},
+    }.Check(request);
+
+    ObserveSafeMode();
+
+    return "";
+}
+
 UniValue name_update(const JSONRPCRequest& request)
 {
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
