@@ -187,6 +187,9 @@ static const CRPCConvertParam vRPCConvertParams[] =
     // emercoin:
     { "name_new", 2, "days" },
     { "name_update", 2, "days" },
+    { "name_new_many", 0, "names" },
+    { "name_update_many", 0, "names" },
+    { "name_delete_many", 0, "names" },
     { "name_scan", 1, "max-returned" },
     { "name_scan", 2, "max-value-length" },
     { "name_scan_address", 1, "max-value-length" },

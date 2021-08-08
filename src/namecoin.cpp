@@ -1074,6 +1074,9 @@ UniValue name_new_many(const JSONRPCRequest& request)
 
     ObserveSafeMode();
 
+    RPCTypeCheck(request.params, {UniValue::VARR}, true);
+    UniValue names = request.params[0].get_array();
+
     return "";
 }
 
@@ -1161,6 +1164,9 @@ UniValue name_update_many(const JSONRPCRequest& request)
 
     ObserveSafeMode();
 
+    RPCTypeCheck(request.params, {UniValue::VARR}, true);
+    UniValue names = request.params[0].get_array();
+
     return "";
 }
 
@@ -1210,7 +1216,7 @@ UniValue name_delete_many(const JSONRPCRequest& request)
     {
         {"names", RPCArg::Type::ARR, RPCArg::Optional::NO, "A json array of name deletes",
             {
-                {"name", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Name to delete"}
+                {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "Name to delete"}
             }
         }
     },
@@ -1220,10 +1226,13 @@ UniValue name_delete_many(const JSONRPCRequest& request)
         "}\n"
     },
     RPCExamples{
-        HelpExampleCli("name_delete_many", "\"[{\\\"name\\\":\\\"myname\\\",\\\"value\\\":\\\"abc\\\",\\\"days\\\":3}]\"") + HelpExampleRpc("name_delete_many", "\"[{\\\"name\\\":\\\"myname\\\",\\\"value\\\":\\\"abc\\\",\\\"days\\\":3}]\"")},
+        HelpExampleCli("name_delete_many", "\"[\\\"myname\\\"]\"") + HelpExampleRpc("name_delete_many", "\"[\\\"myname\\\"]\"")},
     }.Check(request);
 
     ObserveSafeMode();
+
+    RPCTypeCheck(request.params, {UniValue::VARR}, true);
+    UniValue names = request.params[0].get_array();
 
     return "";
 }
