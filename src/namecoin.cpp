@@ -1203,35 +1203,23 @@ NameTxReturn name_operation(UniValue names, CWallet* pwallet)
 
         // try to read inputs
         int op = -1;
-        CNameVal name;
-        CNameVal value;
-        int days = 0;
-        string strAddress = "";
-        string strValueType = "";
-
-        // read inputs
         if (nameInfo.isStr())
             op = OP_NAME_DELETE;
         else if (nameInfo.isObject()) {
-            for (const std::string& key : nameInfo.getKeys()) {
-                if (key == "name") {
-                    name = nameValFromValue(nameInfo[key]);
-                } else if (key == "value") {
-                    value = nameValFromValue(nameInfo[key]);
-                } else if (key == "days") {
-                    days = nameInfo.get_int();
-                } else if (key == "op") {
-                    if (nameInfo[key].get_str() == "NEW") {
-                        op = OP_NAME_NEW;
-                    } else if (nameInfo[key].get_str() == "UPDATE") {
-                        op = OP_NAME_UPDATE;
-                    }
-                } else if (key == "toaddress") {
-                    strAddress = nameInfo[key].get_str();
-                } else if (key == "valuetype") {
-                    strValueType = nameInfo[key].get_str();
-                }
-            }
+            if (nameInfo["op"].get_str() == "NEW")
+                op = OP_NAME_NEW;
+            else if (nameInfo["op"].get_str() == "UPDATE")
+                op = OP_NAME_UPDATE;
+        }
+        CNameVal name = nameValFromValue(nameInfo["name"]);
+        CNameVal value = nameValFromValue(nameInfo["value"]);
+        int days = nameInfo["days"].get_int();
+        string strAddress = nameInfo.exists("toaddress") ? nameInfo["toaddress"].get_str() : "";
+        string strValueType = nameInfo.exists("valuetype") ? nameInfo["valuetype"].get_str() : "";
+
+        if (op == OP_NAME_NEW && value.empty()) {
+            ret.err_msg = "value must not be empty";
+            return ret;
         }
     }
 
