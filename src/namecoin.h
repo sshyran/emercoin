@@ -10,6 +10,7 @@
 #include <script/standard.h>
 
 class CWallet;
+class UniValue;
 struct NameIndexStats;
 
 static const unsigned int NAMEINDEX_CHAIN_SIZE = 1000;
@@ -163,6 +164,7 @@ struct NameTxReturn
      std::string address;
      uint256 hex;   // Transaction hash in hex
 };
+NameTxReturn name_operation(UniValue names, CWallet* pwallet);
 NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, const int nRentalDays, const string& strAddress, const string& strValueType, CWallet* pwallet);
 
 

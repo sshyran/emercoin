@@ -2211,11 +2211,9 @@ extern UniValue name_show(const JSONRPCRequest& request);
 extern UniValue name_dump(const JSONRPCRequest& request);
 
 extern UniValue name_new(const JSONRPCRequest& request);
-extern UniValue name_new_many(const JSONRPCRequest& request);
 extern UniValue name_update(const JSONRPCRequest& request);
-extern UniValue name_update_many(const JSONRPCRequest& request);
+extern UniValue name_updatemany(const JSONRPCRequest& request);
 extern UniValue name_delete(const JSONRPCRequest& request);
-extern UniValue name_delete_many(const JSONRPCRequest& request);
 extern UniValue sendtoname(const JSONRPCRequest& request);
 extern UniValue name_list(const JSONRPCRequest& request);
 extern UniValue name_debug(const JSONRPCRequest& request);
@@ -2266,11 +2264,9 @@ static const CRPCCommand commands[] =
     { "blockchain",         "name_scan_address",      &name_scan_address,      {"address","max-value-length","valuetype"} },
     { "blockchain",         "name_show",              &name_show,              {"name","valuetype","filepath"} },
     { "blockchain",         "name_new",               &name_new,               {"name","value","days","toaddress","valuetype"} },
-    { "blockchain",         "name_new_many",          &name_new_many,          {"names"} },
     { "blockchain",         "name_update",            &name_update,            {"name","value","days","toaddress","valuetype"} },
-    { "blockchain",         "name_update_many",       &name_update_many,       {"names"} },
     { "blockchain",         "name_delete",            &name_delete,            {"name"} },
-    { "blockchain",         "name_delete_many",       &name_delete_many,       {"names"} },
+    { "blockchain",         "name_updatemany",        &name_updatemany,        {"names"} },
     { "blockchain",         "sendtoname",             &sendtoname,             {"name","amount","comment","comment-to"} },
     { "blockchain",         "name_list",              &name_list,              {"name","valuetype"} },
     { "hidden",             "name_debug",             &name_debug,             {} },

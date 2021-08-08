@@ -1033,53 +1033,6 @@ UniValue name_new(const JSONRPCRequest& request)
     return ret.hex.GetHex();
 }
 
-UniValue name_new_many(const JSONRPCRequest& request)
-{
-    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
-    CWallet* const pwallet = wallet.get();
-    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
-        return NullUniValue;
-    }
-
-    RPCHelpMan{"name_new_many",
-    "\nCreates new key->value pairs which expires after specified number of days.\n"
-    "Cost is square root of (1% of last PoW + 1% per year of last PoW).\n",
-    {
-        {"names", RPCArg::Type::ARR, RPCArg::Optional::NO, "A json array of names",
-            {
-                {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "",
-                    {
-                        {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "Name to create"},
-                        {"value", RPCArg::Type::STR, RPCArg::Optional::NO, "Value to write inside name"},
-                        {"days", RPCArg::Type::NUM, RPCArg::Optional::NO, "How many days this name will be active (1 day~=175 blocks)"},
-                        {"toaddress", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Address of recipient. Empty string = transaction to yourself"},
-                        {"valuetype", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Interpretation of value string. Can be \"hex\", \"base64\" or filepath.\n"
-                            "       not specified or empty - Write value as a unicode string.\n"
-                            "       \"hex\" or \"base64\" - Decode value string as a binary data in hex or base64 string format.\n"
-                            "       otherwise - Decode value string as a filepath from which to read the data."
-                        }
-                    }
-                }
-            }
-        }
-    },
-    RPCResult{
-        "{\n"
-        "  (string)    Hex of created transaction\n"
-        "}\n"
-    },
-    RPCExamples{
-        HelpExampleCli("name_new_many", "\"[{\\\"name\\\":\\\"myname\\\",\\\"value\\\":\\\"abc\\\",\\\"days\\\":3}]\"") + HelpExampleRpc("name_new_many", "\"[{\\\"name\\\":\\\"myname\\\",\\\"value\\\":\\\"abc\\\",\\\"days\\\":3}]\"")},
-    }.Check(request);
-
-    ObserveSafeMode();
-
-    RPCTypeCheck(request.params, {UniValue::VARR}, true);
-    UniValue names = request.params[0].get_array();
-
-    return "";
-}
-
 UniValue name_update(const JSONRPCRequest& request)
 {
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
@@ -1124,52 +1077,6 @@ UniValue name_update(const JSONRPCRequest& request)
     return ret.hex.GetHex();
 }
 
-UniValue name_update_many(const JSONRPCRequest& request)
-{
-    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
-    CWallet* const pwallet = wallet.get();
-    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
-        return NullUniValue;
-    }
-
-    RPCHelpMan{"name_update_many",
-    "\nUpdate name value, add days to expiration time and possibly transfer a name to diffrent address.\n",
-    {
-        {"names", RPCArg::Type::ARR, RPCArg::Optional::NO, "A json array of name updates",
-            {
-                {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "",
-                    {
-                        {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "Name to update"},
-                        {"value", RPCArg::Type::STR, RPCArg::Optional::NO, "Value to write inside name"},
-                        {"days", RPCArg::Type::NUM, RPCArg::Optional::NO, "How many days this name will be active (1 day~=175 blocks)"},
-                        {"toaddress", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Address of recipient. Empty string = transaction to yourself"},
-                        {"valuetype", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Interpretation of value string. Can be \"hex\", \"base64\" or filepath.\n"
-                            "       not specified or empty - Write value as a unicode string.\n"
-                            "       \"hex\" or \"base64\" - Decode value string as a binary data in hex or base64 string format.\n"
-                            "       otherwise - Decode value string as a filepath from which to read the data."
-                        }
-                    }
-                }
-            }
-        }
-    },
-    RPCResult{
-        "{\n"
-        "  (string)    Hex of created transaction\n"
-        "}\n"
-    },
-    RPCExamples{
-        HelpExampleCli("name_update_many", "\"[{\\\"name\\\":\\\"myname\\\",\\\"value\\\":\\\"abc\\\",\\\"days\\\":3}]\"") + HelpExampleRpc("name_update_many", "\"[{\\\"name\\\":\\\"myname\\\",\\\"value\\\":\\\"abc\\\",\\\"days\\\":3}]\"")},
-    }.Check(request);
-
-    ObserveSafeMode();
-
-    RPCTypeCheck(request.params, {UniValue::VARR}, true);
-    UniValue names = request.params[0].get_array();
-
-    return "";
-}
-
 UniValue name_delete(const JSONRPCRequest& request)
 {
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
@@ -1200,10 +1107,9 @@ UniValue name_delete(const JSONRPCRequest& request)
     if (!ret.ok)
         throw JSONRPCError(ret.err_code, ret.err_msg);
     return ret.hex.GetHex();
-
 }
 
-UniValue name_delete_many(const JSONRPCRequest& request)
+UniValue name_updatemany(const JSONRPCRequest& request)
 {
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
     CWallet* const pwallet = wallet.get();
@@ -1211,14 +1117,24 @@ UniValue name_delete_many(const JSONRPCRequest& request)
         return NullUniValue;
     }
 
-    RPCHelpMan{"name_delete_many",
-    "\nDelete names if you own them. Others may do name_new after this command.\n",
+    RPCHelpMan{"name_updatemany",
+    "\nCreates, updates or deletes key->value pairs.\n",
     {
-        {"names", RPCArg::Type::ARR, RPCArg::Optional::NO, "A json array of name deletes",
-            {
-                {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "Name to delete"}
-            }
-        }
+        {"names", RPCArg::Type::ARR, RPCArg::Optional::NO, "A json array of names", {
+            {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "", {
+                {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "Name to create"},
+                {"value", RPCArg::Type::STR, RPCArg::Optional::NO, "Value to write inside name"},
+                {"days", RPCArg::Type::NUM, RPCArg::Optional::NO, "How many days this name will be active (1 day~=175 blocks)"},
+                {"op", RPCArg::Type::STR, RPCArg::Optional::NO, "Name operation: NEW or UPDATE"},
+                {"toaddress", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Address of recipient. Empty string = transaction to yourself"},
+                {"valuetype", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Interpretation of value string. Can be \"hex\", \"base64\" or filepath.\n"
+                    "       not specified or empty - Write value as a unicode string.\n"
+                    "       \"hex\" or \"base64\" - Decode value string as a binary data in hex or base64 string format.\n"
+                    "       otherwise - Decode value string as a filepath from which to read the data."
+                },
+            }},
+            {"name", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Name to delete"}
+        }}
     },
     RPCResult{
         "{\n"
@@ -1226,7 +1142,7 @@ UniValue name_delete_many(const JSONRPCRequest& request)
         "}\n"
     },
     RPCExamples{
-        HelpExampleCli("name_delete_many", "\"[\\\"myname\\\"]\"") + HelpExampleRpc("name_delete_many", "\"[\\\"myname\\\"]\"")},
+        HelpExampleCli("name_new_many", "\"[{\\\"name\\\":\\\"myname\\\",\\\"value\\\":\\\"abc\\\",\\\"days\\\":3}]\"") + HelpExampleRpc("name_new_many", "\"[{\\\"name\\\":\\\"myname\\\",\\\"value\\\":\\\"abc\\\",\\\"days\\\":3}]\"")},
     }.Check(request);
 
     ObserveSafeMode();
@@ -1234,7 +1150,92 @@ UniValue name_delete_many(const JSONRPCRequest& request)
     RPCTypeCheck(request.params, {UniValue::VARR}, true);
     UniValue names = request.params[0].get_array();
 
-    return "";
+    for (size_t i = 0; i < names.size(); ++i) {
+        const auto& nameInfo = names[i];
+        if (!nameInfo.isStr() && !nameInfo.isObject())
+            throw JSONRPCError(RPC_TYPE_ERROR, std::string("Invalid array element: it has to be string or object"));
+
+        if (nameInfo.isObject()) {
+            if (!nameInfo.exists("name"))
+                throw JSONRPCError(RPC_TYPE_ERROR, std::string("You must specify name"));
+            else if (!nameInfo["name"].isStr())
+                throw JSONRPCError(RPC_TYPE_ERROR, std::string("Name must be string"));
+
+            if (!nameInfo.exists("value"))
+                throw JSONRPCError(RPC_TYPE_ERROR, std::string("You must specify value"));
+            else if (!nameInfo["value"].isStr())
+                throw JSONRPCError(RPC_TYPE_ERROR, std::string("Value must be string"));
+
+            if (!nameInfo.exists("days"))
+                throw JSONRPCError(RPC_TYPE_ERROR, std::string("You must specify days"));
+            else if (!nameInfo["days"].isNum())
+                throw JSONRPCError(RPC_TYPE_ERROR, std::string("Days must be an integer greater than 0"));
+
+            if (!nameInfo.exists("op"))
+                throw JSONRPCError(RPC_TYPE_ERROR, std::string("You must specify name operation"));
+            else if (!nameInfo["op"].isStr())
+                throw JSONRPCError(RPC_TYPE_ERROR, std::string("Name operation must be a string"));
+
+            if (nameInfo.exists("toaddress") && !nameInfo["toaddress"].isStr())
+                throw JSONRPCError(RPC_TYPE_ERROR, std::string("Address must be a string"));
+
+            if (nameInfo.exists("valuetype") && !nameInfo["valuetype"].isStr())
+                throw JSONRPCError(RPC_TYPE_ERROR, std::string("Address must be a string"));
+        }
+    }
+
+    NameTxReturn ret = name_operation(names, pwallet);
+    if (!ret.ok)
+        throw JSONRPCError(ret.err_code, ret.err_msg);
+
+    return ret.hex.GetHex();
+}
+
+NameTxReturn name_operation(UniValue names, CWallet* pwallet)
+{
+    NameTxReturn ret;
+    ret.err_code = RPC_INTERNAL_ERROR; // default value in case of abnormal exit
+    ret.err_msg = "unkown error";
+    ret.ok = false;
+
+    for (size_t i = 0; i < names.size(); ++i) {
+        const auto& nameInfo = names[i];
+
+        // try to read inputs
+        int op = -1;
+        CNameVal name;
+        CNameVal value;
+        int days = 0;
+        string strAddress = "";
+        string strValueType = "";
+
+        // read inputs
+        if (nameInfo.isStr())
+            op = OP_NAME_DELETE;
+        else if (nameInfo.isObject()) {
+            for (const std::string& key : nameInfo.getKeys()) {
+                if (key == "name") {
+                    name = nameValFromValue(nameInfo[key]);
+                } else if (key == "value") {
+                    value = nameValFromValue(nameInfo[key]);
+                } else if (key == "days") {
+                    days = nameInfo.get_int();
+                } else if (key == "op") {
+                    if (nameInfo[key].get_str() == "NEW") {
+                        op = OP_NAME_NEW;
+                    } else if (nameInfo[key].get_str() == "UPDATE") {
+                        op = OP_NAME_UPDATE;
+                    }
+                } else if (key == "toaddress") {
+                    strAddress = nameInfo[key].get_str();
+                } else if (key == "valuetype") {
+                    strValueType = nameInfo[key].get_str();
+                }
+            }
+        }
+    }
+
+    return ret;
 }
 
 NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, const int nRentalDays, const string& strAddress, const string& strValueType, CWallet* pwallet)
