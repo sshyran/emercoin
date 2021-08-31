@@ -1174,13 +1174,13 @@ UniValue name_updatemany(const JSONRPCRequest& request)
             if (!nameInfo.exists("op"))
                 throw JSONRPCError(RPC_TYPE_ERROR, std::string("You must specify name operation"));
             else if (!nameInfo["op"].isStr())
-                throw JSONRPCError(RPC_TYPE_ERROR, std::string("Name operation must be a string"));
+                throw JSONRPCError(RPC_TYPE_ERROR, std::string("Name operation must be a string: either \"NEW\" or \"UPDATE\""));
 
             if (nameInfo.exists("toaddress") && !nameInfo["toaddress"].isStr())
                 throw JSONRPCError(RPC_TYPE_ERROR, std::string("Address must be a string"));
 
             if (nameInfo.exists("valuetype") && !nameInfo["valuetype"].isStr())
-                throw JSONRPCError(RPC_TYPE_ERROR, std::string("Address must be a string"));
+                throw JSONRPCError(RPC_TYPE_ERROR, std::string("Value type must be a string"));
         }
     }
 
