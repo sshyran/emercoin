@@ -3009,9 +3009,10 @@ bool CWallet::CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeIn
     CAmount nNameTxInCredit = 0;
     unsigned int nNameTxOut = 0;
     if (txNameIn && !txNameIn->IsNull()) {
-        std::vector<NameTxInfo> vnti = DecodeNameTx(fMultiName, tx);
+        std::vector<NameTxInfo> vnti = DecodeNameTx(fMultiName, txNameIn);
         if (vnti.empty())
             return false;
+        //emcTODO: redo this for multi names
         nNameTxOut = vnti[0].nOut;
         nNameTxInCredit = txNameIn->vout[nNameTxOut].nValue;
     }
