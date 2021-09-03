@@ -165,7 +165,6 @@ struct NameTxReturn
      uint256 hex;   // Transaction hash in hex
 };
 NameTxReturn name_operation(UniValue names, CWallet* pwallet);
-NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, const int nRentalDays, const string& strAddress, const string& strValueType, CWallet* pwallet);
 
 
 struct nameCheckResult

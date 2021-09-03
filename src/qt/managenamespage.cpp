@@ -359,19 +359,43 @@ void ManageNamesPage::on_submitNameButton_clicked()
         {
             nHeight = NameTableEntry::NAME_NEW;
             status = CT_NEW;
-            res = name_operation(OP_NAME_NEW, name, value, days, newAddress.toStdString(), "", walletModel->wallet().getWallet().get());
+
+            UniValue names(UniValue::VARR);
+            UniValue oName(UniValue::VOBJ);
+            oName.pushKV("name", strName);
+            oName.pushKV("value", stringFromNameVal(value));
+            oName.pushKV("days", days);
+            oName.pushKV("op", "NEW");
+            oName.pushKV("toaddress", newAddress.toStdString());
+            names.push_back(oName);
+
+            res = name_operation(names, walletModel->wallet().getWallet().get());
         }
 		else if (txType == STR_NAME_UPDATE)
         {
             nHeight = NameTableEntry::NAME_UPDATE;
             status = CT_UPDATED;
-            res = name_operation(OP_NAME_UPDATE, name, value, days, newAddress.toStdString(), "", walletModel->wallet().getWallet().get());
+
+            UniValue names(UniValue::VARR);
+            UniValue oName(UniValue::VOBJ);
+            oName.pushKV("name", strName);
+            oName.pushKV("value", stringFromNameVal(value));
+            oName.pushKV("days", days);
+            oName.pushKV("op", "UPDATE");
+            oName.pushKV("toaddress", newAddress.toStdString());
+            names.push_back(oName);
+
+            res = name_operation(names, walletModel->wallet().getWallet().get());
         }
 		else if (txType == STR_NAME_DELETE)
         {
             nHeight = NameTableEntry::NAME_DELETE;
             status = CT_UPDATED; //we still want to display this name until it is deleted
-            res = name_operation(OP_NAME_DELETE, name, CNameVal(), 0, "", "", walletModel->wallet().getWallet().get());
+
+            UniValue names(UniValue::VARR);
+            names.push_back(strName);
+
+            res = name_operation(names, walletModel->wallet().getWallet().get());
         }
 
         importedAsBinaryFile.clear();

@@ -1021,13 +1021,19 @@ UniValue name_new(const JSONRPCRequest& request)
 
     ObserveSafeMode();
 
-    CNameVal name = nameValFromValue(request.params[0]);
-    CNameVal value = nameValFromValue(request.params[1]);
-    int nRentalDays = request.params[2].get_int();
-    string strAddress = request.params.size() > 3 ? request.params[3].get_str() : "";
-    string strValueType = request.params.size() > 4 ? request.params[4].get_str() : "";
+    UniValue names(UniValue::VARR);
+    UniValue name(UniValue::VOBJ);
+    name.pushKV("name", request.params[0]);
+    name.pushKV("value", request.params[1]);
+    name.pushKV("days", request.params[2].get_int());
+    name.pushKV("op", "NEW");
+    if (request.params.size() > 3)
+        name.pushKV("toaddress", request.params[3].get_str());
+    if (request.params.size() > 4)
+        name.pushKV("valuetype", request.params[4].get_str());
+    names.push_back(name);
 
-    NameTxReturn ret = name_operation(OP_NAME_NEW, name, value, nRentalDays, strAddress, strValueType, pwallet);
+    NameTxReturn ret = name_operation(names, pwallet);
     if (!ret.ok)
         throw JSONRPCError(ret.err_code, ret.err_msg);
     return ret.hex.GetHex();
@@ -1065,13 +1071,19 @@ UniValue name_update(const JSONRPCRequest& request)
 
     ObserveSafeMode();
 
-    CNameVal name = nameValFromValue(request.params[0]);
-    CNameVal value = nameValFromValue(request.params[1]);
-    int nRentalDays = request.params[2].get_int();
-    string strAddress = request.params.size() > 3 ? request.params[3].get_str() : "";
-    string strValueType = request.params.size() > 4 ? request.params[4].get_str() : "";
+    UniValue names(UniValue::VARR);
+    UniValue name(UniValue::VOBJ);
+    name.pushKV("name", request.params[0]);
+    name.pushKV("value", request.params[1]);
+    name.pushKV("days", request.params[2].get_int());
+    name.pushKV("op", "UPDATE");
+    if (request.params.size() > 3)
+        name.pushKV("toaddress", request.params[3].get_str());
+    if (request.params.size() > 4)
+        name.pushKV("valuetype", request.params[4].get_str());
+    names.push_back(name);
 
-    NameTxReturn ret = name_operation(OP_NAME_UPDATE, name, value, nRentalDays, strAddress, strValueType, pwallet);
+    NameTxReturn ret = name_operation(names, pwallet);
     if (!ret.ok)
         throw JSONRPCError(ret.err_code, ret.err_msg);
     return ret.hex.GetHex();
@@ -1101,9 +1113,10 @@ UniValue name_delete(const JSONRPCRequest& request)
 
     ObserveSafeMode();
 
-    CNameVal name = nameValFromValue(request.params[0]);
+    UniValue names(UniValue::VARR);
+    names.push_back(request.params[0]);
 
-    NameTxReturn ret = name_operation(OP_NAME_DELETE, name, CNameVal(), 0, "", "", pwallet);
+    NameTxReturn ret = name_operation(names, pwallet);
     if (!ret.ok)
         throw JSONRPCError(ret.err_code, ret.err_msg);
     return ret.hex.GetHex();
@@ -1191,12 +1204,19 @@ UniValue name_updatemany(const JSONRPCRequest& request)
     return ret.hex.GetHex();
 }
 
+// this function does not verify the existance of json input fields - it just assumes that they were correctly set
 NameTxReturn name_operation(UniValue names, CWallet* pwallet)
 {
     NameTxReturn ret;
     ret.err_code = RPC_INTERNAL_ERROR; // default value in case of abnormal exit
     ret.err_msg = "unkown error";
     ret.ok = false;
+
+    if (::ChainstateActive().IsInitialBlockDownload()) {
+        ret.err_code = RPC_CLIENT_IN_INITIAL_DOWNLOAD;
+        ret.err_msg = "Emercoin is downloading blocks...";
+        return ret;
+    }
 
     for (size_t i = 0; i < names.size(); ++i) {
         const auto& nameInfo = names[i];
@@ -1213,7 +1233,7 @@ NameTxReturn name_operation(UniValue names, CWallet* pwallet)
         }
         CNameVal name = nameValFromValue(nameInfo["name"]);
         CNameVal value = nameValFromValue(nameInfo["value"]);
-        int days = nameInfo["days"].get_int();
+        int nRentalDays = nameInfo["days"].get_int();
         string strAddress = nameInfo.exists("toaddress") ? nameInfo["toaddress"].get_str() : "";
         string strValueType = nameInfo.exists("valuetype") ? nameInfo["valuetype"].get_str() : "";
 
@@ -1221,189 +1241,170 @@ NameTxReturn name_operation(UniValue names, CWallet* pwallet)
             ret.err_msg = "value must not be empty";
             return ret;
         }
-    }
 
-    return ret;
-}
-
-NameTxReturn name_operation(const int op, const CNameVal& name, CNameVal value, const int nRentalDays, const string& strAddress, const string& strValueType, CWallet* pwallet)
-{
-    NameTxReturn ret;
-    ret.err_code = RPC_INTERNAL_ERROR; // default value in case of abnormal exit
-    ret.err_msg = "unkown error";
-    ret.ok = false;
-
-    if (op == OP_NAME_NEW && value.empty()) {
-        ret.err_msg = "value must not be empty";
-        return ret;
-    }
-
-    // currently supports only new, update and delete operations.
-    if (op != OP_NAME_NEW && op != OP_NAME_UPDATE && op != OP_NAME_DELETE) {
-        ret.err_msg = "illegal name op";
-        return ret;
-    }
-
-    // decode value or leave it as is
-    if (!strValueType.empty() && !value.empty()) {
-        string strValue = stringFromNameVal(value);
-        if (strValueType == "hex") {
-            if (!IsHex(strValue)) {
-                ret.err_msg = "failed to decode value as hex";
-                return ret;
-            }
-            value = ParseHex(strValue);
-        }
-        else if (strValueType == "base64") {
-            bool fInvalid = false;
-            value = DecodeBase64(strValue.c_str(), &fInvalid);
-            if (fInvalid) {
-                ret.err_msg = "failed to decode value as base64";
-                return ret;
-            }
-        } else { // decode as filepath
-            std::ifstream ifs;
-            ifs.open(strValue.c_str(), std::ios::binary | std::ios::ate);
-            if (!ifs) {
-                ret.err_msg = "failed to open file";
-                return ret;
-            }
-            std::streampos fileSize = ifs.tellg();
-            if (fileSize > MAX_VALUE_LENGTH) {
-                ret.err_msg = "file is larger than maximum allowed size";
-                return ret;
-            }
-
-            ifs.clear();
-            ifs.seekg(0, std::ios::beg);
-
-            value.resize(fileSize);
-            if (!ifs.read(reinterpret_cast<char*>(&value[0]), fileSize)) {
-                ret.err_msg = "failed to read file";
-                return ret;
-            }
-        }
-    }
-
-    if (::ChainstateActive().IsInitialBlockDownload()) {
-        ret.err_code = RPC_CLIENT_IN_INITIAL_DOWNLOAD;
-        ret.err_msg = "Emercoin is downloading blocks...";
-        return ret;
-    }
-
-    stringstream ss;
-    CScript scriptPubKey;
-    CTransactionRef tx;
-
-    {
-        auto locked_chain = pwallet->chain().lock();
-        LOCK2(cs_main, pwallet->cs_wallet);
-
-    // wait until other name operation on this name are completed
-        if (mapNamePending.count(name) && mapNamePending[name].size()) {
-            ss << "there are " << mapNamePending[name].size() <<
-                  " pending operations on that name, including " << mapNamePending[name].begin()->hash.GetHex();
-            ret.err_msg = ss.str();
+        // currently supports only new, update and delete operations.
+        if (op != OP_NAME_NEW && op != OP_NAME_UPDATE && op != OP_NAME_DELETE) {
+            ret.err_msg = "illegal name op";
             return ret;
         }
 
-    // check if op can be aplied to name remaining time
-        if (NameActive(name)) {
-            if (op == OP_NAME_NEW) {
-                ret.err_msg = "name_new on an unexpired name";
+        // decode value or leave it as is
+        if (!strValueType.empty() && !value.empty()) {
+            string strValue = stringFromNameVal(value);
+            if (strValueType == "hex") {
+                if (!IsHex(strValue)) {
+                    ret.err_msg = "failed to decode value as hex";
+                    return ret;
+                }
+                value = ParseHex(strValue);
+            }
+            else if (strValueType == "base64") {
+                bool fInvalid = false;
+                value = DecodeBase64(strValue.c_str(), &fInvalid);
+                if (fInvalid) {
+                    ret.err_msg = "failed to decode value as base64";
+                    return ret;
+                }
+            } else { // decode as filepath
+                std::ifstream ifs;
+                ifs.open(strValue.c_str(), std::ios::binary | std::ios::ate);
+                if (!ifs) {
+                    ret.err_msg = "failed to open file";
+                    return ret;
+                }
+                std::streampos fileSize = ifs.tellg();
+                if (fileSize > MAX_VALUE_LENGTH) {
+                    ret.err_msg = "file is larger than maximum allowed size";
+                    return ret;
+                }
+
+                ifs.clear();
+                ifs.seekg(0, std::ios::beg);
+
+                value.resize(fileSize);
+                if (!ifs.read(reinterpret_cast<char*>(&value[0]), fileSize)) {
+                    ret.err_msg = "failed to read file";
+                    return ret;
+                }
+            }
+        }
+
+        stringstream ss;
+        CScript scriptPubKey;
+        CTransactionRef tx;
+
+        {
+            auto locked_chain = pwallet->chain().lock();
+            LOCK2(cs_main, pwallet->cs_wallet);
+
+        // wait until other name operation on this name are completed
+            if (mapNamePending.count(name) && mapNamePending[name].size()) {
+                ss << "there are " << mapNamePending[name].size() <<
+                      " pending operations on that name, including " << mapNamePending[name].begin()->hash.GetHex();
+                ret.err_msg = ss.str();
                 return ret;
             }
-        } else {
+
+        // check if op can be aplied to name remaining time
+            if (NameActive(name)) {
+                if (op == OP_NAME_NEW) {
+                    ret.err_msg = "name_new on an unexpired name";
+                    return ret;
+                }
+            } else {
+                if (op == OP_NAME_UPDATE || op == OP_NAME_DELETE) {
+                    ret.err_msg = stringFromOp(op) + " on an expired name";
+                    return ret;
+                }
+            }
+
+        // grab last tx in name chain and check if it can be spent by us
+            CTransactionRef txIn;
             if (op == OP_NAME_UPDATE || op == OP_NAME_DELETE) {
-                ret.err_msg = stringFromOp(op) + " on an expired name";
+                CTransactionRef prevTx;
+                CNameRecord nameRec;
+                if (!GetLastTxOfName(name, prevTx, nameRec)) {
+                    ret.err_msg = "could not find tx with this name";
+                    return ret;
+                }
+
+                // empty value == reuse old value
+                if (op == OP_NAME_UPDATE && value.empty())
+                    value = nameRec.vNameOp.back().value;
+
+                uint256 txInHash = prevTx->GetHash();
+                auto it = pwallet->mapWallet.find(txInHash);
+                if (it == pwallet->mapWallet.end()) {
+                    ret.err_msg = "this name tx is not in your wallet: " + txInHash.GetHex();
+                    return ret;
+                }
+                txIn = it->second.tx;
+                //emcTODO: remove dependency on transaction history of wallet.dat. Having only a private key that can spend it should be enough.
+
+
+                NameTxInfo nti;
+                if (!DecodeNameOutput(txIn, nameRec.vNameOp.back().nOut, nti)) {
+                    ret.err_msg = "failed to decode txIn";
+                    return ret;
+                }
+
+                if (::IsMine(*pwallet, txIn->vout[nti.nOut].scriptPubKey) != ISMINE_SPENDABLE) {
+                    ret.err_msg = "this name tx is not yours or is not spendable: " + txInHash.GetHex();
+                    return ret;
+                }
+            }
+
+        // create namescript
+            CScript nameScript;
+            string prevMsg = ret.err_msg;
+            if (!createNameScript(nameScript, name, value, nRentalDays, op, ret.err_msg)) {
+                if (prevMsg == ret.err_msg)  // in case error message not changed, but error still occurred
+                    ret.err_msg = "failed to create name script";
                 return ret;
             }
-        }
 
-    // grab last tx in name chain and check if it can be spent by us
-        CTransactionRef txIn;
-        if (op == OP_NAME_UPDATE || op == OP_NAME_DELETE) {
-            CTransactionRef prevTx;
-            CNameRecord nameRec;
-            if (!GetLastTxOfName(name, prevTx, nameRec)) {
-                ret.err_msg = "could not find tx with this name";
-                return ret;
+        // add destination to namescript
+            if ((op == OP_NAME_UPDATE || op == OP_NAME_NEW) && strAddress != "") {
+                CTxDestination dest = DecodeDestination(strAddress);
+                if (!IsValidDestination(dest)) {
+                    ret.err_code = RPC_INVALID_ADDRESS_OR_KEY;
+                    ret.err_msg = "emercoin address is invalid";
+                    return ret;
+                }
+                scriptPubKey = GetScriptForDestination(dest);
+            } else {
+                CPubKey vchPubKey;
+                if(!pwallet->GetKeyFromPool(vchPubKey)) {
+                    ret.err_msg = "failed to get key from pool";
+                    return ret;
+                }
+                scriptPubKey = GetScriptForDestination(PKHash(vchPubKey));
             }
+            nameScript += scriptPubKey;
 
-            // empty value == reuse old value
-            if (op == OP_NAME_UPDATE && value.empty())
-                value = nameRec.vNameOp.back().value;
-
-            uint256 txInHash = prevTx->GetHash();
-            auto it = pwallet->mapWallet.find(txInHash);
-            if (it == pwallet->mapWallet.end()) {
-                ret.err_msg = "this name tx is not in your wallet: " + txInHash.GetHex();
-                return ret;
-            }
-            txIn = it->second.tx;
-            //emcTODO: remove dependency on transaction history of wallet.dat. Having only a private key that can spend it should be enough.
-
-
+        // verify namescript
             NameTxInfo nti;
-            if (!DecodeNameOutput(txIn, nameRec.vNameOp.back().nOut, nti)) {
-                ret.err_msg = "failed to decode txIn";
+            if (!DecodeNameScript(nameScript, nti)) {
+                ret.err_msg = nti.err_msg;
                 return ret;
             }
 
-            if (::IsMine(*pwallet, txIn->vout[nti.nOut].scriptPubKey) != ISMINE_SPENDABLE) {
-                ret.err_msg = "this name tx is not yours or is not spendable: " + txInHash.GetHex();
-                return ret;
-            }
+        // set fee and send!
+            CAmount nameFee = GetNameOpFee(::ChainActive().Tip(), nRentalDays, op, name, value);
+            bool fMultiName = IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus());
+            tx = SendName(*locked_chain, pwallet, nameScript, MIN_TXOUT_AMOUNT, txIn, nameFee, fMultiName);
         }
 
-    // create namescript
-        CScript nameScript;
-        string prevMsg = ret.err_msg;
-        if (!createNameScript(nameScript, name, value, nRentalDays, op, ret.err_msg)) {
-            if (prevMsg == ret.err_msg)  // in case error message not changed, but error still occurred
-                ret.err_msg = "failed to create name script";
-            return ret;
+        //success! collect info and return
+        CTxDestination address;
+        if (ExtractDestination(scriptPubKey, address)) {
+            ret.address = EncodeDestination(address);
         }
-
-    // add destination to namescript
-        if ((op == OP_NAME_UPDATE || op == OP_NAME_NEW) && strAddress != "") {
-            CTxDestination dest = DecodeDestination(strAddress);
-            if (!IsValidDestination(dest)) {
-                ret.err_code = RPC_INVALID_ADDRESS_OR_KEY;
-                ret.err_msg = "emercoin address is invalid";
-                return ret;
-            }
-            scriptPubKey = GetScriptForDestination(dest);
-        } else {
-            CPubKey vchPubKey;
-            if(!pwallet->GetKeyFromPool(vchPubKey)) {
-                ret.err_msg = "failed to get key from pool";
-                return ret;
-            }
-            scriptPubKey = GetScriptForDestination(PKHash(vchPubKey));
-        }
-        nameScript += scriptPubKey;
-
-    // verify namescript
-        NameTxInfo nti;
-        if (!DecodeNameScript(nameScript, nti)) {
-            ret.err_msg = nti.err_msg;
-            return ret;
-        }
-
-    // set fee and send!
-        CAmount nameFee = GetNameOpFee(::ChainActive().Tip(), nRentalDays, op, name, value);
-        bool fMultiName = IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus());
-        tx = SendName(*locked_chain, pwallet, nameScript, MIN_TXOUT_AMOUNT, txIn, nameFee, fMultiName);
+        ret.hex = tx->GetHash();
+        ret.ok = true;
+        return ret;
     }
 
-    //success! collect info and return
-    CTxDestination address;
-    if (ExtractDestination(scriptPubKey, address)) {
-        ret.address = EncodeDestination(address);
-    }
-    ret.hex = tx->GetHash();
-    ret.ok = true;
     return ret;
 }
 
