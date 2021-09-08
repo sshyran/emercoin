@@ -2977,7 +2977,7 @@ OutputType CWallet::TransactionChangeType(OutputType change_type, const std::vec
     return m_default_address_type;
 }
 
-bool CWallet::CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeInput, bool fMultiName,
+bool CWallet::CreateTransaction(const CAmount& nFeeInput, bool fMultiName,
         interfaces::Chain::Lock& locked_chain, const std::vector<CRecipient>& vecSend, CTransactionRef& tx, CAmount& nFeeRet,
         int& nChangePosInOut, std::string& strFailReason, const CCoinControl& coin_control, bool sign)
 {
@@ -3007,15 +3007,18 @@ bool CWallet::CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeIn
 
     // emercoin: define some values used in case of namecoin tx creation
     CAmount nNameTxInCredit = 0;
-    unsigned int nNameTxOut = 0;
-    if (txNameIn && !txNameIn->IsNull()) {
-        std::vector<NameTxInfo> vnti = DecodeNameTx(fMultiName, txNameIn);
-        if (vnti.empty())
-            return false;
-        //emcTODO: redo this for multi names
-        nNameTxOut = vnti[0].nOut;
-        nNameTxInCredit = txNameIn->vout[nNameTxOut].nValue;
+    std::vector<CInputCoin> vNameInput;
+    for (const auto& r : vecSend) {
+        if (!r.txNameIn->IsNull()) {
+            std::vector<NameTxInfo> vnti = DecodeNameTx(fMultiName, r.txNameIn);
+            if (vnti.empty())
+                return false;
+            //emcTODO: redo vnti[0] for multi names
+            nNameTxInCredit = r.txNameIn->vout[vnti[0].nOut].nValue;
+            vNameInput.push_back(CInputCoin(r.txNameIn, vnti[0].nOut));
+        }
     }
+
 
     txNew.nVersion = tx->nVersion;
     txNew.nLockTime = GetLocktimeForNewTransaction(chain(), locked_chain);
@@ -3145,10 +3148,10 @@ bool CWallet::CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeIn
                 }
 
                 // emercoin: add name input
-                if (txNameIn && !txNameIn->IsNull()) {
-                    setCoins.insert(CInputCoin(txNameIn, nNameTxOut));
-                    nValueIn += nNameTxInCredit;
+                for (const auto& nameInput : vNameInput) {
+                    setCoins.insert(nameInput);
                 }
+                nValueIn += nNameTxInCredit;
 
                 CAmount nChange = nValueIn - nValueToSelect;
 
@@ -3344,8 +3347,7 @@ bool CWallet::CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeIn
 bool CWallet::CreateTransaction(interfaces::Chain::Lock& locked_chain, const std::vector<CRecipient>& vecSend, CTransactionRef& tx, CAmount& nFeeRet,
                          int& nChangePosInOut, std::string& strFailReason, const CCoinControl& coin_control, bool sign)
 {
-    CTransactionRef txNameIn;
-    return CreateTransaction(txNameIn, 0, false, locked_chain, vecSend, tx, nFeeRet, nChangePosInOut, strFailReason, coin_control, sign);
+    return CreateTransaction(0, false, locked_chain, vecSend, tx, nFeeRet, nChangePosInOut, strFailReason, coin_control, sign);
 }
 
 /**

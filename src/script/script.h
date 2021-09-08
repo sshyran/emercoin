@@ -595,7 +595,7 @@ struct NameTxInfo
     CNameVal value;
     int nRentalDays;
     int op;
-    int nOut;
+    unsigned int nOut;
     std::string err_msg; //in case function that takes this as argument have something to say about it
 
     //used only by DecodeNameScript()

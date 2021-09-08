@@ -44,7 +44,6 @@ bool EnsureWalletIsAvailable(const CWallet*, bool avoidException);
 
 void SendMoneyCheck(const CAmount& nValue, const CAmount& curBalance);
 CTransactionRef SendMoney(interfaces::Chain::Lock& locked_chain, CWallet * const pwallet, const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, const CCoinControl& coin_control, mapValue_t mapValue);
-CTransactionRef SendName(interfaces::Chain::Lock& locked_chain, CWallet * const pwallet, CScript scriptPubKey, CAmount nValue, CTransactionRef txNameIn, CAmount nFeeInput, bool fMultiName);
 
 UniValue getaddressinfo(const JSONRPCRequest& request);
 UniValue signrawtransactionwithwallet(const JSONRPCRequest& request);

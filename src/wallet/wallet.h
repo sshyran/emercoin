@@ -345,6 +345,7 @@ struct CRecipient
     CScript scriptPubKey;
     CAmount nAmount;
     bool fSubtractFeeFromAmount;
+    CTransactionRef txNameIn;  //emercoin : used for names, leave as blank otherwise
 };
 
 typedef std::map<std::string, std::string> mapValue_t;
@@ -1152,7 +1153,7 @@ public:
      * selected by SelectCoins(); Also create the change output, when needed
      * @note passing nChangePosInOut as -1 will result in setting a random position
      */
-    bool CreateTransaction(CTransactionRef& txNameIn, const CAmount& nFeeInput, bool fMultiName,
+    bool CreateTransaction(const CAmount& nFeeInput, bool fMultiName,
                            interfaces::Chain::Lock& locked_chain, const std::vector<CRecipient>& vecSend, CTransactionRef& tx, CAmount& nFeeRet, int& nChangePosInOut,
                            std::string& strFailReason, const CCoinControl& coin_control, bool sign = true);
     // emercoin: same as above, except without name input

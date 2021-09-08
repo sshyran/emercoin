@@ -348,37 +348,6 @@ CTransactionRef SendMoney(interfaces::Chain::Lock& locked_chain, CWallet * const
     return tx;
 }
 
-CTransactionRef SendName(interfaces::Chain::Lock& locked_chain, CWallet * const pwallet, CScript scriptPubKey, CAmount nValue, CTransactionRef txNameIn, CAmount nFeeInput, bool fMultiName)
-{
-    CCoinControl coin_control;
-    CAmount curBalance = pwallet->GetBalance(0, coin_control.m_avoid_address_reuse).m_mine_trusted;
-    SendMoneyCheck(nValue, curBalance);
-
-    // Create and send the transaction
-    CAmount nFeeRequired;
-    std::string strError;
-    std::vector<CRecipient> vecSend;
-    int nChangePosRet = -1;
-    bool fSubtractFeeFromAmount = false;
-    CRecipient recipient = {scriptPubKey, nValue, fSubtractFeeFromAmount};
-    vecSend.push_back(recipient);
-    CMutableTransaction tmpTx;
-    tmpTx.nVersion = NAMECOIN_TX_VERSION;
-    CTransactionRef tx = MakeTransactionRef(std::move(tmpTx));
-    if (!pwallet->CreateTransaction(txNameIn, nFeeInput, fMultiName, locked_chain, vecSend, tx, nFeeRequired, nChangePosRet, strError, coin_control)) {
-        if (!fSubtractFeeFromAmount && nValue + nFeeRequired > curBalance)
-            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
-        throw JSONRPCError(RPC_WALLET_ERROR, strError);
-    }
-    CValidationState state;
-    mapValue_t mapValue;
-    if (!pwallet->CommitTransaction(tx, std::move(mapValue), {} /* orderForm */, state)) {
-        strError = strprintf("Error: The transaction was rejected! Reason given: %s", FormatStateMessage(state));
-        throw JSONRPCError(RPC_WALLET_ERROR, strError);
-    }
-    return tx;
-}
-
 static UniValue sendtoaddress(const JSONRPCRequest& request)
 {
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
