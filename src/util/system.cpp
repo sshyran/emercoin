@@ -882,6 +882,7 @@ bool ArgsManager::ReadConfigStream(std::istream& stream, const std::string& file
 std::string getConfigFile() {
    return GetConfigFile(gArgs.GetArg("-conf", BITCOIN_CONF_FILENAME)).string();
 }
+
 bool ArgsManager::ReadConfigFiles(std::string& error, bool ignore_invalid_keys)
 {
     {
@@ -952,6 +953,11 @@ bool ArgsManager::ReadConfigFiles(std::string& error, bool ignore_invalid_keys)
                 tfm::format(std::cerr, "warning: -includeconf cannot be used from included files; ignoring -includeconf=%s\n", to_include.c_str());
             }
         }
+    } else {
+        // Missing config file
+        FILE *pFile = fopen(GetConfigFile(confPath).c_str(), "a");  // create empty config if it does not exist
+        if (pFile != NULL)
+            fclose(pFile);
     }
 
     // If datadir is changed in .conf file:
