@@ -8,6 +8,8 @@
 #include <wallet/rpcwallet.h>
 #include <key_io.h>
 #include <wallet/coincontrol.h>
+#include <util/validation.h>
+#include <consensus/validation.h>
 
 #include <boost/format.hpp>
 #include <boost/xpressive/xpressive_dynamic.hpp>
@@ -1221,8 +1223,14 @@ NameTxReturn name_operation(UniValue names, CWallet* pwallet)
     auto locked_chain = pwallet->chain().lock();
     LOCK2(cs_main, pwallet->cs_wallet);
 
+    bool fMultiName = IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus());
+    if (!fMultiName && names.size() > 1) {
+        ret.err_code = RPC_INVALID_PARAMETER;
+        ret.err_msg = "Multi-name are not enabled yet...";
+        return ret;
+    }
+
     CAmount nameFee = 0;
-    CTransactionRef tx;
     std::vector<CScript> vNameScript;
     for (size_t i = 0; i < names.size(); ++i) {
         const auto& nameInfo = names[i];
@@ -1395,37 +1403,45 @@ NameTxReturn name_operation(UniValue names, CWallet* pwallet)
     }
 
     // set fee and send!
-    bool fMultiName = IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus());
+    std::vector<CRecipient> vecSend;
+    CAmount nValue = 0;
+    bool fSubtractFeeFromAmount = false;
+    for (const auto& script : vNameScript) {
+        CRecipient recipient = {script, MIN_TXOUT_AMOUNT, fSubtractFeeFromAmount};
+        nValue += MIN_TXOUT_AMOUNT;
+        vecSend.push_back(recipient);
+    }
 
-//    CCoinControl coin_control;
-//    CAmount curBalance = pwallet->GetBalance(0, coin_control.m_avoid_address_reuse).m_mine_trusted;
-//    SendMoneyCheck(nValue, curBalance);
+    CCoinControl coin_control;
+    CAmount curBalance = pwallet->GetBalance(0, coin_control.m_avoid_address_reuse).m_mine_trusted;
+    SendMoneyCheck(nValue, curBalance);
 
-//    // Create and send the transaction
-//    CAmount nFeeRequired;
-//    std::string strError;
-//    int nChangePosRet = -1;
-//    CMutableTransaction tmpTx;
-//    tmpTx.nVersion = NAMECOIN_TX_VERSION;
-//    CTransactionRef tx = MakeTransactionRef(std::move(tmpTx));
-//    if (!pwallet->CreateTransaction(nFeeInput, fMultiName, locked_chain, vecSend, tx, nFeeRequired, nChangePosRet, strError, coin_control)) {
-//        if (!fSubtractFeeFromAmount && nValue + nFeeRequired > curBalance)
-//            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
-//        throw JSONRPCError(RPC_WALLET_ERROR, strError);
-//    }
-//    CValidationState state;
-//    mapValue_t mapValue;
-//    if (!pwallet->CommitTransaction(tx, std::move(mapValue), {} /* orderForm */, state)) {
-//        strError = strprintf("Error: The transaction was rejected! Reason given: %s", FormatStateMessage(state));
-//        throw JSONRPCError(RPC_WALLET_ERROR, strError);
-//    }
-//    return tx;
+    // Create and send the transaction
+    CAmount nFeeRequired;
+    std::string strError;
+    int nChangePosRet = -1;
+    CMutableTransaction tmpTx;
+    tmpTx.nVersion = NAMECOIN_TX_VERSION;
+    CTransactionRef tx = MakeTransactionRef(std::move(tmpTx));
+
+    if (!pwallet->CreateTransaction(nameFee, fMultiName, *locked_chain, vecSend, tx, nFeeRequired, nChangePosRet, strError, coin_control)) {
+        if (!fSubtractFeeFromAmount && nValue + nFeeRequired > curBalance)
+            ret.err_msg = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
+        return ret;
+    }
+    CValidationState state;
+    mapValue_t mapValue;
+    if (!pwallet->CommitTransaction(tx, std::move(mapValue), {} /* orderForm */, state)) {
+        ret.err_msg = strprintf("Error: The transaction was rejected! Reason given: %s", FormatStateMessage(state));
+        return ret;
+    }
 
     //success! collect info and return
-//    CTxDestination address;
-//    if (ExtractDestination(scriptPubKey, address)) {
-//        ret.address = EncodeDestination(address);
-//    }
+    //emcTODO - return a list of addresses?
+    CTxDestination address;
+    if (ExtractDestination(vNameScript[0], address)) {
+        ret.address = EncodeDestination(address);
+    }
     ret.hex = tx->GetHash();
     ret.ok = true;
     return ret;
