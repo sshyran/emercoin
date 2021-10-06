@@ -3009,7 +3009,7 @@ bool CWallet::CreateTransaction(const CAmount& nFeeInput, bool fMultiName,
     CAmount nNameTxInCredit = 0;
     std::vector<CInputCoin> vNameInput;
     for (const auto& r : vecSend) {
-        if (!r.txNameIn->IsNull()) {
+        if (r.txNameIn && !r.txNameIn->IsNull()) {
             std::vector<NameTxInfo> vnti = DecodeNameTx(fMultiName, r.txNameIn);
             if (vnti.empty())
                 return false;
