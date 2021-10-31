@@ -555,6 +555,7 @@ UniValue name_show(const JSONRPCRequest& request)
         oName.pushKV("value", encodeNameVal(nti.value, outputType));
         oName.pushKV("txid", tx->GetHash().GetHex());
         oName.pushKV("address", nti.strAddress);
+        oName.pushKV("vout", (int)nti.nOut);
         oName.pushKV("expires_in", nameRec.nExpiresAt - ::ChainActive().Height());
         oName.pushKV("expires_at", nameRec.nExpiresAt);
         oName.pushKV("time", (boost::int64_t)tx->nTime);
@@ -650,6 +651,7 @@ UniValue name_history(const JSONRPCRequest& request)
         obj.pushKV("time",             (boost::int64_t)tx->nTime);
         obj.pushKV("height",           nameRec.vNameOp[i].nHeight);
         obj.pushKV("address",          nti.strAddress);
+        obj.pushKV("vout",             (int)nti.nOut);
         if (nti.fIsMine)
             obj.pushKV("address_is_mine",  "true");
         obj.pushKV("operation",        stringFromOp(nti.op));
@@ -685,6 +687,7 @@ UniValue name_mempool(const JSONRPCRequest& request)
             "    \"txid\": \"xxxx\",            (string) transaction id"
             "    \"time\": xxxxx,               (numeric) transaction time"
             "    \"address\": \"xxxx\",         (string) address to which transaction was sent"
+            "    \"vout\": xxxxx,               (numeric) TX output number(n)"
             "    \"address_is_mine\": \"xxxx\", (string) shows \"true\" if this is your address, otherwise not visible"
             "    \"operation\": \"xxxx\",       (string) name operation that was performed in this transaction"
             "    \"days_added\": xxxx,          (numeric) days added (1 day = 175 blocks) to name expiration time, not visible if 0"
@@ -1400,7 +1403,7 @@ NameTxReturn name_operation(UniValue names, CWallet* pwallet)
 
         nameFee += GetNameOpFee(::ChainActive().Tip(), nRentalDays, op, name, value);
         vNameScript.push_back(nameScript);
-    }
+    } // for nameOP list
 
     // set fee and send!
     std::vector<CRecipient> vecSend;
@@ -1437,7 +1440,7 @@ NameTxReturn name_operation(UniValue names, CWallet* pwallet)
     }
 
     //success! collect info and return
-    //emcTODO - return a list of addresses?
+    //emcTODO - return a list of addresses? (currently addressed aren't used)
     CTxDestination address;
     if (ExtractDestination(vNameScript[0], address)) {
         ret.address = EncodeDestination(address);
