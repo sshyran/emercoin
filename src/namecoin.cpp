@@ -213,6 +213,8 @@ bool CNamecoinHooks::IsNameFeeEnough(const CTransactionRef& tx, const CAmount& t
     if (vnti.empty())
         return false;
 
+    // oleg TODO - need sum of NameFee check!
+
     for (const auto& nti : vnti) {
         if (!::IsNameFeeEnough(nti, ::ChainActive().Tip(), txFee))
             return false;
