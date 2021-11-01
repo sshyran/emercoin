@@ -562,23 +562,11 @@ static int stun_send(int s, struct sockaddr_in *dst, struct stun_header *resp)
 }
 
 /* helper function to generate a random request id */
-static uint64_t randfiller;
-static void stun_req_id(struct stun_header *req)
-{
-  const uint64_t *S_block = (const uint64_t *)StunSrvList;
-  req->id.id[1] &= 0x55555555;
-  req->id.id[2] |= 0x55555555;
-  req->id.id[3] &= 0x55555555;
-  char x = 20;
-  do {
-    uint32_t s_elm = S_block[(uint8_t)randfiller];
-    randfiller = (randfiller << 5) | (randfiller >> (64 - 5));
-    randfiller += s_elm ^ x;
-    req->id.id[x & 3] += randfiller ^ (randfiller >> 19);
-  } while(--x);
+static void stun_req_id(struct stun_header *req) {
+  // fill rand to req->id.id[1..3]
+  GetRandBytes((uint8_t *)&(req->id.id[1]), 3 * sizeof(unsigned int));
   req->id.id[0] = STUN_XORMAGIC; // Set magic for RFC5389
 }
-
 
 /* Extract the STUN_MAPPED_ADDRESS from the stun response.
  * This is used as a callback for stun_handle_response
@@ -769,8 +757,8 @@ static int StunRequest(const char *host, uint16_t port, struct sockaddr_in *mapp
 // bits 0-7 = STUN tokens set, 8-32 = attempt number
 // Negative return - unable to figure out IP address
 int GetExternalIPbySTUN(struct sockaddr_in *mapped, const char **srv, uint16_t src_port) {
-  GetRandBytes((uint8_t *)&randfiller, sizeof(randfiller));
-  uint32_t rnd = (uint32_t)randfiller;
+  uint32_t rnd;
+  GetRandBytes((uint8_t *)&rnd, sizeof(rnd));
   uint16_t pos  = rnd >> 16;
   uint16_t step, a, b, t; 
   // Select step relative prime to StunSrvListQty using Euclid algorithm
