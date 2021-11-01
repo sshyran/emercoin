@@ -427,14 +427,18 @@ emercoin_tx_SOURCES += bitcoin-tx-res.rc
 endif
 
 emercoin_tx_LDADD = \
+  $(LIBBITCOIN_SERVER) \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_COMMON) \
   $(LIBBITCOIN_UTIL) \
+  $(LIBBITCOIN_WALLET) \
   $(LIBBITCOIN_CONSENSUS) \
   $(LIBBITCOIN_CRYPTO) \
+  $(LIBLEVELDB) \
+  $(LIBMEMENV) \
   $(LIBSECP256K1)
 
-emercoin_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
+emercoin_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS) $(BDB_LIBS) $(EVENT_PTHREADS_LIBS)
 #
 
 # emercoinconsensus library #

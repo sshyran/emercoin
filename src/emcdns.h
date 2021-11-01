@@ -22,6 +22,8 @@ using namespace std;
 #define VERMASK_BLOCKED -2
 #define VERMASK_NOSRL	(1 << 24)	// ENUM: undef/missing mask for Signature Revocation List
 
+#define FLAG_LOCAL_SD   0x1            // Check subdomains in emcdnslocal resolver (lines starts from '.')
+
 struct DNSHeader {
   static const uint32_t QR_MASK = 0x8000;
   static const uint32_t OPCODE_MASK = 0x7800; // shr 11
@@ -39,7 +41,7 @@ struct DNSHeader {
   uint16_t ARCount;
 
   inline void Transcode() {
-    for(uint16_t *p = (uint16_t*)(void*)&msgID; p <= (uint16_t*)(void*)&ARCount; p++)
+      for(uint16_t *p = (uint16_t*)(void*)&msgID; p <= (uint16_t*)(void*)&ARCount; p++)
       *p = ntohs(*p);
   }
 } __attribute__((packed)); // struct DNSHeader
@@ -108,23 +110,27 @@ class EmcDns {
     DNSHeader *m_hdr; // 1st bzero element
     DNSAP    *m_dap_ht;	// Hashtable for DAP; index is hash(IP)
     char     *m_value;
-    const char *m_gw_suffix;
+    char     *m_gw_suffix;
     uint8_t  *m_buf, *m_bufend, *m_snd, *m_rcv, *m_rcvend;
     SOCKET    m_sockfd;
     int       m_rcvlen;
-    uint32_t m_timestamp;
-    uint32_t  m_daprand;	// DAP random value for universal hashing
+    uint32_t  m_timestamp;
+    uint32_t  m_mintemp; // Saved minimal DAP-remperature
+    uint32_t  m_daprand; // DAP random value for universal hashing
     uint32_t  m_dapmask, m_dap_treshold;
     uint32_t  m_ttl;
     uint16_t  m_label_ref;
     uint16_t  m_gw_suf_len;
+    uint16_t  m_gw_suffix_replace_len;
     char     *m_allowed_base;
     char     *m_local_base;
+    char     *m_gw_suffix_replace;
     int16_t   m_ht_offset[0x100]; // Hashtable for allowed TLD-suffixes(>0) and local names(<0)
     uint8_t   m_gw_suf_dots;
     uint8_t   m_allowed_qty;
     uint8_t   m_verbose;	// LAST bzero element
     int8_t    m_status;
+    uint16_t  m_flags;          // runtime flags
     boost::thread m_thread;
     map<string, Verifier> m_verifiers;
     vector<TollFree>      m_tollfree;
