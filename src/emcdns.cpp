@@ -695,10 +695,9 @@ uint16_t EmcDns::HandleQuery() {
         } 
       } while(m_ht_offset[pos] < 0 || strcmp((const char *)p_tld, m_allowed_base + (m_ht_offset[pos] & ~ENUM_FLAG)) != 0);
 
-      // ENUM SPFUN works only if TLD-filter is active
+      // ENUM SPFUN works only if TLD-filter is active amd if request NAPTR. Otherwise - NXDOMAIN
       if(m_ht_offset[pos] & ENUM_FLAG)
-        return SpfunENUM(m_allowed_base[(m_ht_offset[pos] & ~ENUM_FLAG) - 1], domain_ndx, domain_ndx_p);
-      
+        return qtype == 0x23? SpfunENUM(m_allowed_base[(m_ht_offset[pos] & ~ENUM_FLAG) - 1], domain_ndx, domain_ndx_p) : 3;
 
     } // if(m_allowed_qty)
 
