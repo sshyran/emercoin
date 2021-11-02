@@ -191,35 +191,29 @@ CHooks* InitHook()
     return new CNamecoinHooks();
 }
 
-bool IsNameFeeEnough(const NameTxInfo& nti, const CBlockIndex* pindexBlock, const CAmount& txFee)
-{
-    // scan last 10 PoW block for tx fee that matches the one specified in tx
-    const CBlockIndex* lastPoW = GetLastBlockIndex(pindexBlock, false);
-    bool txFeePass = false;
-    for (int i = 1; i <= 10 && lastPoW->pprev; i++) {
-        CAmount netFee = GetNameOpFee(lastPoW, nti.nRentalDays, nti.op, nti.name, nti.value);
-        if (txFee >= netFee) {
-            txFeePass = true;
-            break;
-        }
-        lastPoW = GetLastBlockIndex(lastPoW->pprev, false);
-    }
-    return txFeePass;
-}
+static bool IsNameFeeEnough(const std::vector<NameTxInfo> &vnti, const CBlockIndex* pindexBlock, const CAmount& txFee) {
+    if(!vnti.empty())
+        for(int nAttempts = 10; nAttempts > 0 && pindexBlock != nullptr; nAttempts--) {
+            pindexBlock = GetLastBlockIndex(pindexBlock, false); // Adjust to last PoW block
+            CAmount requiredFee = 0;
+
+            for (const auto& nti : vnti)
+                requiredFee += GetNameOpFee(pindexBlock, nti.nRentalDays, nti.op, nti.name, nti.value);
+
+            if(txFee >= requiredFee)
+                return true; // Fee is enough
+
+            pindexBlock = pindexBlock->pprev; // Prepare to next iteration
+        } // for nAttempts && if !vnti.empty()
+
+    return false; // Exhaust 10 attempts to find PoW block with valid fee
+} // static IsNameFeeEnough
 
 bool CNamecoinHooks::IsNameFeeEnough(const CTransactionRef& tx, const CAmount& txFee)
 {
     std::vector<NameTxInfo> vnti = DecodeNameTx(IsV8Enabled(::ChainActive().Tip(), Params().GetConsensus()), tx);
-    if (vnti.empty())
-        return false;
-
-    for (const auto& nti : vnti) {
-        if (!::IsNameFeeEnough(nti, ::ChainActive().Tip(), txFee))
-            return false;
-    }
-
-    return true;
-}
+    return ::IsNameFeeEnough(vnti, ::ChainActive().Tip(), txFee);
+} // CNamecoinHooks::IsNameFeeEnough
 
 //returns first name operation. I.e. name_new from chain like name_new->name_update->name_update->...->name_update
 bool GetFirstTxOfName(const CNameVal& name, CTransactionRef& tx)
@@ -1589,34 +1583,7 @@ void CNamecoinHooks::AddToPendingNames(const CTransactionRef& tx)
     }
 }
 
-// Checks name tx and save names data to vName if valid
-// returns true if all names are valid
-// false otherwise
-bool CheckNameTx(const CTransactionRef& tx, const CBlockIndex* pindexBlock, vector<nameCheckResult> &vNameResult, const CDiskTxPos& pos, const CAmount& txFee)
-{
-    if (tx->nVersion != NAMECOIN_TX_VERSION)
-        return false;
-
-    //read names from tx
-    std::vector<NameTxInfo> vnti = DecodeNameTx(IsV8Enabled(pindexBlock->pprev, Params().GetConsensus()), tx, true);
-    if (vnti.empty()) {
-        if (pindexBlock->nHeight > RELEASE_HEIGHT)
-            LogPrintf("%s: could not decode name tx %s in block %d", __func__, tx->GetHash().GetHex(), pindexBlock->nHeight);
-        return false;
-    }
-
-    for (const auto& nti : vnti) {
-        nameCheckResult nameResult;
-        if (CheckName(nti, tx, pindexBlock, nameResult, pos, txFee)) {
-            vNameResult.push_back(nameResult);
-        } else
-            return false;
-    }
-
-    return true;
-}
-
-bool CheckName(const NameTxInfo& nti, const CTransactionRef& tx, const CBlockIndex* pindexBlock, nameCheckResult& nameResult, const CDiskTxPos& pos, const CAmount& txFee) {
+static bool CheckName(const NameTxInfo& nti, const CTransactionRef& tx, const CBlockIndex* pindexBlock, nameCheckResult& nameResult, const CDiskTxPos& pos, const CAmount& txFee) {
     CNameVal name = nti.name;
     string sName = stringFromNameVal(name);
     string info = str( boost::format("name %s, tx=%s, block=%d, value=%s") %
@@ -1646,13 +1613,6 @@ bool CheckName(const NameTxInfo& nti, const CTransactionRef& tx, const CBlockInd
     {
         case OP_NAME_NEW:
         {
-            //scan last 10 PoW block for tx fee that matches the one specified in tx
-            if (!::IsNameFeeEnough(nti, pindexBlock, txFee)) {
-                if (pindexBlock->nHeight > RELEASE_HEIGHT)
-                    return error("%s: rejected name_new because not enough fee for %s", __func__, info);
-                return false;
-            }
-
             if (NameActive(name, pindexBlock->nHeight)) {
                 if (pindexBlock->nHeight > RELEASE_HEIGHT)
                     return error("%s: name_new on an unexpired name for %s", __func__, info);
@@ -1662,13 +1622,6 @@ bool CheckName(const NameTxInfo& nti, const CTransactionRef& tx, const CBlockInd
         }
         case OP_NAME_UPDATE:
         {
-            //scan last 10 PoW block for tx fee that matches the one specified in tx
-            if (!::IsNameFeeEnough(nti, pindexBlock, txFee)) {
-                if (pindexBlock->nHeight > RELEASE_HEIGHT)
-                    return error("%s: rejected name_update because not enough fee for %s", __func__, info);
-                return false;
-            }
-
             if (!found || (prev_nti.op != OP_NAME_NEW && prev_nti.op != OP_NAME_UPDATE))
                 return error("name_update without previous new or update tx for %s", info);
 
@@ -1712,6 +1665,41 @@ bool CheckName(const NameTxInfo& nti, const CTransactionRef& tx, const CBlockInd
 
     return true;
 }
+
+// Checks name tx and save names data to vName if valid
+// returns true if all names are valid
+// false otherwise
+bool CheckNameTx(const CTransactionRef& tx, const CBlockIndex* pindexBlock, vector<nameCheckResult> &vNameResult, const CDiskTxPos& pos, const CAmount& txFee)
+{
+    if (tx->nVersion != NAMECOIN_TX_VERSION)
+        return false;
+
+    //read names from tx
+    std::vector<NameTxInfo> vnti = DecodeNameTx(IsV8Enabled(pindexBlock->pprev, Params().GetConsensus()), tx, true);
+    if (vnti.empty()) {
+        if (pindexBlock->nHeight > RELEASE_HEIGHT)
+            LogPrintf("%s: could not decode name tx %s in block %d", __func__, tx->GetHash().GetHex(), pindexBlock->nHeight);
+        return false;
+    }
+
+    if(!::IsNameFeeEnough(vnti, pindexBlock, txFee)) {
+      // Not enough fee
+      if (pindexBlock->nHeight > RELEASE_HEIGHT) 
+          return error("%s: rejected name_new because not enough fee for tx=%s block=%d", __func__, tx->GetHash().GetHex(), pindexBlock->nHeight);
+      return false;
+    }
+
+    for (const auto& nti : vnti) {
+        nameCheckResult nameResult;
+        if (CheckName(nti, tx, pindexBlock, nameResult, pos, txFee)) {
+            vNameResult.push_back(nameResult);
+        } else
+            return false;
+    } // for vnti
+
+    return true;
+} // CheckNameTx
+
 
 bool DisconnectNameTx(const CTransactionRef& tx, bool fMultiName)
 {
