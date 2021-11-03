@@ -1689,10 +1689,14 @@ bool CheckNameTx(const CTransactionRef& tx, const CBlockIndex* pindexBlock, vect
       return false;
     }
 
+    std::set<CNameVal> dup_names; // Name duplicate within transaction is not allowed
     for (const auto& nti : vnti) {
+        if(dup_names.count(nti.name))
+          return error("%s: rejected duplicate name=%s tx=%s block=%d", __func__, stringFromNameVal(nti.name), tx->GetHash().GetHex(), pindexBlock->nHeight);
         nameCheckResult nameResult;
         if (CheckName(nti, tx, pindexBlock, nameResult, pos, txFee)) {
             vNameResult.push_back(nameResult);
+            dup_names.insert(nti.name);
         } else
             return false;
     } // for vnti
