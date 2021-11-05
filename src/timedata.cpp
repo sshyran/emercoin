@@ -92,17 +92,15 @@ void AddTimeData(const CNetAddr& ip, int64_t nOffsetSample)
 
         // Only let other nodes change our time by so much
         if (abs64(nMedian) <= std::max<int64_t>(0, gArgs.GetArg("-maxtimeadjustment", DEFAULT_MAX_TIME_ADJUSTMENT))) {
-            nMedian = 0;
 
-            static bool fDone;
+            static bool fDone = false;
             if (!fDone)
             {
-                // If nobody has a time different than ours but within 5 minutes of ours, give a warning
-                bool fMatch = false;
-                for (const int64_t nOffset : vSorted)
-                    if (nOffset != 0 && abs64(nOffset) < 5 * 60)
-                        fMatch = true;
-
+                // Bitcoin code is not work properly here, because of
+                // within Emercoin lot of peer servers with good clocks, and there is possible 
+                // vSorted = {0, 0, 0, 0, 0}
+                // We test here: median is fit into range +-5 min.
+                bool fMatch = nMedian > -5 * 60 && nMedian < 5 * 60;
                 if (!fMatch)
                 {
                     fDone = true;
@@ -111,6 +109,7 @@ void AddTimeData(const CNetAddr& ip, int64_t nOffsetSample)
                     uiInterface.ThreadSafeMessageBox(strMessage, "", CClientUIInterface::MSG_WARNING);
                 }
             }
+            nMedian = 0;
         }
 
         // Lock-free update nTimeOffset
