@@ -141,6 +141,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
                     coinbaseTx.vout[0].scriptPubKey.clear();
                     coinbaseTx.nTime = txCoinStake.nTime;
                     pblock->vtx.push_back(MakeTransactionRef(CTransaction(txCoinStake)));
+                    pblock->nFlags |= BLOCK_PROOF_OF_STAKE;
                     *pfPoSCancel = false;
                 }
             }
