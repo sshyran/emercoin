@@ -49,6 +49,8 @@
 #include <boost/filesystem/fstream.hpp>
 #include <boost/math/distributions/poisson.hpp>
 #include <boost/thread.hpp>
+#include <boost/bind.hpp>
+using namespace boost::placeholders;
 
 #if defined(NDEBUG)
 # error "Emercoin cannot be compiled without assertions."

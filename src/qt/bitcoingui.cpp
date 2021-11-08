@@ -65,6 +65,9 @@
 #include <QUrlQuery>
 #endif
 
+#include <boost/bind.hpp>
+using namespace boost::placeholders;
+
 extern bool fWalletUnlockMintOnly;
 
 const std::string BitcoinGUI::DEFAULT_UIPLATFORM =

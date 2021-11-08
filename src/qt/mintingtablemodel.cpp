@@ -21,6 +21,9 @@
 #include <QColor>
 #include <QTimer>
 
+#include <boost/bind.hpp>
+using namespace boost::placeholders;
+
 // Amount column is right-aligned it contains numbers
 static int column_alignments[] = {
         Qt::AlignLeft|Qt::AlignVCenter,
