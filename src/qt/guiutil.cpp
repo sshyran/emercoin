@@ -58,6 +58,7 @@
 #include <QMouseEvent>
 #include <QUrlQuery>
 #include <QFontDatabase>
+#include <QProcess>
 
 #if BOOST_FILESYSTEM_VERSION >= 3
 static boost::filesystem::detail::utf8_codecvt_facet utf8;
@@ -205,9 +206,9 @@ bool parseEmercoinSendmany(const QUrl &uri, std::vector<SendCoinsRecipient> &out
     for(char *p = (char*)i->second.toStdString().c_str(); *p; p++)
 	  if(*p == '\\')
 	    switch(p[1]) {
-	      case 'l': 
+	      case 'l':
 	        *p++ = 0; p_label = p + 1; continue;
-	      case 'm': 
+	      case 'm':
 	        *p++ = 0; p_msg   = p + 1; continue;
 	      default:
 	        continue;
@@ -779,6 +780,8 @@ bool SetStartOnSystemStartup(bool fAutoStart)
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreServices/CoreServices.h>
 
+void ForceActivation();
+
 LSSharedFileListItemRef findStartupItemInList(LSSharedFileListRef list, CFURLRef findUrl);
 LSSharedFileListItemRef findStartupItemInList(LSSharedFileListRef list, CFURLRef findUrl)
 {
@@ -1005,7 +1008,7 @@ void ClickableLabel::mouseReleaseEvent(QMouseEvent *event)
 {
     Q_EMIT clicked(event->pos());
 }
-    
+
 void ClickableProgressBar::mouseReleaseEvent(QMouseEvent *event)
 {
     Q_EMIT clicked(event->pos());
