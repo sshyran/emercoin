@@ -452,7 +452,8 @@ void EmcDns::Run() {
         sendto(m_sockfd, (const char *)m_buf, packet_len, MSG_NOSIGNAL,
 	             (struct sockaddr *)&sin6, sin6len);
         add_temp += packet_len >> 5; // Add temp for long answer
-      }
+      } else
+          add_temp += 50;
       CheckDAP(&sin6.sin6_addr, sin6len, add_temp); // More heat!
     } // dap check
   } // for
@@ -698,7 +699,7 @@ uint16_t EmcDns::HandleQuery() {
         } 
       } while(m_ht_offset[pos] < 0 || strcmp((const char *)p_tld, m_allowed_base + (m_ht_offset[pos] & ~ENUM_FLAG)) != 0);
 
-      // ENUM SPFUN works only if TLD-filter is active amd if request NAPTR. Otherwise - NXDOMAIN
+      // ENUM SPFUN works only if TLD-filter is active and if request NAPTR. Otherwise - NXDOMAIN
       if(m_ht_offset[pos] & ENUM_FLAG)
         return qtype == 0x23? SpfunENUM(m_allowed_base[(m_ht_offset[pos] & ~ENUM_FLAG) - 1], domain_ndx, domain_ndx_p) : 3;
 
@@ -1136,10 +1137,12 @@ int EmcDns::SpfunENUM(uint8_t len, uint8_t **domain_start, uint8_t **domain_end)
           HandleE2U(strcpy(m_value, e2u->c_str()));
     } // tf processing
 
-    if(m_hdr->ANCount) {
-      return 0; // if collected some answers - OK
-    }
-
+    // For ENUM reuqest, there is lot of unsucessful requests from same PBX.
+    // Thus, for ENUM, we do not create "unsuccessful request penalty", and return 0-code as same as OK.
+    // But, we set flag NXDOMAIN here directly within answer
+    if(m_hdr->ANCount == 0)
+        m_hdr->Bits |= 3; // NXDOMAIN, if no answer exists
+    return 0;
   } while(false);
 
   return 3; // NXDOMAIN
