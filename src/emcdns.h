@@ -101,7 +101,7 @@ class EmcDns {
     void HandleE2U(char *e2u);
     bool CheckEnumSig(const char *q_str, char *sig_str);
     void AddTF(char *tf_tok);
-    bool CheckDAP(void *key, int len, uint32_t packet_size);
+    bool CheckDAP(void *key, int len, uint16_t inctemp);
 
     inline void Out2(uint16_t x) { x = htons(x); memcpy(m_snd, &x, 2); m_snd += 2; }
     inline void Out4(uint32_t x) { x = htonl(x); memcpy(m_snd, &x, 4); m_snd += 4; }
