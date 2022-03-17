@@ -600,30 +600,21 @@ uint16_t EmcDns::HandleQuery() {
     *key_end++ = '.'; // Set DOT at domain end
   } //  while(dom_len)
 
-  *--key_end = 0; // Remove last dot, set EOLN
-
-  if(!CheckDAP(key, key - key_end, 0)) {
-    if(m_verbose > 3)
-      LogPrintf("\tEmcDns::HandleQuery: Aborted domain %s by DAP mintemp=%u\n", key, m_mintemp);
-    return 0xDead; // Botnet detected, abort query processing
-  }
-
-  if(m_verbose > 4) 
-    LogPrintf("EmcDns::HandleQuery: Translated domain name: [%s]; DomainsQty=%d\n", key, (int)(domain_ndx_p - domain_ndx));
-
   uint16_t qtype  = *m_rcv++; qtype  = (qtype  << 8) + *m_rcv++; 
   uint16_t qclass = *m_rcv++; qclass = (qclass << 8) + *m_rcv++;
 
   if(qclass != 1)
     return 4; // Not implemented - support INET only
 
-  if(m_verbose > 2) 
-    LogPrintf("EmcDns::HandleQuery: Key=%s QType=0x%x[%s] mintemp=%u\n", key, qtype, decodeQtype(qtype), m_mintemp);
+  *--key_end = 0; // Remove last dot, set EOLN
 
-  // If thid is public gateway, gw-suffix can be specified, like 
+  if(m_verbose > 4) 
+    LogPrintf("EmcDns::HandleQuery: Translated domain name: [%s]; DomainsQty=%d\n", key, (int)(domain_ndx_p - domain_ndx));
+
+  // If this is public gateway, gw-suffix can be specified, like 
   // emcdnssuffix=.xyz.com
-  // Followind block cuts this suffix, if exists.
-  // If received domain name "xyz.com" only, keyp is empty string
+  // Following block cuts this suffix, if exists.
+  // If received domain name "xyz.com" only, key is empty string
   if(m_gw_suf_len) { // suffix defined [public DNS], need to cut/replace
     uint8_t *p_suffix = key_end - m_gw_suf_len;
     if(p_suffix >= key && strcmp((const char *)p_suffix, m_gw_suffix) == 0) {
@@ -638,6 +629,15 @@ uint16_t EmcDns::HandleQuery() {
       domain_ndx_p = domain_ndx;
     } 
   } // if(m_gw_suf_len)
+
+  if(!CheckDAP(key, key - key_end, 0)) {
+    if(m_verbose > 3)
+      LogPrintf("\tEmcDns::HandleQuery: Aborted domain %s by DAP mintemp=%u\n", key, m_mintemp);
+    return 0xDead; // Botnet detected, abort query processing
+  }
+
+  if(m_verbose > 2) 
+    LogPrintf("EmcDns::HandleQuery: Key=%s QType=0x%x[%s] mintemp=%u\n", key, qtype, decodeQtype(qtype), m_mintemp);
 
   // Search for TLD-suffix, like ".coin"
   // If name without dot, like "www", this is candidate for local search
@@ -710,8 +710,10 @@ uint16_t EmcDns::HandleQuery() {
     bool step_next;
     do { // Search from up domain to down; start from 2-lvl, like www.[flibusta.lib]
       cur_ndx_p = prev_ndx_p;
-      if(Search(*cur_ndx_p) <= 0) // Result saved into m_value
+      if(Search(*cur_ndx_p) <= 0) { // Result saved into m_value
+	CheckDAP(key, key - key_end, 6969); // allowed 4 false searches for non-exists domain
 	return 3; // empty answer, not found, return NXDOMAIN
+      }
       if(cur_ndx_p == domain_ndx)
 	break; // This is 1st domain (last in the chain, no more subdomains), go to answer
       // Try to search allowance in SD=list for next step down subdomain, like [www]
