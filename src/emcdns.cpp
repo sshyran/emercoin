@@ -443,14 +443,17 @@ void EmcDns::Run() {
         m_daprand = GetRand(0xffffffff) | 1;
       m_timestamp = now >> EMCDNS_DAPSHIFTDECAY; // time in 256s (~4 min)
     }
-    if(CheckDAP(&sin6.sin6_addr, sin6len, m_rcvlen)) {
+    if(CheckDAP(&sin6.sin6_addr, sin6len, m_rcvlen >> 5)) {
       m_buf[BUF_SIZE] = 0; // Set terminal for infinity QNAME
-      if(HandlePacket() == 0) {
-        sendto(m_sockfd, (const char *)m_buf, m_snd - m_buf, MSG_NOSIGNAL,
+      uint16_t rc = HandlePacket();
+      uint16_t add_temp = rc == 0? 0 : 100;
+      if(rc != 0xDead) {
+        uint32_t packet_len = m_snd - m_buf;
+        sendto(m_sockfd, (const char *)m_buf, packet_len, MSG_NOSIGNAL,
 	             (struct sockaddr *)&sin6, sin6len);
-
-        CheckDAP(&sin6.sin6_addr, sin6len, m_snd - m_buf); // update for long answer
+        add_temp += packet_len >> 5; // Add temp for long answer
       }
+      CheckDAP(&sin6.sin6_addr, sin6len, add_temp); // More heat!
     } // dap check
   } // for
 
@@ -486,23 +489,24 @@ int EmcDns::HandlePacket() {
   m_hdr->Bits &= m_hdr->RD_MASK;
   m_hdr->Bits |= m_hdr->QR_MASK | m_hdr->AA_MASK;
 
+  uint16_t rc;
+
   do {
     // check flags QR=0 and TC=0
     if(m_hdr->QDCount == 0 || zCount != 0) {
-      m_hdr->Bits |= 1; // Format error, expected request
+      rc = 1; // Format error, expected request
       break;
     }
 
     uint16_t opcode = m_hdr->Bits & m_hdr->OPCODE_MASK;
-
     if(opcode != 0) {
-      m_hdr->Bits |= 4; // Not implemented; handle standard query only
+      rc = 4; // Not implemented; handle standard query only
       break;
     }
 
     if(m_status) {
       if((m_status = ::ChainstateActive().IsInitialBlockDownload()) != 0) {
-        m_hdr->Bits |= 2; // Server failure - not available valid nameindex DB yet
+        rc = 2; // Server failure - not available valid nameindex DB yet
         break;
       } else {
 	// Fill deferred toll-free default entries
@@ -534,11 +538,10 @@ int EmcDns::HandlePacket() {
     for(uint16_t qno = 0; qno < m_hdr->QDCount && m_snd < m_bufend; qno++) {
       if(m_verbose > 5) 
         LogPrintf("\tEmcDns::HandlePacket: qno=%u m_hdr->QDCount=%u\n", qno, m_hdr->QDCount);
-      uint16_t rc = HandleQuery();
+      rc = HandleQuery();
       if(rc) {
 	if(rc == 0xDead)
 	  return rc; // DAP or another error - lookup interrupted, don't answer
-	m_hdr->Bits |= rc;
 	break;
       }
     }
@@ -547,9 +550,10 @@ int EmcDns::HandlePacket() {
   // Remove AR-section from request, if exist
   int ar_len = m_rcvend - m_rcv;
 
-  if(ar_len < 0) {
-      m_hdr->Bits |= 1; // Format error, RCV pointer is over
-  }
+  if(ar_len < 0)
+      rc |= 1; // Format error, RCV pointer is over
+
+  m_hdr->Bits |= rc;
 
   if(ar_len > 0) {
     memmove(m_rcv, m_rcvend, m_snd - m_rcvend);
@@ -567,7 +571,7 @@ int EmcDns::HandlePacket() {
   }
   // Encode output header into network format
   m_hdr->Transcode();
-  return 0; // answer ready
+  return rc; // answer ready
 } // EmcDns::HandlePacket
 
 /*---------------------------------------------------*/
@@ -710,7 +714,7 @@ uint16_t EmcDns::HandleQuery() {
     do { // Search from up domain to down; start from 2-lvl, like www.[flibusta.lib]
       cur_ndx_p = prev_ndx_p;
       if(Search(*cur_ndx_p) <= 0) { // Result saved into m_value
-	CheckDAP(key, key - key_end, 6969); // allowed 4 false searches for non-exists domain
+	CheckDAP(key, key - key_end, 240); // allowed 4 false searches for non-exists domain
 	return 3; // empty answer, not found, return NXDOMAIN
       }
       if(cur_ndx_p == domain_ndx)
@@ -1015,7 +1019,7 @@ int EmcDns::LocalSearch(const uint8_t *key, uint8_t pos, uint8_t step) {
 /*---------------------------------------------------*/
 #define ROLADD(h,s,x)   h = ((h << s) | (h >> (32 - s))) + (x)
 // Returns true - can handle packet; false = ignore
-bool EmcDns::CheckDAP(void *key, int len, uint32_t packet_size) { 
+bool EmcDns::CheckDAP(void *key, int len, uint16_t inctemp) { 
   if(m_dap_ht == NULL)
     return true; // Filter is inactive
 
@@ -1027,8 +1031,8 @@ bool EmcDns::CheckDAP(void *key, int len, uint32_t packet_size) {
     for(int i = 0; i < (len / 4); i++)
       ROLADD(ip_addr, 1, ((const uint32_t *)key)[i]);
   }
-  
-  uint16_t inctemp = (packet_size >> 5) + 1; // 1 degr = 32 bytes unit
+
+  inctemp++;
   uint32_t hash = m_daprand, mintemp = ~0;
 
   int used_ndx[EMCDNS_DAPBLOOMSTEP];
@@ -1058,9 +1062,9 @@ bool EmcDns::CheckDAP(void *key, int len, uint32_t packet_size) {
   bool rc = mintemp < m_dap_treshold;
   if(m_verbose > 5 || (!rc && m_verbose > 3)) {
     char buf[80], outbuf[120];
-    snprintf(outbuf, sizeof(outbuf), "EmcDns::CheckDAP: IP=[%s] packet_size=%u, mintemp=%u dap_treshold=%u rc=%d\n", 
+    snprintf(outbuf, sizeof(outbuf), "EmcDns::CheckDAP: IP=[%s] inctemp=%u, mintemp=%u dap_treshold=%u rc=%d\n", 
 		    len < 0? (const char *)key : inet_ntop(len == 4? AF_INET : AF_INET6, key, buf, len),
-                    packet_size, mintemp, m_dap_treshold, rc);
+                    inctemp, mintemp, m_dap_treshold, rc);
     LogPrintf(outbuf);
   }
   return rc;
