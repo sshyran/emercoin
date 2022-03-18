@@ -7,7 +7,7 @@
  * Supports standard RFC1034 UDP DNS protocol only
  *
  * Supported fields: A, AAAA, NS, PTR, MX, TXT, CNAME
- * Does not support: SOA, WKS, SRV
+ * Does not support: SOA, WKS
  * Does not support recursive query, authority zone and namezone transfers.
  * 
  *
@@ -133,7 +133,7 @@ const static char *decodeQtype(uint8_t x) {
       case 15: return "MX";
       case 16 :return "TXT";
       case 28: return "AAAA";
-      case 33:   return "-SRV";
+      case 33:   return "SRV";
       case 35:   return "-NAPTR";
       case 0xff: return "-ALL";
       default:   return "-?";
@@ -756,7 +756,10 @@ uint16_t EmcDns::HandleQuery() {
         Answer_ALL(*q, strcpy(val2, m_value));
       break;
     case 1:	// A
+    case 12:	// PTR
+    case 15:	// MX
     case 28:	// AAAA
+    case 33:	// SRV
       Answer_ALL(qtype, strcpy(val2, m_value));
       // Not found A/AAAA - try lookup for CNAME in the default section
       // Quoth RFC 1034, Section 3.6.2:
@@ -772,6 +775,7 @@ uint16_t EmcDns::HandleQuery() {
       qtype = 2 | 0x80;
       // go to default below
     default:
+      // All other, including (CNAME, NS)
       Answer_ALL(qtype, m_value);
       break;
   } // switch
@@ -887,6 +891,7 @@ void EmcDns::Answer_ALL(uint16_t qtype, char *buf) {
         case 12: Fill_RD_DName(tokens[tok_no], 0, 0); break; // NS,CNAME,PTR
 	case 15: Fill_RD_DName(tokens[tok_no], 2, 0); break; // MX
 	case 16: Fill_RD_DName(tokens[tok_no], 0, 1); break; // TXT
+        case 33: Fill_RD_SRV(tokens[tok_no]);                // SRV
 	default: break;
       } // switch
   } // for
@@ -982,6 +987,38 @@ int EmcDns::Fill_RD_DName(char *txt, uint8_t mxsz, int8_t txtcor) {
 } // EmcDns::Fill_RD_DName
 
 /*---------------------------------------------------*/
+// SRV record input format: SRV=Pref:Prio:domain:port
+// Wire format: RDlen[2] Pri[2] Wei[2] Port[2] Domain[*]
+void EmcDns::Fill_RD_SRV(char *txt) {
+  do {
+    uint16_t pri = atoi(txt);
+    txt = strchr(txt, ':');
+    if(txt == NULL)
+        break;
+    txt++;
+    uint16_t wei = atoi(txt);
+    txt = strchr(txt, ':');
+    if(txt == NULL)
+        break;
+    txt++;
+    uint8_t *snd0 = m_snd;
+    m_snd += 4; // allow space for prio/weight
+    // Pseudo-MX processing
+    Fill_RD_DName(txt, 2, 0);
+    // Result fop pseudo-MX:
+    // [MX_len] [Prio(port)] [domain]
+    uint16_t mx_len = (snd0[4] << 8) | snd0[5];
+    uint8_t *snd_end = m_snd;
+    m_snd = snd0;
+    Out2(mx_len + 4);      // RDlen MX len + 4 (Pri+Wei)
+    Out2(pri); // Pri
+    Out2(wei); // Wei
+    m_snd = snd_end;
+    return;
+  } while(0);
+  m_hdr->Bits |= 2; // SERVFAIL - Server failed to complete the DNS request
+} // EmcDns::Fill_RD_SRV
+
 /*---------------------------------------------------*/
 
 int EmcDns::Search(uint8_t *key) {
