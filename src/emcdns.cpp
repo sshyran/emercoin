@@ -961,6 +961,8 @@ int EmcDns::Fill_RD_DName(char *txt, uint8_t mxsz, int8_t txtcor) {
       int tok_len = m_snd - tok_sz - 2;
       if(tok_len < 64 || txtcor != 0) { // check for rfc1035 2.3.1 (label length)
         *tok_sz = tok_len;
+        if(tok_len == 0)
+            m_snd--; // Malformed domain name, like "mail...ya." - reduce to 1-dot
       } else {
         // Object domain label, set ERR msg and SERFFAL
         const int msg_len = sizeof("Size-of--DomainLabel-->-63"); // including \0
